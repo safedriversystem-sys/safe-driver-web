@@ -10,13 +10,7 @@ export default function AboutPage() {
 
         <div className="prose max-w-none">
           <h2>Background</h2>
-          <p>
-            Road safety is a complex challenge globally, exacerbated in developing countries where infrastructure,
-            enforcement, and awareness may be inadequate. In Sri Lanka, over 2000 road fatalities are reported annually,
-            with bus accidents representing a large fraction. According to the National Transport Commission (NTC), the
-            leading causes include driver fatigue, distractions due to mobile phone use, and inattentiveness to driving
-            conditions.
-          </p>
+          
 
           <div className="my-8 relative h-64 rounded-lg overflow-hidden">
             <Image
