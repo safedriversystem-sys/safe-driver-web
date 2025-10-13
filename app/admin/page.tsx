@@ -23,7 +23,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 // Mock data for demonstration
 const mockAlerts = [
-  
+  {
+    id: "ALT001",
+    type: "drowsiness",
+    severity: "high",
+    driverName: "Kamal Perera",
+    busNumber: "NB-1234",
+    route: "Colombo - Kandy",
+    location: "Kadawatha Junction",
+    timestamp: "2025-01-09 14:30:25",
+    status: "active",
+    duration: "45 seconds",
+    escalationLevel: 3,
+  },
   {
     id: "ALT002",
     type: "phone_usage",
