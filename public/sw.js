@@ -218,9 +218,14 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(handleResourceRequest(request))
 })
 
-// API request handler - Network first, then cache
+// API request handler - Network first, then cache (only for GET requests)
 async function handleApiRequest(request) {
   const cacheName = DYNAMIC_CACHE
+
+  // Don't cache POST, PUT, DELETE, PATCH requests - only GET requests
+  if (request.method !== "GET") {
+    return fetch(request)
+  }
 
   try {
     // Try network first
@@ -294,9 +299,14 @@ async function handleNavigationRequest(request) {
   }
 }
 
-// Resource request handler - Cache first, then network
+// Resource request handler - Cache first, then network (only for GET requests)
 async function handleResourceRequest(request) {
   try {
+    // Only cache GET requests - POST, PUT, DELETE, etc. should not be cached
+    if (request.method !== "GET") {
+      return fetch(request)
+    }
+
     const cachedResponse = await caches.match(request)
     if (cachedResponse) {
       return cachedResponse
@@ -304,9 +314,11 @@ async function handleResourceRequest(request) {
 
     const networkResponse = await fetch(request)
 
-    // Cache the response
-    const cache = await caches.open(DYNAMIC_CACHE)
-    cache.put(request, networkResponse.clone())
+    // Only cache successful GET responses
+    if (networkResponse.ok) {
+      const cache = await caches.open(DYNAMIC_CACHE)
+      cache.put(request, networkResponse.clone())
+    }
 
     return networkResponse
   } catch (error) {
