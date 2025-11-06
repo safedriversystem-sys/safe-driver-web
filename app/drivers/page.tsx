@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2 } from "lucide-react"
+import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit } from "lucide-react"
 import type { Driver } from "@/lib/driver-types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -37,6 +37,8 @@ export default function DriversPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingDriver, setEditingDriver] = useState<Driver | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   const [newDriver, setNewDriver] = useState({
@@ -323,6 +325,68 @@ export default function DriversPage() {
     }
   }
 
+  const handleEditDriver = (driver: Driver) => {
+    setEditingDriver(driver)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateDriver = async () => {
+    if (!editingDriver) return
+
+    if (!editingDriver.name || !editingDriver.licenseNumber || !editingDriver.phone || !editingDriver.email) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Name, License, Phone, Email).",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      const response = await fetch(`/api/drivers/${editingDriver.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editingDriver.name,
+          licenseNumber: editingDriver.licenseNumber,
+          phone: editingDriver.phone,
+          email: editingDriver.email,
+          busNumber: editingDriver.busNumber || "",
+          route: editingDriver.route || "",
+          address: editingDriver.address || "",
+          experience: editingDriver.experience || "",
+          status: editingDriver.status,
+          safetyScore: editingDriver.safetyScore,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to update driver")
+      }
+
+      toast({
+        title: "Success",
+        description: `Driver ${editingDriver.name} has been updated successfully.`,
+      })
+
+      setIsEditDialogOpen(false)
+      setEditingDriver(null)
+      fetchDrivers()
+      fetchStats()
+    } catch (error: any) {
+      console.error("Error updating driver:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to update driver. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleDeleteDriver = async (driverId: string) => {
     if (!confirm("Are you sure you want to remove this driver?")) return
 
@@ -604,20 +668,24 @@ export default function DriversPage() {
                       <Eye className="h-4 w-4 mr-1" />
                       View
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleEditDriver(driver)}>
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => handleContactDriver(driver)}>
                       <Phone className="h-4 w-4 mr-1" />
                       Call
                     </Button>
                     <Button
                       size="sm"
-                      variant={driver.status === "on_duty" ? "destructive" : "success"}
+                      variant={driver.status === "on_duty" ? "destructive" : "default"}
                       onClick={() => handleToggleStatus(driver.id)}
                     >
                       {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDeleteDriver(driver.id)}>
                       <Trash2 className="h-4 w-4 mr-1" />
-                      Remove
+                      Delete
                     </Button>
                   </div>
                 </div>
@@ -626,6 +694,147 @@ export default function DriversPage() {
           </Card>
           ))}
         </div>
+      )}
+
+      {/* Edit Driver Dialog */}
+      {editingDriver && (
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+          setIsEditDialogOpen(open)
+          if (!open) setEditingDriver(null)
+        }}>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Driver - {editingDriver.name}</DialogTitle>
+              <DialogDescription>Update driver information</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Full Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={editingDriver.name}
+                  onChange={(e) => setEditingDriver({ ...editingDriver, name: e.target.value })}
+                  placeholder="Enter full name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-license">License Number *</Label>
+                <Input
+                  id="edit-license"
+                  value={editingDriver.licenseNumber}
+                  onChange={(e) => setEditingDriver({ ...editingDriver, licenseNumber: e.target.value })}
+                  placeholder="B1234567"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-phone">Phone Number *</Label>
+                <Input
+                  id="edit-phone"
+                  value={editingDriver.phone}
+                  onChange={(e) => setEditingDriver({ ...editingDriver, phone: e.target.value })}
+                  placeholder="+94 77 123 4567"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-email">Email *</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editingDriver.email}
+                  onChange={(e) => setEditingDriver({ ...editingDriver, email: e.target.value })}
+                  placeholder="driver@email.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-bus">Bus Number</Label>
+                <Input
+                  id="edit-bus"
+                  value={editingDriver.busNumber || ""}
+                  onChange={(e) => setEditingDriver({ ...editingDriver, busNumber: e.target.value })}
+                  placeholder="NB-1234"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-route">Route</Label>
+                <Input
+                  id="edit-route"
+                  value={editingDriver.route || ""}
+                  onChange={(e) => setEditingDriver({ ...editingDriver, route: e.target.value })}
+                  placeholder="Colombo - Kandy"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-experience">Experience</Label>
+                <Input
+                  id="edit-experience"
+                  value={editingDriver.experience || ""}
+                  onChange={(e) => setEditingDriver({ ...editingDriver, experience: e.target.value })}
+                  placeholder="5 years"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-address">Address</Label>
+                <Textarea
+                  id="edit-address"
+                  value={editingDriver.address || ""}
+                  onChange={(e) => setEditingDriver({ ...editingDriver, address: e.target.value })}
+                  placeholder="Enter address"
+                  spellCheck={false}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-status">Status</Label>
+                <Select
+                  value={editingDriver.status}
+                  onValueChange={(value: Driver["status"]) => setEditingDriver({ ...editingDriver, status: value })}
+                >
+                  <SelectTrigger id="edit-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="on_duty">On Duty</SelectItem>
+                    <SelectItem value="off_duty">Off Duty</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="on_break">On Break</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-safety-score">Safety Score (0-100)</Label>
+                <Input
+                  id="edit-safety-score"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={editingDriver.safetyScore}
+                  onChange={(e) => setEditingDriver({ ...editingDriver, safetyScore: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleUpdateDriver} className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Driver"
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditDialogOpen(false)
+                    setEditingDriver(null)
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Driver Details Dialog */}
