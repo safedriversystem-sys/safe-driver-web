@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,65 +17,28 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2 } from "lucide-react"
-
-const mockDrivers = [
-  {
-    id: "DRV001",
-    name: "Kamal Perera",
-    licenseNumber: "B1234567",
-    phone: "+94 77 123 4567",
-    email: "kamal.perera@email.com",
-    busNumber: "NB-1234",
-    route: "Colombo - Kandy",
-    status: "on_duty",
-    alertCount: 3,
-    safetyScore: 75,
-    lastAlert: "2025-01-09 14:30:25",
-    joinDate: "2023-05-15",
-    experience: "8 years",
-    address: "123 Main St, Colombo",
-  },
-  {
-    id: "DRV002",
-    name: "Sunil Silva",
-    licenseNumber: "B2345678",
-    phone: "+94 77 234 5678",
-    email: "sunil.silva@email.com",
-    busNumber: "WP-5678",
-    route: "Galle - Matara",
-    status: "on_duty",
-    alertCount: 1,
-    safetyScore: 92,
-    lastAlert: "2025-01-09 14:25:10",
-    joinDate: "2022-03-20",
-    experience: "12 years",
-    address: "456 Beach Rd, Galle",
-  },
-  {
-    id: "DRV003",
-    name: "Nimal Fernando",
-    licenseNumber: "B3456789",
-    phone: "+94 77 345 6789",
-    email: "nimal.fernando@email.com",
-    busNumber: "CP-9012",
-    route: "Negombo - Colombo",
-    status: "off_duty",
-    alertCount: 0,
-    safetyScore: 98,
-    lastAlert: "2025-01-08 18:45:30",
-    joinDate: "2021-11-10",
-    experience: "15 years",
-    address: "789 Church St, Negombo",
-  },
-]
+import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2 } from "lucide-react"
+import type { Driver } from "@/lib/driver-types"
+import { useToast } from "@/hooks/use-toast"
 
 export default function DriversPage() {
-  const [drivers, setDrivers] = useState(mockDrivers)
+  const [drivers, setDrivers] = useState<Driver[]>([])
+  const [stats, setStats] = useState({
+    total: 0,
+    onDuty: 0,
+    offDuty: 0,
+    suspended: 0,
+    highPerformers: 0,
+    needAttention: 0,
+    averageSafetyScore: 0,
+  })
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [selectedDriver, setSelectedDriver] = useState<any>(null)
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
   const [newDriver, setNewDriver] = useState({
     name: "",
     licenseNumber: "",
@@ -87,14 +50,74 @@ export default function DriversPage() {
     experience: "",
   })
 
-  const filteredDrivers = drivers.filter((driver) => {
-    const matchesSearch =
-      driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      driver.licenseNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      driver.busNumber.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || driver.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  // Fetch drivers
+  const fetchDrivers = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter)
+      }
+      if (searchTerm) {
+        params.append("search", searchTerm)
+      }
+
+      const response = await fetch(`/api/drivers?${params.toString()}`)
+      if (!response.ok) throw new Error("Failed to fetch drivers")
+      const data = await response.json()
+      setDrivers(data)
+    } catch (error) {
+      console.error("Error fetching drivers:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to load drivers"
+      
+      // Check if it's a Firebase configuration error
+      if (errorMessage.includes("Firebase not configured") || errorMessage.includes("503")) {
+        toast({
+          title: "Firebase Not Configured",
+          description: "Please set up Firebase by creating .env.local file. See SETUP_GUIDE.md for instructions.",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage || "Failed to load drivers. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch stats
+  const fetchStats = async () => {
+    try {
+      const response = await fetch("/api/drivers/stats")
+      if (!response.ok) throw new Error("Failed to fetch stats")
+      const data = await response.json()
+      setStats(data)
+    } catch (error) {
+      console.error("Error fetching stats:", error)
+    }
+  }
+
+  useEffect(() => {
+    fetchDrivers()
+    fetchStats()
+  }, [])
+
+  // Refetch when filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchDrivers()
+    }, 300) // Debounce search
+
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter])
+
+  // Filter is now handled server-side, but we can do client-side filtering for instant feedback
+  const filteredDrivers = drivers
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -115,45 +138,180 @@ export default function DriversPage() {
     return "text-red-600"
   }
 
-  const handleAddDriver = () => {
-    const driver = {
-      id: `DRV${String(drivers.length + 1).padStart(3, "0")}`,
-      ...newDriver,
-      status: "off_duty",
-      alertCount: 0,
-      safetyScore: 100,
-      lastAlert: "Never",
-      joinDate: new Date().toISOString().split("T")[0],
+  const handleAddDriver = async () => {
+    if (!newDriver.name || !newDriver.licenseNumber || !newDriver.phone || !newDriver.email) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Name, License, Phone, Email).",
+        variant: "destructive",
+      })
+      return
     }
-    setDrivers([...drivers, driver])
-    setNewDriver({
-      name: "",
-      licenseNumber: "",
-      phone: "",
-      email: "",
-      busNumber: "",
-      route: "",
-      address: "",
-      experience: "",
-    })
-    setIsAddDialogOpen(false)
+
+    try {
+      setIsSubmitting(true)
+      const response = await fetch("/api/drivers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newDriver),
+      })
+
+      if (!response.ok) {
+        let error
+        try {
+          error = await response.json()
+        } catch (e) {
+          // If response is not JSON, it might be a network error
+          throw new Error("Network error: Unable to reach the server. Please check your connection and ensure the dev server is running.")
+        }
+        
+        const errorMessage = error.error || error.message || "Failed to create driver"
+        
+        // Check if it's an offline error from service worker (must check this first)
+        if (error.offline === true || errorMessage === "Offline" || response.headers.get("X-Offline") === "true") {
+          throw new Error("Connection issue: Unable to reach the server. Please ensure:\n1. The development server is running (npm run dev)\n2. Firebase emulators are running (npm run firebase:emulators)\n3. Your network connection is active\n\nSee SETUP_GUIDE.md for setup instructions.")
+        }
+        
+        // Check if it's a Firebase configuration error (but not an offline error)
+        if (errorMessage.includes("Firebase not configured") || errorMessage.includes("Firebase initialization failed")) {
+          throw new Error("Firebase not configured. Please set up Firebase by creating .env.local file. See SETUP_GUIDE.md")
+        }
+        
+        // Check for connection errors
+        if (errorMessage.includes("Cannot connect to Firebase") || errorMessage.includes("ECONNREFUSED")) {
+          throw new Error("Cannot connect to Firebase. Please ensure Firebase emulators are running: npm run firebase:emulators")
+        }
+        
+        throw new Error(errorMessage)
+      }
+
+      const driver = await response.json()
+      toast({
+        title: "Success",
+        description: `Driver ${driver.name} has been added successfully.`,
+      })
+
+      setNewDriver({
+        name: "",
+        licenseNumber: "",
+        phone: "",
+        email: "",
+        busNumber: "",
+        route: "",
+        address: "",
+        experience: "",
+      })
+      setIsAddDialogOpen(false)
+      
+      // Small delay to ensure Firestore write completes before fetching
+      setTimeout(() => {
+        fetchDrivers()
+        fetchStats()
+      }, 500)
+    } catch (error: any) {
+      console.error("Error creating driver:", error)
+      const errorMessage = error?.message || "Failed to create driver"
+      
+      // Check if it's a connection/offline error
+      if (errorMessage.includes("Connection issue") || errorMessage.includes("Unable to reach the server")) {
+        toast({
+          title: "Connection Error",
+          description: errorMessage.split('\n').join(' '), // Convert multi-line to single line
+          variant: "destructive",
+          duration: 10000, // Show longer for important errors
+        })
+      } else if (errorMessage.includes("Firebase not configured") || errorMessage.includes("Firebase initialization failed")) {
+        toast({
+          title: "Configuration Error",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 10000, // Show longer for important errors
+        })
+      } else if (errorMessage.includes("Cannot connect to Firebase") || errorMessage.includes("ECONNREFUSED")) {
+        toast({
+          title: "Firebase Connection Error",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 8000,
+        })
+      } else if (errorMessage.includes("Network error")) {
+        toast({
+          title: "Network Error",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 8000,
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage || "Failed to create driver. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleContactDriver = (driver: any) => {
     alert(`Calling ${driver.name} at ${driver.phone}...`)
   }
 
-  const handleToggleStatus = (driverId: string) => {
-    setDrivers(
-      drivers.map((driver) =>
-        driver.id === driverId ? { ...driver, status: driver.status === "on_duty" ? "off_duty" : "on_duty" } : driver,
-      ),
-    )
+  const handleToggleStatus = async (driverId: string) => {
+    try {
+      const driver = drivers.find((d) => d.id === driverId)
+      if (!driver) return
+
+      const newStatus = driver.status === "on_duty" ? "off_duty" : "on_duty"
+      const response = await fetch(`/api/drivers/${driverId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update status")
+
+      toast({
+        title: "Success",
+        description: `Driver status updated to ${newStatus.replace("_", " ")}.`,
+      })
+
+      fetchDrivers()
+      fetchStats()
+    } catch (error) {
+      console.error("Error updating status:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update driver status. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleDeleteDriver = (driverId: string) => {
-    if (confirm("Are you sure you want to remove this driver?")) {
-      setDrivers(drivers.filter((driver) => driver.id !== driverId))
+  const handleDeleteDriver = async (driverId: string) => {
+    if (!confirm("Are you sure you want to remove this driver?")) return
+
+    try {
+      const response = await fetch(`/api/drivers/${driverId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) throw new Error("Failed to delete driver")
+
+      toast({
+        title: "Success",
+        description: "Driver has been removed successfully.",
+      })
+
+      fetchDrivers()
+      fetchStats()
+    } catch (error) {
+      console.error("Error deleting driver:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete driver. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -248,10 +406,18 @@ export default function DriversPage() {
                   value={newDriver.address}
                   onChange={(e) => setNewDriver({ ...newDriver, address: e.target.value })}
                   placeholder="Enter address"
+                  spellCheck={false}
                 />
               </div>
-              <Button onClick={handleAddDriver} className="w-full">
-                Add Driver
+              <Button onClick={handleAddDriver} className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Driver"
+                )}
               </Button>
             </div>
           </DialogContent>
@@ -265,7 +431,7 @@ export default function DriversPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Drivers</p>
-                <p className="text-2xl font-bold">{drivers.length}</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
               </div>
               <Users className="h-8 w-8 text-blue-600" />
             </div>
@@ -276,9 +442,7 @@ export default function DriversPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">On Duty</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {drivers.filter((d) => d.status === "on_duty").length}
-                </p>
+                <p className="text-2xl font-bold text-green-600">{stats.onDuty}</p>
               </div>
               <Activity className="h-8 w-8 text-green-600" />
             </div>
@@ -289,7 +453,7 @@ export default function DriversPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">High Performers</p>
-                <p className="text-2xl font-bold text-green-600">{drivers.filter((d) => d.safetyScore >= 90).length}</p>
+                <p className="text-2xl font-bold text-green-600">{stats.highPerformers}</p>
               </div>
               <Activity className="h-8 w-8 text-green-600" />
             </div>
@@ -300,7 +464,7 @@ export default function DriversPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Need Attention</p>
-                <p className="text-2xl font-bold text-red-600">{drivers.filter((d) => d.safetyScore < 80).length}</p>
+                <p className="text-2xl font-bold text-red-600">{stats.needAttention}</p>
               </div>
               <Activity className="h-8 w-8 text-red-600" />
             </div>
@@ -342,8 +506,17 @@ export default function DriversPage() {
       </Card>
 
       {/* Drivers List */}
-      <div className="space-y-4">
-        {filteredDrivers.map((driver) => (
+      {loading ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Loader2 className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-spin" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Loading drivers...</h3>
+            <p className="text-gray-600">Please wait while we fetch driver data.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {filteredDrivers.map((driver) => (
           <Card key={driver.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
@@ -360,7 +533,13 @@ export default function DriversPage() {
                     </div>
                     <p className="text-sm text-gray-600">License: {driver.licenseNumber}</p>
                     <p className="text-sm text-gray-600">
-                      Bus: {driver.busNumber} • Route: {driver.route}
+                      {driver.busNumber && driver.route
+                        ? `Bus: ${driver.busNumber} • Route: ${driver.route}`
+                        : driver.busNumber
+                          ? `Bus: ${driver.busNumber}`
+                          : driver.route
+                            ? `Route: ${driver.route}`
+                            : "No bus or route assigned"}
                     </p>
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <span className="flex items-center">
@@ -410,8 +589,9 @@ export default function DriversPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Driver Details Dialog */}
       {selectedDriver && (
@@ -494,10 +674,10 @@ export default function DriversPage() {
                 </div>
               </TabsContent>
               <TabsContent value="history" className="space-y-4">
-                <div>
-                  <Label>Last Alert</Label>
-                  <p className="font-medium">{selectedDriver.lastAlert}</p>
-                </div>
+                  <div>
+                    <Label>Last Alert</Label>
+                    <p className="font-medium">{selectedDriver.lastAlert || "Never"}</p>
+                  </div>
                 <div>
                   <Label>Recent Activity</Label>
                   <div className="space-y-2 mt-2">

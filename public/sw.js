@@ -226,15 +226,19 @@ async function handleApiRequest(request) {
     // Try network first
     const networkResponse = await fetch(request)
 
+    // Return the response even if it's not ok (to show real API errors)
+    // Only cache successful responses
     if (networkResponse.ok) {
-      // Cache successful responses
       const cache = await caches.open(cacheName)
       cache.put(request, networkResponse.clone())
-      return networkResponse
     }
-
-    throw new Error("Network response not ok")
+    
+    // Always return the network response so real errors are visible
+    return networkResponse
   } catch (error) {
+    // Only fallback to cache/offline if the fetch itself failed (network error)
+    // This means the server couldn't be reached, not that it returned an error
+    
     // Fallback to cache
     const cachedResponse = await caches.match(request)
 
@@ -252,11 +256,11 @@ async function handleApiRequest(request) {
       return modifiedResponse
     }
 
-    // Return offline fallback
+    // Return offline fallback only if we truly can't reach the server
     return new Response(
       JSON.stringify({
         error: "Offline",
-        message: "This data is not available offline",
+        message: "Unable to reach the server. Please check your connection and ensure the dev server is running.",
         offline: true,
       }),
       {

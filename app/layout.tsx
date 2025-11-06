@@ -7,6 +7,7 @@ import { AdminSidebar } from "@/components/admin-sidebar"
 import { MobileNav } from "@/components/mobile-nav"
 import { OfflineIndicator } from "@/components/offline-indicator"
 import { VoiceCommandButton } from "@/components/voice-command-button"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -55,6 +56,9 @@ export default function RootLayout({
 
           {/* Voice Command Button */}
           <VoiceCommandButton />
+
+          {/* Toast Notifications */}
+          <Toaster />
         </div>
 
         {/* Service Worker Registration */}

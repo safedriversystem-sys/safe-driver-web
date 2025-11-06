@@ -70,14 +70,26 @@ export const firestoreService = {
   ): Promise<void> => {
     const db = getFirebaseFirestore()
     const docRef = doc(db, collectionName, documentId)
-    await setDoc(
-      docRef,
-      {
-        ...data,
-        updatedAt: Timestamp.now(),
-      },
-      { merge: true },
+    
+    // Remove undefined values (Firestore doesn't allow undefined)
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined)
     )
+    
+    const dataToSave = {
+      ...cleanData,
+      updatedAt: Timestamp.now(),
+    }
+    
+    console.log(`[Firestore] Saving document: ${collectionName}/${documentId}`, dataToSave)
+    
+    try {
+      await setDoc(docRef, dataToSave, { merge: true })
+      console.log(`[Firestore] Document saved successfully: ${collectionName}/${documentId}`)
+    } catch (error) {
+      console.error(`[Firestore] Error saving document ${collectionName}/${documentId}:`, error)
+      throw error
+    }
   },
 
   // Update a document
@@ -88,8 +100,14 @@ export const firestoreService = {
   ): Promise<void> => {
     const db = getFirebaseFirestore()
     const docRef = doc(db, collectionName, documentId)
+    
+    // Remove undefined values (Firestore doesn't allow undefined)
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined)
+    )
+    
     await updateDoc(docRef, {
-      ...data,
+      ...cleanData,
       updatedAt: Timestamp.now(),
     })
   },

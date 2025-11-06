@@ -33,14 +33,25 @@ const getFirebaseConfig = (): FirebaseConfig => {
     config.measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
   }
 
-  // Validate required fields
+  // Validate required fields (only check if not using emulators or if values are truly empty)
+  const useEmulators = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true"
   const requiredFields = ["apiKey", "authDomain", "projectId", "storageBucket", "messagingSenderId", "appId"]
-  const missingFields = requiredFields.filter((field) => !config[field as keyof FirebaseConfig])
+  const missingFields = requiredFields.filter((field) => {
+    const value = config[field as keyof FirebaseConfig]
+    // For emulator mode, allow placeholder values; for production, require non-empty values
+    if (useEmulators) {
+      return !value || value.trim() === ""
+    }
+    return !value || value.trim() === "" || value.includes("your-") || value.includes("placeholder")
+  })
 
   if (missingFields.length > 0) {
-    console.warn(
-      `Firebase configuration missing required fields: ${missingFields.join(", ")}. Please check your .env.local file.`,
-    )
+    const errorMessage = `Firebase configuration missing required fields: ${missingFields.join(", ")}. Please check your .env.local file. See SETUP_GUIDE.md for instructions.`
+    console.error(errorMessage)
+    // Throw error in server-side to prevent initialization
+    if (typeof window === "undefined") {
+      throw new Error(errorMessage)
+    }
   }
 
   return config
@@ -80,6 +91,25 @@ export const initializeFirebase = (): {
     app = existingApps[0]
   } else {
     const config = getFirebaseConfig()
+    
+    // Validate config before initializing
+    const useEmulators = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true"
+    const requiredFields = ["apiKey", "authDomain", "projectId", "storageBucket", "messagingSenderId", "appId"]
+    const missingFields = requiredFields.filter((field) => {
+      const value = config[field as keyof FirebaseConfig]
+      // For emulator mode, allow placeholder values; for production, require non-empty values
+      if (useEmulators) {
+        return !value || value.trim() === ""
+      }
+      return !value || value.trim() === "" || value.includes("your-") || value.includes("placeholder")
+    })
+    
+    if (missingFields.length > 0) {
+      const errorMessage = `Firebase not configured. Missing: ${missingFields.join(", ")}. Please create .env.local file with Firebase credentials. See SETUP_GUIDE.md`
+      console.error(errorMessage)
+      throw new Error(errorMessage)
+    }
+    
     app = initializeApp(config)
   }
 
@@ -89,40 +119,53 @@ export const initializeFirebase = (): {
   database = getDatabase(app)
   storage = getStorage(app)
 
-  // Connect to emulators in development mode
+  // Connect to emulators in development mode (works on both client and server)
   const useEmulators = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true"
   
-  if (useEmulators && typeof window !== "undefined") {
+  if (useEmulators) {
     try {
       // Connect to Auth Emulator (only if not already connected)
       try {
         connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true })
-      } catch (e) {
-        // Already connected or error
+      } catch (e: any) {
+        // Already connected or error - ignore
+        if (!e.message?.includes("already been initialized")) {
+          console.warn("Auth Emulator connection:", e.message)
+        }
       }
       
       // Connect to Firestore Emulator
       try {
-        connectFirestoreEmulator(firestore, "localhost", 8080)
-      } catch (e) {
-        // Already connected or error
+        connectFirestoreEmulator(firestore, "localhost", 8082)
+      } catch (e: any) {
+        // Already connected or error - ignore
+        if (!e.message?.includes("already been initialized")) {
+          console.warn("Firestore Emulator connection:", e.message)
+        }
       }
       
       // Connect to Realtime Database Emulator
       try {
-        connectDatabaseEmulator(database, "localhost", 9000)
-      } catch (e) {
-        // Already connected or error
+        connectDatabaseEmulator(database, "localhost", 9002)
+      } catch (e: any) {
+        // Already connected or error - ignore
+        if (!e.message?.includes("already been initialized")) {
+          console.warn("Database Emulator connection:", e.message)
+        }
       }
       
       // Connect to Storage Emulator
       try {
         connectStorageEmulator(storage, "localhost", 9199)
-      } catch (e) {
-        // Already connected or error
+      } catch (e: any) {
+        // Already connected or error - ignore
+        if (!e.message?.includes("already been initialized")) {
+          console.warn("Storage Emulator connection:", e.message)
+        }
       }
       
-      console.log("🔥 Connected to Firebase Emulators")
+      const env = typeof window !== "undefined" ? "Client" : "Server"
+      console.log(`🔥 [${env}] Connected to Firebase Emulators`)
     } catch (error) {
       console.warn("Firebase Emulator connection error:", error)
     }

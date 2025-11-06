@@ -81,8 +81,8 @@ firebase emulators:start
 
 The emulators will start on the following ports:
 - **Auth Emulator**: http://localhost:9099
-- **Firestore Emulator**: http://localhost:8080
-- **Realtime Database Emulator**: http://localhost:9000
+- **Firestore Emulator**: http://localhost:8082
+- **Realtime Database Emulator**: http://localhost:9002
 - **Storage Emulator**: http://localhost:9199
 - **Emulator UI**: http://localhost:4000
 
