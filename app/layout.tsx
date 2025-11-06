@@ -80,7 +80,16 @@ export default function RootLayout({
         {/* Service Worker Registration */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `if('serviceWorker'in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(e){console.error('SW registration failed:',e)})})}`,
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js')
+                    .catch(function(e) {
+                      console.error('SW registration failed:', e);
+                    });
+                });
+              }
+            `,
           }}
         />
       </body>
