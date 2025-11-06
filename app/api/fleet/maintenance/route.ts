@@ -11,12 +11,34 @@ try {
 }
 
 const createMaintenanceSchema = z.object({
-  vehicleId: z.string().min(1, "Vehicle ID is required"),
-  type: z.string().min(1, "Maintenance type is required"),
-  scheduledDate: z.string().min(1, "Scheduled date is required"),
-  priority: z.enum(["low", "medium", "high"]),
-  estimatedCost: z.number().min(0),
-  description: z.string().optional(),
+  vehicleId: z.string().min(1, "Please select a vehicle"),
+  type: z
+    .string()
+    .min(1, "Maintenance type is required")
+    .max(100, "Maintenance type must be 100 characters or less"),
+  scheduledDate: z
+    .string()
+    .min(1, "Scheduled date is required")
+    .refine(
+      (date) => {
+        const selectedDate = new Date(date)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        return selectedDate >= today
+      },
+      { message: "Scheduled date cannot be in the past" }
+    ),
+  priority: z.enum(["low", "medium", "high"], {
+    errorMap: () => ({ message: "Priority must be low, medium, or high" }),
+  }),
+  estimatedCost: z
+    .number({
+      required_error: "Estimated cost is required",
+      invalid_type_error: "Estimated cost must be a valid number",
+    })
+    .min(0, "Estimated cost cannot be negative")
+    .max(10000000, "Estimated cost is too large"),
+  description: z.string().max(500, "Description must be 500 characters or less").optional(),
 })
 
 // GET /api/fleet/maintenance - Get all maintenance schedules
@@ -43,8 +65,27 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validationResult = createMaintenanceSchema.safeParse(body)
     if (!validationResult.success) {
+      // Format validation errors into user-friendly messages
+      const errorMessages = validationResult.error.errors.map((err) => {
+        const field = err.path.join(".")
+        return `${field.charAt(0).toUpperCase() + field.slice(1)}: ${err.message}`
+      })
+
+      const mainError = errorMessages.length === 1 
+        ? errorMessages[0]
+        : `Please fix the following errors:\n${errorMessages.join("\n")}`
+
       return NextResponse.json(
-        { error: "Validation failed", details: validationResult.error.errors },
+        { 
+          error: "Validation failed",
+          message: mainError,
+          details: validationResult.error.errors,
+          fields: validationResult.error.errors.reduce((acc, err) => {
+            const field = err.path.join(".")
+            acc[field] = err.message
+            return acc
+          }, {} as Record<string, string>)
+        },
         { status: 400 },
       )
     }

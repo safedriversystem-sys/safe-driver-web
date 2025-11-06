@@ -191,10 +191,35 @@ export default function FleetManagement() {
   const filteredVehicles = vehicles
 
   const addVehicle = async () => {
-    if (!newVehicle.busNumber || !newVehicle.model || !newVehicle.year) {
+    // Client-side validation
+    const errors: string[] = []
+    
+    if (!newVehicle.busNumber?.trim()) {
+      errors.push("Bus number is required")
+    }
+    
+    if (!newVehicle.model?.trim()) {
+      errors.push("Vehicle model is required")
+    }
+    
+    if (!newVehicle.year) {
+      errors.push("Year is required")
+    } else {
+      const yearNum = parseInt(newVehicle.year)
+      const currentYear = new Date().getFullYear()
+      if (isNaN(yearNum)) {
+        errors.push("Year must be a valid number")
+      } else if (yearNum < 1900) {
+        errors.push(`Year must be between 1900 and ${currentYear + 1}`)
+      } else if (yearNum > currentYear + 1) {
+        errors.push(`Year cannot be greater than ${currentYear + 1}`)
+      }
+    }
+
+    if (errors.length > 0) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields (Bus Number, Model, Year).",
+        description: errors.length === 1 ? errors[0] : `Please fix the following:\n${errors.join("\n")}`,
         variant: "destructive",
       })
       return
@@ -206,17 +231,19 @@ export default function FleetManagement() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          busNumber: newVehicle.busNumber,
-          model: newVehicle.model,
+          busNumber: newVehicle.busNumber.trim(),
+          model: newVehicle.model.trim(),
           year: parseInt(newVehicle.year),
-          driverName: newVehicle.driverName,
-          route: newVehicle.route,
+          driverName: newVehicle.driverName?.trim() || undefined,
+          route: newVehicle.route?.trim() || undefined,
         }),
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Failed to create vehicle")
+        const errorData = await response.json()
+        // Use the formatted message if available, otherwise use error
+        const errorMessage = errorData.message || errorData.error || "Failed to create vehicle"
+        throw new Error(errorMessage)
       }
 
       toast({
@@ -240,10 +267,38 @@ export default function FleetManagement() {
   }
 
   const scheduleMaintenance = async () => {
-    if (!newMaintenance.vehicleId || !newMaintenance.type || !newMaintenance.scheduledDate) {
+    // Client-side validation
+    const errors: string[] = []
+    
+    if (!newMaintenance.vehicleId) {
+      errors.push("Please select a vehicle")
+    }
+    
+    if (!newMaintenance.type?.trim()) {
+      errors.push("Maintenance type is required")
+    }
+    
+    if (!newMaintenance.scheduledDate) {
+      errors.push("Scheduled date is required")
+    } else {
+      const selectedDate = new Date(newMaintenance.scheduledDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (selectedDate < today) {
+        errors.push("Scheduled date cannot be in the past")
+      }
+    }
+
+    if (newMaintenance.estimatedCost && isNaN(parseInt(newMaintenance.estimatedCost))) {
+      errors.push("Estimated cost must be a valid number")
+    } else if (newMaintenance.estimatedCost && parseInt(newMaintenance.estimatedCost) < 0) {
+      errors.push("Estimated cost cannot be negative")
+    }
+
+    if (errors.length > 0) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields.",
+        description: errors.length === 1 ? errors[0] : `Please fix the following:\n${errors.join("\n")}`,
         variant: "destructive",
       })
       return
@@ -256,17 +311,18 @@ export default function FleetManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vehicleId: newMaintenance.vehicleId,
-          type: newMaintenance.type,
+          type: newMaintenance.type.trim(),
           scheduledDate: newMaintenance.scheduledDate,
           priority: newMaintenance.priority,
           estimatedCost: parseInt(newMaintenance.estimatedCost) || 0,
-          description: newMaintenance.description,
+          description: newMaintenance.description?.trim() || "",
         }),
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Failed to schedule maintenance")
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to schedule maintenance"
+        throw new Error(errorMessage)
       }
 
       toast({
@@ -304,33 +360,41 @@ export default function FleetManagement() {
         body: JSON.stringify({ status: newStatus }),
       })
 
-      if (!response.ok) throw new Error("Failed to update vehicle status")
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to update vehicle status"
+        throw new Error(errorMessage)
+      }
 
       toast({
         title: "Success",
-        description: `Vehicle status updated to ${newStatus}.`,
+        description: `Vehicle status updated to ${newStatus.replace("_", " ")}.`,
       })
 
       fetchVehicles()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating vehicle status:", error)
       toast({
         title: "Error",
-        description: "Failed to update vehicle status. Please try again.",
+        description: error?.message || "Failed to update vehicle status. Please try again.",
         variant: "destructive",
       })
     }
   }
 
   const deleteVehicle = async (vehicleId: string) => {
-    if (!confirm("Are you sure you want to delete this vehicle?")) return
+    if (!confirm("Are you sure you want to delete this vehicle? This action cannot be undone.")) return
 
     try {
       const response = await fetch(`/api/fleet/${vehicleId}`, {
         method: "DELETE",
       })
 
-      if (!response.ok) throw new Error("Failed to delete vehicle")
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to delete vehicle"
+        throw new Error(errorMessage)
+      }
 
       toast({
         title: "Success",
@@ -338,11 +402,11 @@ export default function FleetManagement() {
       })
 
       fetchVehicles()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting vehicle:", error)
       toast({
         title: "Error",
-        description: "Failed to delete vehicle. Please try again.",
+        description: error?.message || "Failed to delete vehicle. Please try again.",
         variant: "destructive",
       })
     }
@@ -356,33 +420,41 @@ export default function FleetManagement() {
         body: JSON.stringify({ status }),
       })
 
-      if (!response.ok) throw new Error("Failed to update maintenance status")
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to update maintenance status"
+        throw new Error(errorMessage)
+      }
 
       toast({
         title: "Success",
-        description: "Maintenance status updated.",
+        description: `Maintenance status updated to ${status.replace("_", " ")}.`,
       })
 
       fetchMaintenanceSchedules()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating maintenance status:", error)
       toast({
         title: "Error",
-        description: "Failed to update maintenance status. Please try again.",
+        description: error?.message || "Failed to update maintenance status. Please try again.",
         variant: "destructive",
       })
     }
   }
 
   const deleteMaintenance = async (maintenanceId: string) => {
-    if (!confirm("Are you sure you want to delete this maintenance schedule?")) return
+    if (!confirm("Are you sure you want to delete this maintenance schedule? This action cannot be undone.")) return
 
     try {
       const response = await fetch(`/api/fleet/maintenance/${maintenanceId}`, {
         method: "DELETE",
       })
 
-      if (!response.ok) throw new Error("Failed to delete maintenance schedule")
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to delete maintenance schedule"
+        throw new Error(errorMessage)
+      }
 
       toast({
         title: "Success",
@@ -390,11 +462,11 @@ export default function FleetManagement() {
       })
 
       fetchMaintenanceSchedules()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting maintenance schedule:", error)
       toast({
         title: "Error",
-        description: "Failed to delete maintenance schedule. Please try again.",
+        description: error?.message || "Failed to delete maintenance schedule. Please try again.",
         variant: "destructive",
       })
     }
