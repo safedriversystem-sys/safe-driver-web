@@ -27,6 +27,6 @@ if ($port3000) {
 } else {
     Write-Host "✓ Port 3000 is free and available" -ForegroundColor Green
 }
-
 Write-Host "`nYou can now run: npm run dev" -ForegroundColor Cyan
+
 

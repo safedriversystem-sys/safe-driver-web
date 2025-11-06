@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p 3001",
     "dev:port": "next dev",
     "lint": "next lint",
     "start": "next start",
@@ -55,6 +55,7 @@
     "expo-asset": "latest",
     "expo-file-system": "latest",
     "expo-gl": "latest",
+    "firebase": "^10.13.0",
     "framer-motion": "latest",
     "input-otp": "1.4.1",
     "jspdf": "latest",
