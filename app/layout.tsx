@@ -8,6 +8,7 @@ import { MobileNav } from "@/components/mobile-nav"
 import { OfflineIndicator } from "@/components/offline-indicator"
 import { VoiceCommandButton } from "@/components/voice-command-button"
 import { Toaster } from "@/components/ui/toaster"
+import { FirebaseInitializer } from "@/components/firebase-initializer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -65,6 +66,9 @@ export default function RootLayout({
 
           {/* Toast Notifications */}
           <Toaster />
+
+          {/* Firebase Initializer (client-side only) */}
+          <FirebaseInitializer />
         </div>
 
         {/* Service Worker Registration */}

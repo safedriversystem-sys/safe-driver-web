@@ -135,50 +135,64 @@ export const getFirebaseStorage = (): FirebaseStorage => {
   return storage
 }
 
+// Initialize messaging (browser only, call this explicitly when needed)
+export const initializeMessaging = async (): Promise<Messaging | null> => {
+  if (typeof window === "undefined") {
+    return null
+  }
+  if (messaging) {
+    return messaging
+  }
+  if (!app) {
+    initializeFirebase()
+  }
+  if (!app) return null
+  
+  try {
+    const messagingModule = await import("firebase/messaging")
+    messaging = messagingModule.getMessaging(app)
+    return messaging
+  } catch (error) {
+    console.warn("Firebase Cloud Messaging is not available:", error)
+    return null
+  }
+}
+
+// Initialize analytics (browser only, call this explicitly when needed)
+export const initializeAnalytics = async (): Promise<Analytics | null> => {
+  if (typeof window === "undefined") {
+    return null
+  }
+  if (analytics) {
+    return analytics
+  }
+  if (!app) {
+    initializeFirebase()
+  }
+  if (!app) return null
+  
+  try {
+    const analyticsModule = await import("firebase/analytics")
+    analytics = analyticsModule.getAnalytics(app) as Analytics
+    return analytics
+  } catch (error) {
+    console.warn("Firebase Analytics is not available:", error)
+    return null
+  }
+}
+
 export const getFirebaseMessaging = (): Messaging | null => {
   if (typeof window === "undefined") {
     return null
   }
-  if (!messaging) {
-    // Ensure Firebase app is initialized
-    if (!app) {
-      initializeFirebase()
-    }
-    if (!app) return null
-    
-    try {
-      // Dynamic import to avoid server-side bundling issues
-      const { getMessaging: getMessagingFn } = require("firebase/messaging")
-      messaging = getMessagingFn(app)
-    } catch (error) {
-      console.warn("Firebase Cloud Messaging is not available:", error)
-      return null
-    }
-  }
-  return messaging
+  return messaging || null
 }
 
 export const getFirebaseAnalytics = (): Analytics | null => {
   if (typeof window === "undefined") {
     return null
   }
-  if (!analytics) {
-    // Ensure Firebase app is initialized
-    if (!app) {
-      initializeFirebase()
-    }
-    if (!app) return null
-    
-    try {
-      // Dynamic import to avoid server-side bundling issues
-      const { getAnalytics: getAnalyticsFn } = require("firebase/analytics")
-      analytics = getAnalyticsFn(app) as Analytics
-    } catch (error) {
-      console.warn("Firebase Analytics is not available:", error)
-      return null
-    }
-  }
-  return analytics
+  return analytics || null
 }
 
 // Note: Firebase is initialized lazily when services are accessed
