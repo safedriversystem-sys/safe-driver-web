@@ -55,8 +55,8 @@ self.addEventListener("push", (event) => {
   let notificationData = {
     title: "SafeDriver Alert",
     body: "You have a new notification",
-    icon: "/icons/icon-192x192.png",
-    badge: "/icons/badge-72x72.png",
+    icon: "/placeholder-logo.png",
+    badge: "/placeholder-logo.png",
     tag: "safedriver-notification",
     requireInteraction: false,
     actions: [],

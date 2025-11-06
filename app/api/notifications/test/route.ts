@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
       title: "SafeDriver Test Notification",
       body: "Push notifications are working correctly! 🎉",
       type: "general",
-      icon: "/icons/icon-192x192.png",
-      badge: "/icons/badge-72x72.png",
+      icon: "/placeholder-logo.png",
+      badge: "/placeholder-logo.png",
       tag: "test-notification",
       data: {
         url: "/",
