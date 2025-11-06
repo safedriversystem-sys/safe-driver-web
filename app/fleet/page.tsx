@@ -37,187 +37,115 @@ import {
   Shield,
   TrendingUp,
   TrendingDown,
+  Loader2,
 } from "lucide-react"
-
-// Mock fleet data
-const mockVehicles = [
-  {
-    id: "VH001",
-    busNumber: "NB-1234",
-    model: "Tata LP 1618",
-    year: 2022,
-    status: "active",
-    location: { lat: 6.9271, lng: 79.8612, address: "Colombo Fort" },
-    driver: "Kamal Perera",
-    route: "Colombo - Kandy",
-    fuel: 85,
-    mileage: 45230,
-    lastService: "2024-12-15",
-    nextService: "2025-02-15",
-    maintenanceStatus: "good",
-    speed: 45,
-    engineTemp: 85,
-    batteryLevel: 92,
-    safetyScore: 88,
-    alerts: 2,
-    serviceHistory: [
-      { date: "2024-12-15", type: "Regular Service", cost: 15000, description: "Oil change, brake inspection" },
-      { date: "2024-10-20", type: "Tire Replacement", cost: 25000, description: "Replaced front tires" },
-      { date: "2024-08-10", type: "Engine Maintenance", cost: 35000, description: "Engine tune-up and cleaning" },
-    ],
-  },
-  {
-    id: "VH002",
-    busNumber: "WP-5678",
-    model: "Ashok Leyland Viking",
-    year: 2021,
-    status: "maintenance",
-    location: { lat: 6.0535, lng: 80.221, address: "Galle Workshop" },
-    driver: "Sunil Silva",
-    route: "Galle - Matara",
-    fuel: 60,
-    mileage: 67890,
-    lastService: "2024-11-30",
-    nextService: "2025-01-30",
-    maintenanceStatus: "needs_attention",
-    speed: 0,
-    engineTemp: 70,
-    batteryLevel: 88,
-    safetyScore: 92,
-    alerts: 1,
-    serviceHistory: [
-      { date: "2024-11-30", type: "Brake Service", cost: 18000, description: "Brake pad replacement" },
-      { date: "2024-09-15", type: "Regular Service", cost: 12000, description: "Routine maintenance" },
-    ],
-  },
-  {
-    id: "VH003",
-    busNumber: "CP-9012",
-    model: "Eicher Skyline Pro",
-    year: 2023,
-    status: "active",
-    location: { lat: 7.2906, lng: 80.6337, address: "Negombo Bus Stand" },
-    driver: "Nimal Fernando",
-    route: "Negombo - Colombo",
-    fuel: 92,
-    mileage: 23450,
-    lastService: "2025-01-05",
-    nextService: "2025-03-05",
-    maintenanceStatus: "excellent",
-    speed: 35,
-    engineTemp: 82,
-    batteryLevel: 95,
-    safetyScore: 96,
-    alerts: 0,
-    serviceHistory: [
-      { date: "2025-01-05", type: "Regular Service", cost: 14000, description: "Full service and inspection" },
-      { date: "2024-11-10", type: "AC Service", cost: 8000, description: "AC system maintenance" },
-    ],
-  },
-  {
-    id: "VH004",
-    busNumber: "SG-3456",
-    model: "Tata Ultra 1518",
-    year: 2020,
-    status: "inactive",
-    location: { lat: 7.9553, lng: 81.0014, address: "Anuradhapura Depot" },
-    driver: "Ravi Kumara",
-    route: "Anuradhapura - Polonnaruwa",
-    fuel: 25,
-    mileage: 89560,
-    lastService: "2024-10-15",
-    nextService: "2024-12-15",
-    maintenanceStatus: "overdue",
-    speed: 0,
-    engineTemp: 65,
-    batteryLevel: 75,
-    safetyScore: 72,
-    alerts: 4,
-    serviceHistory: [
-      { date: "2024-10-15", type: "Engine Repair", cost: 45000, description: "Major engine overhaul" },
-      { date: "2024-08-20", type: "Transmission Service", cost: 28000, description: "Transmission fluid change" },
-    ],
-  },
-]
-
-const mockMaintenanceSchedule = [
-  {
-    id: "MS001",
-    vehicleId: "VH001",
-    busNumber: "NB-1234",
-    type: "Regular Service",
-    scheduledDate: "2025-02-15",
-    status: "scheduled",
-    priority: "medium",
-    estimatedCost: 15000,
-    description: "Routine maintenance and inspection",
-  },
-  {
-    id: "MS002",
-    vehicleId: "VH004",
-    busNumber: "SG-3456",
-    type: "Engine Repair",
-    scheduledDate: "2025-01-20",
-    status: "overdue",
-    priority: "high",
-    estimatedCost: 35000,
-    description: "Engine diagnostic and repair",
-  },
-  {
-    id: "MS003",
-    vehicleId: "VH002",
-    busNumber: "WP-5678",
-    type: "Tire Replacement",
-    scheduledDate: "2025-01-25",
-    status: "in_progress",
-    priority: "medium",
-    estimatedCost: 22000,
-    description: "Replace rear tires",
-  },
-]
+import type { Vehicle, MaintenanceSchedule } from "@/lib/fleet-types"
+import { useToast } from "@/hooks/use-toast"
 
 export default function FleetManagement() {
-  const [vehicles, setVehicles] = useState(mockVehicles)
-  const [maintenanceSchedule, setMaintenanceSchedule] = useState(mockMaintenanceSchedule)
-  const [selectedVehicle, setSelectedVehicle] = useState(null)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [maintenanceSchedule, setMaintenanceSchedule] = useState<MaintenanceSchedule[]>([])
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [maintenanceFilter, setMaintenanceFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
   const [showAddVehicle, setShowAddVehicle] = useState(false)
   const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editingMaintenance, setEditingMaintenance] = useState<MaintenanceSchedule | null>(null)
+  const { toast } = useToast()
+
   const [newVehicle, setNewVehicle] = useState({
     busNumber: "",
     model: "",
     year: "",
-    driver: "",
+    driverName: "",
     route: "",
   })
+
   const [newMaintenance, setNewMaintenance] = useState({
     vehicleId: "",
     type: "",
     scheduledDate: "",
-    priority: "medium",
+    priority: "medium" as "low" | "medium" | "high",
     estimatedCost: "",
     description: "",
   })
 
-  // Real-time updates simulation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setVehicles((prev) =>
-        prev.map((vehicle) => ({
-          ...vehicle,
-          fuel: Math.max(20, vehicle.fuel + (Math.random() - 0.5) * 5),
-          speed:
-            vehicle.status === "active" ? Math.max(0, Math.min(60, vehicle.speed + (Math.random() - 0.5) * 10)) : 0,
-          engineTemp: Math.max(70, Math.min(100, vehicle.engineTemp + (Math.random() - 0.5) * 3)),
-          batteryLevel: Math.max(70, Math.min(100, vehicle.batteryLevel + (Math.random() - 0.5) * 2)),
-        })),
-      )
-    }, 5000)
+  // Fetch vehicles
+  const fetchVehicles = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter)
+      }
+      if (maintenanceFilter !== "all") {
+        params.append("maintenanceStatus", maintenanceFilter)
+      }
+      if (searchTerm) {
+        params.append("search", searchTerm)
+      }
 
-    return () => clearInterval(interval)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+      try {
+        const response = await fetch(`/api/fleet?${params.toString()}`, {
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+
+        if (!response.ok) throw new Error("Failed to fetch vehicles")
+        const data = await response.json()
+        setVehicles(data)
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId)
+        if (fetchError.name === "AbortError") {
+          throw new Error("Request timeout: The server took too long to respond.")
+        }
+        throw fetchError
+      }
+    } catch (error) {
+      console.error("Error fetching vehicles:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to load vehicles"
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch maintenance schedules
+  const fetchMaintenanceSchedules = async () => {
+    try {
+      const response = await fetch("/api/fleet/maintenance")
+      if (!response.ok) throw new Error("Failed to fetch maintenance schedules")
+      const data = await response.json()
+      setMaintenanceSchedule(data)
+    } catch (error) {
+      console.error("Error fetching maintenance schedules:", error)
+    }
+  }
+
+  useEffect(() => {
+    fetchVehicles()
+    fetchMaintenanceSchedules()
   }, [])
+
+  // Refetch when filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchVehicles()
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, maintenanceFilter])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -260,74 +188,215 @@ export default function FleetManagement() {
     }
   }
 
-  const filteredVehicles = vehicles.filter((vehicle) => {
-    const matchesSearch =
-      vehicle.busNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.driver.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.route.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || vehicle.status === statusFilter
-    const matchesMaintenance = maintenanceFilter === "all" || vehicle.maintenanceStatus === maintenanceFilter
-    return matchesSearch && matchesStatus && matchesMaintenance
-  })
+  const filteredVehicles = vehicles
 
-  const addVehicle = () => {
-    const vehicle = {
-      id: `VH${String(vehicles.length + 1).padStart(3, "0")}`,
-      busNumber: newVehicle.busNumber,
-      model: newVehicle.model,
-      year: Number.parseInt(newVehicle.year),
-      status: "inactive",
-      location: { lat: 6.9271, lng: 79.8612, address: "Colombo Depot" },
-      driver: newVehicle.driver,
-      route: newVehicle.route,
-      fuel: 100,
-      mileage: 0,
-      lastService: new Date().toISOString().split("T")[0],
-      nextService: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      maintenanceStatus: "excellent",
-      speed: 0,
-      engineTemp: 75,
-      batteryLevel: 100,
-      safetyScore: 100,
-      alerts: 0,
-      serviceHistory: [],
+  const addVehicle = async () => {
+    if (!newVehicle.busNumber || !newVehicle.model || !newVehicle.year) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Bus Number, Model, Year).",
+        variant: "destructive",
+      })
+      return
     }
-    setVehicles([...vehicles, vehicle])
-    setNewVehicle({ busNumber: "", model: "", year: "", driver: "", route: "" })
-    setShowAddVehicle(false)
-  }
 
-  const scheduleMaintenance = () => {
-    const maintenance = {
-      id: `MS${String(maintenanceSchedule.length + 1).padStart(3, "0")}`,
-      vehicleId: newMaintenance.vehicleId,
-      busNumber: vehicles.find((v) => v.id === newMaintenance.vehicleId)?.busNumber || "",
-      type: newMaintenance.type,
-      scheduledDate: newMaintenance.scheduledDate,
-      status: "scheduled",
-      priority: newMaintenance.priority,
-      estimatedCost: Number.parseInt(newMaintenance.estimatedCost),
-      description: newMaintenance.description,
+    try {
+      setIsSubmitting(true)
+      const response = await fetch("/api/fleet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          busNumber: newVehicle.busNumber,
+          model: newVehicle.model,
+          year: parseInt(newVehicle.year),
+          driverName: newVehicle.driverName,
+          route: newVehicle.route,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to create vehicle")
+      }
+
+      toast({
+        title: "Success",
+        description: "Vehicle added successfully.",
+      })
+
+      setNewVehicle({ busNumber: "", model: "", year: "", driverName: "", route: "" })
+      setShowAddVehicle(false)
+      fetchVehicles()
+    } catch (error: any) {
+      console.error("Error creating vehicle:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to create vehicle. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
-    setMaintenanceSchedule([...maintenanceSchedule, maintenance])
-    setNewMaintenance({
-      vehicleId: "",
-      type: "",
-      scheduledDate: "",
-      priority: "medium",
-      estimatedCost: "",
-      description: "",
-    })
-    setShowMaintenanceDialog(false)
   }
 
-  const updateVehicleStatus = (vehicleId: string, newStatus: string) => {
-    setVehicles(vehicles.map((vehicle) => (vehicle.id === vehicleId ? { ...vehicle, status: newStatus } : vehicle)))
+  const scheduleMaintenance = async () => {
+    if (!newMaintenance.vehicleId || !newMaintenance.type || !newMaintenance.scheduledDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      const response = await fetch("/api/fleet/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleId: newMaintenance.vehicleId,
+          type: newMaintenance.type,
+          scheduledDate: newMaintenance.scheduledDate,
+          priority: newMaintenance.priority,
+          estimatedCost: parseInt(newMaintenance.estimatedCost) || 0,
+          description: newMaintenance.description,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to schedule maintenance")
+      }
+
+      toast({
+        title: "Success",
+        description: "Maintenance scheduled successfully.",
+      })
+
+      setNewMaintenance({
+        vehicleId: "",
+        type: "",
+        scheduledDate: "",
+        priority: "medium",
+        estimatedCost: "",
+        description: "",
+      })
+      setShowMaintenanceDialog(false)
+      fetchMaintenanceSchedules()
+    } catch (error: any) {
+      console.error("Error scheduling maintenance:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to schedule maintenance. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const deleteVehicle = (vehicleId: string) => {
-    if (confirm("Are you sure you want to delete this vehicle?")) {
-      setVehicles(vehicles.filter((vehicle) => vehicle.id !== vehicleId))
+  const updateVehicleStatus = async (vehicleId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/fleet/${vehicleId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update vehicle status")
+
+      toast({
+        title: "Success",
+        description: `Vehicle status updated to ${newStatus}.`,
+      })
+
+      fetchVehicles()
+    } catch (error) {
+      console.error("Error updating vehicle status:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update vehicle status. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteVehicle = async (vehicleId: string) => {
+    if (!confirm("Are you sure you want to delete this vehicle?")) return
+
+    try {
+      const response = await fetch(`/api/fleet/${vehicleId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) throw new Error("Failed to delete vehicle")
+
+      toast({
+        title: "Success",
+        description: "Vehicle deleted successfully.",
+      })
+
+      fetchVehicles()
+    } catch (error) {
+      console.error("Error deleting vehicle:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete vehicle. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const updateMaintenanceStatus = async (maintenanceId: string, status: string) => {
+    try {
+      const response = await fetch(`/api/fleet/maintenance/${maintenanceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update maintenance status")
+
+      toast({
+        title: "Success",
+        description: "Maintenance status updated.",
+      })
+
+      fetchMaintenanceSchedules()
+    } catch (error) {
+      console.error("Error updating maintenance status:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update maintenance status. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteMaintenance = async (maintenanceId: string) => {
+    if (!confirm("Are you sure you want to delete this maintenance schedule?")) return
+
+    try {
+      const response = await fetch(`/api/fleet/maintenance/${maintenanceId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) throw new Error("Failed to delete maintenance schedule")
+
+      toast({
+        title: "Success",
+        description: "Maintenance schedule deleted successfully.",
+      })
+
+      fetchMaintenanceSchedules()
+    } catch (error) {
+      console.error("Error deleting maintenance schedule:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete maintenance schedule. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -375,7 +444,7 @@ export default function FleetManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-tech-600">
-              {Math.round(vehicles.reduce((acc, v) => acc + v.fuel, 0) / vehicles.length)}%
+              {vehicles.length > 0 ? Math.round(vehicles.reduce((acc, v) => acc + v.fuel, 0) / vehicles.length) : 0}%
             </div>
             <p className="text-xs text-muted-foreground">Fleet average</p>
           </CardContent>
@@ -388,7 +457,7 @@ export default function FleetManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-safety-600">
-              {Math.round(vehicles.reduce((acc, v) => acc + v.safetyScore, 0) / vehicles.length)}%
+              {vehicles.length > 0 ? Math.round(vehicles.reduce((acc, v) => acc + v.safetyScore, 0) / vehicles.length) : 0}%
             </div>
             <p className="text-xs text-muted-foreground">Fleet average</p>
           </CardContent>
@@ -457,8 +526,8 @@ export default function FleetManagement() {
                         <Label htmlFor="driver">Assigned Driver</Label>
                         <Input
                           id="driver"
-                          value={newVehicle.driver}
-                          onChange={(e) => setNewVehicle({ ...newVehicle, driver: e.target.value })}
+                          value={newVehicle.driverName}
+                          onChange={(e) => setNewVehicle({ ...newVehicle, driverName: e.target.value })}
                           placeholder="Driver name"
                         />
                       </div>
@@ -471,8 +540,15 @@ export default function FleetManagement() {
                           placeholder="e.g., Colombo - Kandy"
                         />
                       </div>
-                      <Button onClick={addVehicle} className="w-full">
-                        Add Vehicle
+                      <Button onClick={addVehicle} className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Adding...
+                          </>
+                        ) : (
+                          "Add Vehicle"
+                        )}
                       </Button>
                     </div>
                   </DialogContent>
@@ -519,8 +595,21 @@ export default function FleetManagement() {
               </div>
 
               {/* Vehicle Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {filteredVehicles.map((vehicle) => (
+              {loading ? (
+                <div className="p-12 text-center">
+                  <Loader2 className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-spin" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Loading vehicles...</h3>
+                  <p className="text-gray-600">Please wait while we fetch fleet data.</p>
+                </div>
+              ) : filteredVehicles.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Bus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles found</h3>
+                  <p className="text-gray-600">No vehicles match your current filters.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {filteredVehicles.map((vehicle) => (
                   <Card key={vehicle.id} className="hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="flex justify-between items-start">
@@ -544,7 +633,7 @@ export default function FleetManagement() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500" />
-                            <span>{vehicle.driver}</span>
+                            <span>{vehicle.driverName || "No driver assigned"}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Route className="h-4 w-4 text-gray-500" />
@@ -665,8 +754,9 @@ export default function FleetManagement() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -709,7 +799,7 @@ export default function FleetManagement() {
                         </div>
                         <div className="text-center">
                           <p className="text-gray-500">Driver</p>
-                          <p className="font-medium">{vehicle.driver}</p>
+                          <p className="font-medium">{vehicle.driverName || "No driver"}</p>
                         </div>
                         <Button size="sm" variant="outline">
                           <Navigation className="h-4 w-4 mr-1" />
@@ -816,8 +906,15 @@ export default function FleetManagement() {
                           placeholder="Maintenance details..."
                         />
                       </div>
-                      <Button onClick={scheduleMaintenance} className="w-full">
-                        Schedule Maintenance
+                      <Button onClick={scheduleMaintenance} className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Scheduling...
+                          </>
+                        ) : (
+                          "Schedule Maintenance"
+                        )}
                       </Button>
                     </div>
                   </DialogContent>
@@ -869,11 +966,15 @@ export default function FleetManagement() {
                         <Edit className="h-4 w-4 mr-1" />
                         Edit
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateMaintenanceStatus(maintenance.id, "completed")}
+                      >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Complete
                       </Button>
-                      <Button size="sm" variant="destructive">
+                      <Button size="sm" variant="destructive" onClick={() => deleteMaintenance(maintenance.id)}>
                         <Trash2 className="h-4 w-4 mr-1" />
                         Cancel
                       </Button>
