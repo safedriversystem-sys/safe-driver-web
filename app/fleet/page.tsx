@@ -41,6 +41,7 @@ import {
 } from "lucide-react"
 import type { Vehicle, MaintenanceSchedule } from "@/lib/fleet-types"
 import { useToast } from "@/hooks/use-toast"
+import { FleetMap } from "@/components/fleet-map"
 
 export default function FleetManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -841,13 +842,13 @@ export default function FleetManagement() {
               <CardDescription>Monitor live locations and status of all vehicles</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Map Placeholder */}
-              <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center mb-6">
-                <div className="text-center">
-                  <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">Interactive Map View</p>
-                  <p className="text-sm text-gray-500">Real-time vehicle locations would be displayed here</p>
-                </div>
+              {/* Interactive Map */}
+              <div className="mb-6">
+                <FleetMap
+                  vehicles={vehicles.filter((v) => v.status === "active" || v.status === "maintenance")}
+                  selectedVehicle={selectedVehicle}
+                  onVehicleClick={setSelectedVehicle}
+                />
               </div>
 
               {/* Vehicle Status List */}
@@ -873,7 +874,11 @@ export default function FleetManagement() {
                           <p className="text-gray-500">Driver</p>
                           <p className="font-medium">{vehicle.driverName || "No driver"}</p>
                         </div>
-                        <Button size="sm" variant="outline">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedVehicle(vehicle)}
+                        >
                           <Navigation className="h-4 w-4 mr-1" />
                           Track
                         </Button>
