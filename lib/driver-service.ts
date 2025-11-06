@@ -22,7 +22,7 @@ const generateDriverId = async (): Promise<string> => {
 
 export const driverService = {
   // Get all drivers with optional filters
-  getAllDrivers: async (filters?: DriverFilters): Promise<Driver[]> => {
+  getAllDrivers: async (filters?: DriverFilters & { limit?: number }): Promise<Driver[]> => {
     try {
       // Build Firestore query constraints for server-side filtering
       const constraints: any[] = []
@@ -41,8 +41,14 @@ export const driverService = {
         constraints.push(firestoreService.where("safetyScore", "<=", filters.maxSafetyScore))
       }
       
-      // Always order by createdAt
+      // Order by createdAt first (required before limit in Firestore)
       constraints.push(firestoreService.orderByField("createdAt", "desc"))
+
+      // Add limit for better performance (after ordering)
+      const limit = filters?.limit || 100
+      if (limit > 0) {
+        constraints.push(firestoreService.limitResults(limit))
+      }
 
       // Fetch with server-side filters
       let drivers = await firestoreService.getCollection<Driver>(COLLECTION_NAME, constraints)
@@ -58,6 +64,13 @@ export const driverService = {
             driver.email.toLowerCase().includes(searchLower),
         )
       }
+
+      // Ensure drivers are sorted by createdAt (descending)
+      drivers.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return dateB - dateA // Descending order
+      })
 
       return drivers
     } catch (error) {

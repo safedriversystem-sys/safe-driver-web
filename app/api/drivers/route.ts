@@ -35,11 +35,14 @@ export async function GET(request: NextRequest) {
       maxSafetyScore: searchParams.get("maxSafetyScore")
         ? parseInt(searchParams.get("maxSafetyScore")!)
         : undefined,
+      limit: searchParams.get("limit")
+        ? parseInt(searchParams.get("limit")!)
+        : 100, // Default limit for performance
     }
 
-    // Remove undefined values
+    // Remove undefined values (but keep limit even if it's the default)
     Object.keys(filters).forEach((key) => {
-      if (filters[key as keyof typeof filters] === undefined) {
+      if (filters[key as keyof typeof filters] === undefined && key !== "limit") {
         delete filters[key as keyof typeof filters]
       }
     })

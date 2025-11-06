@@ -15,6 +15,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit } from "lucide-react"
@@ -40,6 +50,9 @@ export default function DriversPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
   const [newDriver, setNewDriver] = useState({
     name: "",
@@ -68,7 +81,7 @@ export default function DriversPage() {
     }
   }
 
-  // Fetch drivers with timeout
+  // Fetch drivers with timeout and optimizations
   const fetchDrivers = async () => {
     try {
       setLoading(true)
@@ -79,19 +92,28 @@ export default function DriversPage() {
       if (searchTerm) {
         params.append("search", searchTerm)
       }
+      // Add limit to improve performance
+      params.append("limit", "100")
 
-      // Add timeout to prevent hanging
+      // Reduced timeout for faster feedback
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
 
       try {
+        const startTime = Date.now()
         const response = await fetch(`/api/drivers?${params.toString()}`, {
           signal: controller.signal,
+          cache: "no-store", // Ensure fresh data
         })
         clearTimeout(timeoutId)
         
+        const fetchTime = Date.now() - startTime
+        console.log(`Drivers fetched in ${fetchTime}ms`)
+        
         if (!response.ok) throw new Error("Failed to fetch drivers")
         const data = await response.json()
+        
+        // Update state immediately
         setDrivers(data)
         // Calculate stats from fetched drivers (much faster than separate API call)
         setStats(calculateStats(data))
@@ -126,11 +148,13 @@ export default function DriversPage() {
   }
 
   useEffect(() => {
+    // Initial load
     fetchDrivers()
   }, [])
 
-  // Refetch when filters change
+  // Refetch when filters change with debounce
   useEffect(() => {
+    // Skip if this is the initial mount (already handled above)
     const timeoutId = setTimeout(() => {
       fetchDrivers()
     }, 300) // Debounce search
@@ -403,29 +427,43 @@ export default function DriversPage() {
     }
   }
 
-  const handleDeleteDriver = async (driverId: string) => {
-    if (!confirm("Are you sure you want to remove this driver?")) return
+  const handleDeleteClick = (driver: Driver) => {
+    setDriverToDelete(driver)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteDriver = async () => {
+    if (!driverToDelete) return
 
     try {
-      const response = await fetch(`/api/drivers/${driverId}`, {
+      setIsDeleting(true)
+      const response = await fetch(`/api/drivers/${driverToDelete.id}`, {
         method: "DELETE",
       })
 
-      if (!response.ok) throw new Error("Failed to delete driver")
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to delete driver"
+        throw new Error(errorMessage)
+      }
 
       toast({
         title: "Success",
-        description: "Driver has been removed successfully.",
+        description: `Driver ${driverToDelete.name} has been removed successfully.`,
       })
 
+      setDeleteDialogOpen(false)
+      setDriverToDelete(null)
       fetchDrivers()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting driver:", error)
       toast({
         title: "Error",
-        description: "Failed to delete driver. Please try again.",
+        description: error?.message || "Failed to delete driver. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -620,7 +658,7 @@ export default function DriversPage() {
       </Card>
 
       {/* Drivers List */}
-      {loading ? (
+      {loading && drivers.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <Loader2 className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-spin" />
@@ -698,7 +736,12 @@ export default function DriversPage() {
                     >
                       {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleDeleteDriver(driver.id)}>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDeleteClick(driver)}
+                      disabled={isDeleting}
+                    >
                       <Trash2 className="h-4 w-4 mr-1" />
                       Delete
                     </Button>
@@ -960,6 +1003,40 @@ export default function DriversPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Driver</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{driverToDelete?.name}</strong>? This action cannot be undone.
+              {driverToDelete?.status === "on_duty" && (
+                <span className="block mt-2 text-amber-600 font-medium">
+                  Warning: This driver is currently on duty. Make sure to assign their vehicle to another driver first.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDriver}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Driver"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

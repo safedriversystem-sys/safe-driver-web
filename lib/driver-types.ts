@@ -50,5 +50,6 @@ export interface DriverFilters {
   search?: string
   minSafetyScore?: number
   maxSafetyScore?: number
+  limit?: number
 }
 
