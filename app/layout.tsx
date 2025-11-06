@@ -16,7 +16,11 @@ export const metadata: Metadata = {
   title: "SafeDriver Authority Panel",
   description: "Transport Safety Management System",
   manifest: "/manifest.json",
-  generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: '/placeholder-logo.png',
+    apple: '/placeholder-logo.png',
+  },
 }
 
 export const viewport: Viewport = {
@@ -35,7 +39,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <link rel="icon" href="/placeholder-logo.png" />
+        <link rel="apple-touch-icon" href="/placeholder-logo.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="SafeDriver" />
@@ -78,11 +84,8 @@ export default function RootLayout({
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('SW registered: ', registration);
-                    })
                     .catch(function(registrationError) {
-                      console.log('SW registration failed: ', registrationError);
+                      console.error('SW registration failed: ', registrationError);
                     });
                 });
               }

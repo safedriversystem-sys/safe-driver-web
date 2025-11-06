@@ -174,13 +174,11 @@ export default function DriversPage() {
         const isOfflineError = error.offline === true || errorMessage === "Offline" || response.headers.get("X-Offline") === "true"
         
         if (response.status === 503 && isOfflineError) {
-          console.log("Detected offline error from service worker (503):", { error, errorMessage, status: response.status })
           throw new Error("CONNECTION_ERROR: Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators).")
         }
         
         // Also check for offline flag or "Offline" message regardless of status
         if (isOfflineError) {
-          console.log("Detected offline error:", { error, errorMessage, status: response.status })
           throw new Error("CONNECTION_ERROR: Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators).")
         }
         
