@@ -9,6 +9,7 @@ import { OfflineIndicator } from "@/components/offline-indicator"
 import { VoiceCommandButton } from "@/components/voice-command-button"
 import { Toaster } from "@/components/ui/toaster"
 import { FirebaseInitializer } from "@/components/firebase-initializer"
+import { ServiceWorkerRegister } from "@/components/service-worker-register"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -75,23 +76,10 @@ export default function RootLayout({
 
           {/* Firebase Initializer (client-side only) */}
           <FirebaseInitializer />
-        </div>
 
-        {/* Service Worker Registration */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .catch(function(e) {
-                      console.error('SW registration failed:', e);
-                    });
-                });
-              }
-            `,
-          }}
-        />
+          {/* Service Worker Registration (client-side only) */}
+          <ServiceWorkerRegister />
+        </div>
       </body>
     </html>
   )
