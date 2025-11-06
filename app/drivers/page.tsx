@@ -168,8 +168,18 @@ export default function DriversPage() {
         const errorMessage = error.error || error.message || "Failed to create driver"
         
         // Check if it's an offline error from service worker (must check this first)
-        if (error.offline === true || errorMessage === "Offline" || response.headers.get("X-Offline") === "true") {
-          throw new Error("Connection issue: Unable to reach the server. Please ensure:\n1. The development server is running (npm run dev)\n2. Firebase emulators are running (npm run firebase:emulators)\n3. Your network connection is active\n\nSee SETUP_GUIDE.md for setup instructions.")
+        // Service worker returns 503 with { error: "Offline", offline: true } when server is unreachable
+        const isOfflineError = error.offline === true || errorMessage === "Offline" || response.headers.get("X-Offline") === "true"
+        
+        if (response.status === 503 && isOfflineError) {
+          console.log("Detected offline error from service worker (503):", { error, errorMessage, status: response.status })
+          throw new Error("CONNECTION_ERROR: Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators).")
+        }
+        
+        // Also check for offline flag or "Offline" message regardless of status
+        if (isOfflineError) {
+          console.log("Detected offline error:", { error, errorMessage, status: response.status })
+          throw new Error("CONNECTION_ERROR: Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators).")
         }
         
         // Check if it's a Firebase configuration error (but not an offline error)
@@ -210,15 +220,40 @@ export default function DriversPage() {
       }, 500)
     } catch (error: any) {
       console.error("Error creating driver:", error)
-      const errorMessage = error?.message || "Failed to create driver"
+      const errorMessage = error?.message || error?.toString() || "Failed to create driver"
       
-      // Check if it's a connection/offline error
-      if (errorMessage.includes("Connection issue") || errorMessage.includes("Unable to reach the server")) {
+      // Check if it's a connection error (marked with CONNECTION_ERROR prefix or contains connection/offline keywords)
+      if (
+        errorMessage.startsWith("CONNECTION_ERROR:") ||
+        errorMessage.includes("Connection issue") ||
+        errorMessage.includes("Unable to reach the server") ||
+        (errorMessage === "Offline" || (errorMessage.includes("Offline") && !errorMessage.includes("Connection")))
+      ) {
+        // Extract the message after CONNECTION_ERROR: or use a default message
+        const description = errorMessage.startsWith("CONNECTION_ERROR:") 
+          ? errorMessage.replace("CONNECTION_ERROR:", "").trim()
+          : "Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators)."
+        
         toast({
           title: "Connection Error",
-          description: errorMessage.split('\n').join(' '), // Convert multi-line to single line
+          description: description,
           variant: "destructive",
-          duration: 10000, // Show longer for important errors
+          duration: 10000,
+        })
+      }
+      // Check if it's a fetch/network failure (fetch throws TypeError when network fails)
+      else if (
+        errorMessage === "Failed to fetch" ||
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("NetworkError") ||
+        errorMessage.includes("Network request failed") ||
+        error?.name === "TypeError"
+      ) {
+        toast({
+          title: "Connection Error",
+          description: "Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators).",
+          variant: "destructive",
+          duration: 10000,
         })
       } else if (errorMessage.includes("Firebase not configured") || errorMessage.includes("Firebase initialization failed")) {
         toast({

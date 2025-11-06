@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { AdminHeader } from "@/components/admin-header"
@@ -15,9 +15,15 @@ export const metadata: Metadata = {
   title: "SafeDriver Authority Panel",
   description: "Transport Safety Management System",
   manifest: "/manifest.json",
+  generator: 'v0.dev'
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: "#3b82f6",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({

@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
+    "dev:port": "next dev",
     "lint": "next lint",
     "start": "next start",
     "firebase:emulators": "firebase emulators:start",
-    "firebase:emulators:ui": "firebase emulators:start --only ui"
+    "firebase:emulators:ui": "firebase emulators:start --only ui",
+    "fix:port3000": "powershell -Command \"$port = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue; if ($port) { Stop-Process -Id $port.OwningProcess -Force; Write-Host 'Port 3000 freed' } else { Write-Host 'Port 3000 is free' }\""
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
