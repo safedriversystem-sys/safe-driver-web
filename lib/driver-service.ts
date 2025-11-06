@@ -24,34 +24,39 @@ export const driverService = {
   // Get all drivers with optional filters
   getAllDrivers: async (filters?: DriverFilters): Promise<Driver[]> => {
     try {
-      let drivers = await firestoreService.getCollection<Driver>(COLLECTION_NAME, [
-        firestoreService.orderByField("createdAt", "desc"),
-      ])
+      // Build Firestore query constraints for server-side filtering
+      const constraints: any[] = []
+      
+      // Apply status filter server-side (much faster)
+      if (filters?.status && filters.status !== "all") {
+        constraints.push(firestoreService.where("status", "==", filters.status))
+      }
+      
+      // Apply safety score filters server-side if provided
+      if (filters?.minSafetyScore !== undefined) {
+        constraints.push(firestoreService.where("safetyScore", ">=", filters.minSafetyScore))
+      }
+      
+      if (filters?.maxSafetyScore !== undefined) {
+        constraints.push(firestoreService.where("safetyScore", "<=", filters.maxSafetyScore))
+      }
+      
+      // Always order by createdAt
+      constraints.push(firestoreService.orderByField("createdAt", "desc"))
 
-      // Apply filters
-      if (filters) {
-        if (filters.status && filters.status !== "all") {
-          drivers = drivers.filter((driver) => driver.status === filters.status)
-        }
+      // Fetch with server-side filters
+      let drivers = await firestoreService.getCollection<Driver>(COLLECTION_NAME, constraints)
 
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase()
-          drivers = drivers.filter(
-            (driver) =>
-              driver.name.toLowerCase().includes(searchLower) ||
-              driver.licenseNumber.toLowerCase().includes(searchLower) ||
-              driver.busNumber?.toLowerCase().includes(searchLower) ||
-              driver.email.toLowerCase().includes(searchLower),
-          )
-        }
-
-        if (filters.minSafetyScore !== undefined) {
-          drivers = drivers.filter((driver) => driver.safetyScore >= filters.minSafetyScore!)
-        }
-
-        if (filters.maxSafetyScore !== undefined) {
-          drivers = drivers.filter((driver) => driver.safetyScore <= filters.maxSafetyScore!)
-        }
+      // Apply client-side filters that can't be done server-side (text search)
+      if (filters?.search) {
+        const searchLower = filters.search.toLowerCase()
+        drivers = drivers.filter(
+          (driver) =>
+            driver.name.toLowerCase().includes(searchLower) ||
+            driver.licenseNumber.toLowerCase().includes(searchLower) ||
+            driver.busNumber?.toLowerCase().includes(searchLower) ||
+            driver.email.toLowerCase().includes(searchLower),
+        )
       }
 
       return drivers

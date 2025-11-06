@@ -52,7 +52,23 @@ export default function DriversPage() {
     experience: "",
   })
 
-  // Fetch drivers
+  // Calculate stats from drivers data (client-side to avoid extra API call)
+  const calculateStats = (driversData: Driver[]) => {
+    return {
+      total: driversData.length,
+      onDuty: driversData.filter((d) => d.status === "on_duty").length,
+      offDuty: driversData.filter((d) => d.status === "off_duty").length,
+      suspended: driversData.filter((d) => d.status === "suspended").length,
+      highPerformers: driversData.filter((d) => d.safetyScore >= 90).length,
+      needAttention: driversData.filter((d) => d.safetyScore < 80).length,
+      averageSafetyScore:
+        driversData.length > 0
+          ? Math.round(driversData.reduce((sum, d) => sum + d.safetyScore, 0) / driversData.length)
+          : 0,
+    }
+  }
+
+  // Fetch drivers with timeout
   const fetchDrivers = async () => {
     try {
       setLoading(true)
@@ -64,10 +80,28 @@ export default function DriversPage() {
         params.append("search", searchTerm)
       }
 
-      const response = await fetch(`/api/drivers?${params.toString()}`)
-      if (!response.ok) throw new Error("Failed to fetch drivers")
-      const data = await response.json()
-      setDrivers(data)
+      // Add timeout to prevent hanging
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
+      try {
+        const response = await fetch(`/api/drivers?${params.toString()}`, {
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+        
+        if (!response.ok) throw new Error("Failed to fetch drivers")
+        const data = await response.json()
+        setDrivers(data)
+        // Calculate stats from fetched drivers (much faster than separate API call)
+        setStats(calculateStats(data))
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId)
+        if (fetchError.name === "AbortError") {
+          throw new Error("Request timeout: The server took too long to respond. Please check your connection.")
+        }
+        throw fetchError
+      }
     } catch (error) {
       console.error("Error fetching drivers:", error)
       const errorMessage = error instanceof Error ? error.message : "Failed to load drivers"
@@ -91,21 +125,8 @@ export default function DriversPage() {
     }
   }
 
-  // Fetch stats
-  const fetchStats = async () => {
-    try {
-      const response = await fetch("/api/drivers/stats")
-      if (!response.ok) throw new Error("Failed to fetch stats")
-      const data = await response.json()
-      setStats(data)
-    } catch (error) {
-      console.error("Error fetching stats:", error)
-    }
-  }
-
   useEffect(() => {
     fetchDrivers()
-    fetchStats()
   }, [])
 
   // Refetch when filters change
@@ -216,7 +237,6 @@ export default function DriversPage() {
       // Small delay to ensure Firestore write completes before fetching
       setTimeout(() => {
         fetchDrivers()
-        fetchStats()
       }, 500)
     } catch (error: any) {
       console.error("Error creating driver:", error)
@@ -312,7 +332,6 @@ export default function DriversPage() {
       })
 
       fetchDrivers()
-      fetchStats()
     } catch (error) {
       console.error("Error updating status:", error)
       toast({
@@ -372,7 +391,6 @@ export default function DriversPage() {
       setIsEditDialogOpen(false)
       setEditingDriver(null)
       fetchDrivers()
-      fetchStats()
     } catch (error: any) {
       console.error("Error updating driver:", error)
       toast({
@@ -401,7 +419,6 @@ export default function DriversPage() {
       })
 
       fetchDrivers()
-      fetchStats()
     } catch (error) {
       console.error("Error deleting driver:", error)
       toast({
