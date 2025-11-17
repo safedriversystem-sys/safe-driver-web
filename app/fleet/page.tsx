@@ -208,10 +208,6 @@ export default function FleetManagement() {
     // Client-side validation
     const errors: string[] = []
     
-    if (!newVehicle.busNumber?.trim()) {
-      errors.push("Bus number is required")
-    }
-    
     if (!newVehicle.model?.trim()) {
       errors.push("Vehicle model is required")
     }
@@ -245,7 +241,7 @@ export default function FleetManagement() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          busNumber: newVehicle.busNumber.trim(),
+          busNumber: newVehicle.busNumber?.trim() || undefined,
           model: newVehicle.model.trim(),
           year: parseInt(newVehicle.year),
           driverName: newVehicle.driverName?.trim() || undefined,
@@ -606,18 +602,6 @@ export default function FleetManagement() {
                         <p className="text-xs text-gray-500 mt-1">GPS/Tracking device ID (optional)</p>
                       </div>
                       <div>
-                        <Label htmlFor="busNumber">
-                          Bus Number <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                          id="busNumber"
-                          value={newVehicle.busNumber}
-                          onChange={(e) => setNewVehicle({ ...newVehicle, busNumber: e.target.value })}
-                          placeholder="e.g., NB-1234"
-                          required
-                        />
-                      </div>
-                      <div>
                         <Label htmlFor="model">Vehicle Model</Label>
                         <Input
                           id="model"
@@ -676,7 +660,7 @@ export default function FleetManagement() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
-                      placeholder="Search by number plate, device ID, bus number, driver, or route..."
+                      placeholder="Search by number plate, device ID, driver, or route..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
