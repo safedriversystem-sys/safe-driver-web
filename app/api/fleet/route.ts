@@ -12,9 +12,10 @@ try {
 
 const createVehicleSchema = z.object({
   busNumber: z
-    .string()
-    .min(1, "Bus number is required")
-    .max(20, "Bus number must be 20 characters or less"),
+    .preprocess(
+      (val) => (val === "" || val === null || val === undefined ? undefined : val),
+      z.string().max(20, "Bus number must be 20 characters or less").optional()
+    ),
   model: z
     .string()
     .min(1, "Vehicle model is required")
@@ -30,6 +31,16 @@ const createVehicleSchema = z.object({
   driverId: z.string().optional(),
   driverName: z.string().max(100, "Driver name must be 100 characters or less").optional(),
   route: z.string().max(200, "Route must be 200 characters or less").optional(),
+  documentId: z
+    .preprocess(
+      (val) => (val === "" || val === null || val === undefined ? undefined : val),
+      z.string().max(50, "Document ID must be 50 characters or less").optional()
+    ),
+  deviceId: z
+    .preprocess(
+      (val) => (val === "" || val === null || val === undefined ? undefined : val),
+      z.string().max(50, "Device ID must be 50 characters or less").optional()
+    ),
   location: z
     .object({
       lat: z.number(),

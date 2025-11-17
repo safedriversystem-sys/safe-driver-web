@@ -196,7 +196,7 @@ export default function FleetManagement() {
     const matchesSearch =
       vehicle.documentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.deviceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.busNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.busNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (vehicle.driverName || vehicle.driver || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (vehicle.route || "").toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || vehicle.status === statusFilter
