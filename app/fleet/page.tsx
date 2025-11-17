@@ -15,6 +15,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -56,6 +66,11 @@ export default function FleetManagement() {
   const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingMaintenance, setEditingMaintenance] = useState<MaintenanceSchedule | null>(null)
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
+  const [showEditVehicle, setShowEditVehicle] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
   const [newVehicle, setNewVehicle] = useState({
     documentId: "",
@@ -393,11 +408,95 @@ export default function FleetManagement() {
     }
   }
 
-  const deleteVehicle = async (vehicleId: string) => {
-    if (!confirm("Are you sure you want to delete this vehicle? This action cannot be undone.")) return
+  const handleEditVehicle = (vehicle: Vehicle) => {
+    setEditingVehicle(vehicle)
+    setShowEditVehicle(true)
+  }
+
+  const handleUpdateVehicle = async () => {
+    if (!editingVehicle) return
+
+    // Client-side validation
+    const errors: string[] = []
+    
+    if (!editingVehicle.model?.trim()) {
+      errors.push("Vehicle model is required")
+    }
+    
+    if (!editingVehicle.year) {
+      errors.push("Year is required")
+    } else {
+      const currentYear = new Date().getFullYear()
+      if (editingVehicle.year < 1900) {
+        errors.push(`Year must be between 1900 and ${currentYear + 1}`)
+      } else if (editingVehicle.year > currentYear + 1) {
+        errors.push(`Year cannot be greater than ${currentYear + 1}`)
+      }
+    }
+
+    if (errors.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: errors.length === 1 ? errors[0] : `Please fix the following:\n${errors.join("\n")}`,
+        variant: "destructive",
+      })
+      return
+    }
 
     try {
-      const response = await fetch(`/api/fleet/${vehicleId}`, {
+      setIsSubmitting(true)
+      const response = await fetch(`/api/fleet/${editingVehicle.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          busNumber: editingVehicle.busNumber?.trim() || undefined,
+          model: editingVehicle.model.trim(),
+          year: editingVehicle.year,
+          driverName: editingVehicle.driverName?.trim() || undefined,
+          route: editingVehicle.route?.trim() || undefined,
+          documentId: editingVehicle.documentId?.trim() || undefined,
+          deviceId: editingVehicle.deviceId?.trim() || undefined,
+          status: editingVehicle.status,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to update vehicle"
+        throw new Error(errorMessage)
+      }
+
+      toast({
+        title: "Success",
+        description: "Vehicle updated successfully.",
+      })
+
+      setShowEditVehicle(false)
+      setEditingVehicle(null)
+      fetchVehicles()
+    } catch (error: any) {
+      console.error("Error updating vehicle:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to update vehicle. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteClick = (vehicle: Vehicle) => {
+    setVehicleToDelete(vehicle)
+    setDeleteDialogOpen(true)
+  }
+
+  const deleteVehicle = async () => {
+    if (!vehicleToDelete?.id) return
+
+    try {
+      setIsDeleting(true)
+      const response = await fetch(`/api/fleet/${vehicleToDelete.id}`, {
         method: "DELETE",
       })
 
@@ -412,6 +511,8 @@ export default function FleetManagement() {
         description: "Vehicle deleted successfully.",
       })
 
+      setDeleteDialogOpen(false)
+      setVehicleToDelete(null)
       fetchVehicles()
     } catch (error: any) {
       console.error("Error deleting vehicle:", error)
@@ -420,6 +521,8 @@ export default function FleetManagement() {
         description: error?.message || "Failed to delete vehicle. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -708,7 +811,7 @@ export default function FleetManagement() {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {filteredVehicles.map((vehicle) => (
-                    <Card key={vehicle.id || `vehicle-${vehicle.busNumber}`} className="hover:shadow-lg transition-shadow">
+                    <Card key={vehicle.id || `vehicle-${vehicle.busNumber}`} className="hover:shadow-lg transition-shadow overflow-visible">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
@@ -844,10 +947,14 @@ export default function FleetManagement() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-2 pt-2">
-                          <Button size="sm" variant="outline" onClick={() => setSelectedVehicle(vehicle)}>
+                        <div className="flex gap-2 pt-2 flex-wrap items-center">
+                          <Button size="sm" variant="outline" onClick={() => setSelectedVehicle(vehicle)} className="flex-shrink-0">
                             <Eye className="h-4 w-4 mr-1" />
                             Details
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleEditVehicle(vehicle)} className="flex-shrink-0">
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
                           </Button>
                           <Select
                             value={vehicle.status}
@@ -857,7 +964,7 @@ export default function FleetManagement() {
                               }
                             }}
                           >
-                            <SelectTrigger className="h-8 text-xs">
+                            <SelectTrigger className="h-8 text-xs w-[120px] flex-shrink-0">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -869,14 +976,12 @@ export default function FleetManagement() {
                           <Button 
                             size="sm" 
                             variant="destructive" 
-                            onClick={() => {
-                              if (vehicle.id) {
-                                deleteVehicle(vehicle.id)
-                              }
-                            }}
-                            disabled={!vehicle.id}
+                            onClick={() => handleDeleteClick(vehicle)}
+                            disabled={!vehicle.id || isDeleting}
+                            className="bg-red-600 hover:bg-red-700 text-white flex-shrink-0"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
                           </Button>
                         </div>
                       </div>
@@ -1290,6 +1395,163 @@ export default function FleetManagement() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Edit Vehicle Dialog */}
+      {editingVehicle && (
+        <Dialog open={showEditVehicle} onOpenChange={(open) => {
+          setShowEditVehicle(open)
+          if (!open) setEditingVehicle(null)
+        }}>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0 pb-4">
+              <DialogTitle>Edit Vehicle</DialogTitle>
+              <DialogDescription>Update vehicle information</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+              <div>
+                <Label htmlFor="edit-documentId">Document ID (Number Plate)</Label>
+                <Input
+                  id="edit-documentId"
+                  value={editingVehicle.documentId || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, documentId: e.target.value.toUpperCase() })}
+                  placeholder="e.g., ABC-1234"
+                />
+                <p className="text-xs text-gray-500 mt-1">Vehicle registration number / Number plate</p>
+              </div>
+              <div>
+                <Label htmlFor="edit-deviceId">Device ID</Label>
+                <Input
+                  id="edit-deviceId"
+                  value={editingVehicle.deviceId || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, deviceId: e.target.value.toUpperCase() })}
+                  placeholder="e.g., DEV-001"
+                />
+                <p className="text-xs text-gray-500 mt-1">GPS/Tracking device ID (optional)</p>
+              </div>
+              <div>
+                <Label htmlFor="edit-busNumber">Bus Number</Label>
+                <Input
+                  id="edit-busNumber"
+                  value={editingVehicle.busNumber || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, busNumber: e.target.value })}
+                  placeholder="e.g., NB-1234"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-model">Vehicle Model *</Label>
+                <Input
+                  id="edit-model"
+                  value={editingVehicle.model}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, model: e.target.value })}
+                  placeholder="e.g., Tata LP 1618"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-year">Year *</Label>
+                <Input
+                  id="edit-year"
+                  type="number"
+                  value={editingVehicle.year}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, year: parseInt(e.target.value) || 0 })}
+                  placeholder="2024"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-driverName">Assigned Driver</Label>
+                <Input
+                  id="edit-driverName"
+                  value={editingVehicle.driverName || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, driverName: e.target.value })}
+                  placeholder="Driver name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-route">Route</Label>
+                <Input
+                  id="edit-route"
+                  value={editingVehicle.route || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, route: e.target.value })}
+                  placeholder="e.g., Colombo - Kandy"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-status">Status</Label>
+                <Select
+                  value={editingVehicle.status}
+                  onValueChange={(value: Vehicle["status"]) => setEditingVehicle({ ...editingVehicle, status: value })}
+                >
+                  <SelectTrigger id="edit-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button onClick={handleUpdateVehicle} className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Vehicle"
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditVehicle(false)
+                    setEditingVehicle(null)
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vehicle</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{vehicleToDelete?.busNumber || vehicleToDelete?.documentId || vehicleToDelete?.id}</strong>? This action cannot be undone.
+              {vehicleToDelete?.status === "active" && (
+                <span className="block mt-2 text-amber-600 font-medium">
+                  Warning: This vehicle is currently active. Make sure to update its status first.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteVehicle}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Vehicle"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
