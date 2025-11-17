@@ -38,71 +38,118 @@ import {
   TrendingUp,
   TrendingDown,
   FileText,
+  Loader2,
 } from "lucide-react"
-import { 
-  getVehicles, 
-  addVehicle as addVehicleToFirebase, 
-  updateVehicle as updateVehicleInFirebase,
-  deleteVehicle as deleteVehicleFromFirebase,
-  subscribeToVehicles,
-  type Vehicle 
-} from "@/lib/firebase/vehicles"
+import type { Vehicle, MaintenanceSchedule } from "@/lib/fleet-types"
+import { useToast } from "@/hooks/use-toast"
+import { FleetMap } from "@/components/fleet-map"
 
 export default function FleetManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [maintenanceSchedule, setMaintenanceSchedule] = useState<any[]>([])
+  const [maintenanceSchedule, setMaintenanceSchedule] = useState<MaintenanceSchedule[]>([])
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [maintenanceFilter, setMaintenanceFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
   const [showAddVehicle, setShowAddVehicle] = useState(false)
   const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editingMaintenance, setEditingMaintenance] = useState<MaintenanceSchedule | null>(null)
+  const { toast } = useToast()
   const [newVehicle, setNewVehicle] = useState({
     documentId: "",
     deviceId: "",
     busNumber: "",
     model: "",
     year: "",
-    driver: "",
+    driverName: "",
     route: "",
+    driver: "",
   })
+
   const [newMaintenance, setNewMaintenance] = useState({
     vehicleId: "",
     type: "",
     scheduledDate: "",
-    priority: "medium",
+    priority: "medium" as "low" | "medium" | "high",
     estimatedCost: "",
     description: "",
   })
 
-  // Load vehicles from Firebase on mount
-  useEffect(() => {
-    const loadVehicles = async () => {
-      try {
-        setIsLoading(true)
-        const firebaseVehicles = await getVehicles()
-        console.log("Loaded vehicles from Firebase:", firebaseVehicles.length)
-        setVehicles(firebaseVehicles)
-        console.log("✅ Using Firebase for vehicle data")
-      } catch (error) {
-        console.error("❌ Error loading vehicles from Firebase:", error)
-        setVehicles([])
-      } finally {
-        setIsLoading(false)
+  // Fetch vehicles
+  const fetchVehicles = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter)
       }
+      if (maintenanceFilter !== "all") {
+        params.append("maintenanceStatus", maintenanceFilter)
+      }
+      if (searchTerm) {
+        params.append("search", searchTerm)
+      }
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+      try {
+        const response = await fetch(`/api/fleet?${params.toString()}`, {
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+
+        if (!response.ok) throw new Error("Failed to fetch vehicles")
+        const data = await response.json()
+        setVehicles(data)
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId)
+        if (fetchError.name === "AbortError") {
+          throw new Error("Request timeout: The server took too long to respond.")
+        }
+        throw fetchError
+      }
+    } catch (error) {
+      console.error("Error fetching vehicles:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to load vehicles"
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
+  }
 
-    loadVehicles()
-  }, [])
+  // Fetch maintenance schedules
+  const fetchMaintenanceSchedules = async () => {
+    try {
+      const response = await fetch("/api/fleet/maintenance")
+      if (!response.ok) throw new Error("Failed to fetch maintenance schedules")
+      const data = await response.json()
+      setMaintenanceSchedule(data)
+    } catch (error) {
+      console.error("Error fetching maintenance schedules:", error)
+    }
+  }
 
-  // Subscribe to real-time updates from Firebase
   useEffect(() => {
-    const unsubscribe = subscribeToVehicles((updatedVehicles) => {
-      setVehicles(updatedVehicles)
-    })
-    return () => unsubscribe()
+    fetchVehicles()
+    fetchMaintenanceSchedules()
   }, [])
+
+  // Refetch when filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchVehicles()
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, statusFilter, maintenanceFilter])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -150,105 +197,293 @@ export default function FleetManagement() {
       vehicle.documentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.deviceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.busNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.driver.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.route.toLowerCase().includes(searchTerm.toLowerCase())
+      (vehicle.driverName || vehicle.driver || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (vehicle.route || "").toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || vehicle.status === statusFilter
     const matchesMaintenance = maintenanceFilter === "all" || vehicle.maintenanceStatus === maintenanceFilter
     return matchesSearch && matchesStatus && matchesMaintenance
   })
 
   const addVehicle = async () => {
-    if (!newVehicle.documentId || !newVehicle.busNumber) {
-      alert("Please fill in Document ID (Number Plate) and Bus Number")
+    // Client-side validation
+    const errors: string[] = []
+    
+    if (!newVehicle.busNumber?.trim()) {
+      errors.push("Bus number is required")
+    }
+    
+    if (!newVehicle.model?.trim()) {
+      errors.push("Vehicle model is required")
+    }
+    
+    if (!newVehicle.year) {
+      errors.push("Year is required")
+    } else {
+      const yearNum = parseInt(newVehicle.year)
+      const currentYear = new Date().getFullYear()
+      if (isNaN(yearNum)) {
+        errors.push("Year must be a valid number")
+      } else if (yearNum < 1900) {
+        errors.push(`Year must be between 1900 and ${currentYear + 1}`)
+      } else if (yearNum > currentYear + 1) {
+        errors.push(`Year cannot be greater than ${currentYear + 1}`)
+      }
+    }
+
+    if (errors.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: errors.length === 1 ? errors[0] : `Please fix the following:\n${errors.join("\n")}`,
+        variant: "destructive",
+      })
       return
     }
 
-    const vehicleData: Omit<Vehicle, "id" | "createdAt" | "updatedAt"> = {
-      documentId: newVehicle.documentId.toUpperCase(),
-      deviceId: newVehicle.deviceId || undefined,
-      busNumber: newVehicle.busNumber,
-      model: newVehicle.model,
-      year: Number.parseInt(newVehicle.year) || new Date().getFullYear(),
-      status: "inactive",
-      location: { lat: 6.9271, lng: 79.8612, address: "Colombo Depot" },
-      driver: newVehicle.driver,
-      route: newVehicle.route,
-      fuel: 100,
-      mileage: 0,
-      lastService: new Date().toISOString().split("T")[0],
-      nextService: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      maintenanceStatus: "excellent",
-      speed: 0,
-      engineTemp: 75,
-      batteryLevel: 100,
-      safetyScore: 100,
-      alerts: 0,
-      serviceHistory: [],
-    }
-
     try {
-      setIsLoading(true)
-      await addVehicleToFirebase(vehicleData)
-      setNewVehicle({ documentId: "", deviceId: "", busNumber: "", model: "", year: "", driver: "", route: "" })
+      setIsSubmitting(true)
+      const response = await fetch("/api/fleet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          busNumber: newVehicle.busNumber.trim(),
+          model: newVehicle.model.trim(),
+          year: parseInt(newVehicle.year),
+          driverName: newVehicle.driverName?.trim() || undefined,
+          route: newVehicle.route?.trim() || undefined,
+          documentId: newVehicle.documentId?.trim() || undefined,
+          deviceId: newVehicle.deviceId?.trim() || undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to create vehicle"
+        throw new Error(errorMessage)
+      }
+
+      toast({
+        title: "Success",
+        description: "Vehicle added successfully.",
+      })
+
+      setNewVehicle({ documentId: "", deviceId: "", busNumber: "", model: "", year: "", driverName: "", route: "", driver: "" })
       setShowAddVehicle(false)
-    } catch (error) {
-      console.error("Error adding vehicle:", error)
-      alert("Failed to add vehicle. Please check your Firebase configuration and try again.")
+      fetchVehicles()
+    } catch (error: any) {
+      console.error("Error creating vehicle:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to create vehicle. Please try again.",
+        variant: "destructive",
+      })
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
-  const scheduleMaintenance = () => {
-    const maintenance = {
-      id: `MS${String(maintenanceSchedule.length + 1).padStart(3, "0")}`,
-      vehicleId: newMaintenance.vehicleId,
-      busNumber: vehicles.find((v) => v.id === newMaintenance.vehicleId)?.busNumber || "",
-      type: newMaintenance.type,
-      scheduledDate: newMaintenance.scheduledDate,
-      status: "scheduled",
-      priority: newMaintenance.priority,
-      estimatedCost: Number.parseInt(newMaintenance.estimatedCost),
-      description: newMaintenance.description,
+  const scheduleMaintenance = async () => {
+    // Client-side validation
+    const errors: string[] = []
+    
+    if (!newMaintenance.vehicleId) {
+      errors.push("Please select a vehicle")
     }
-    setMaintenanceSchedule([...maintenanceSchedule, maintenance])
-    setNewMaintenance({
-      vehicleId: "",
-      type: "",
-      scheduledDate: "",
-      priority: "medium",
-      estimatedCost: "",
-      description: "",
-    })
-    setShowMaintenanceDialog(false)
+    
+    if (!newMaintenance.type?.trim()) {
+      errors.push("Maintenance type is required")
+    }
+    
+    if (!newMaintenance.scheduledDate) {
+      errors.push("Scheduled date is required")
+    } else {
+      const selectedDate = new Date(newMaintenance.scheduledDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (selectedDate < today) {
+        errors.push("Scheduled date cannot be in the past")
+      }
+    }
+
+    if (newMaintenance.estimatedCost && isNaN(parseInt(newMaintenance.estimatedCost))) {
+      errors.push("Estimated cost must be a valid number")
+    } else if (newMaintenance.estimatedCost && parseInt(newMaintenance.estimatedCost) < 0) {
+      errors.push("Estimated cost cannot be negative")
+    }
+
+    if (errors.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: errors.length === 1 ? errors[0] : `Please fix the following:\n${errors.join("\n")}`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      const response = await fetch("/api/fleet/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleId: newMaintenance.vehicleId,
+          type: newMaintenance.type.trim(),
+          scheduledDate: newMaintenance.scheduledDate,
+          priority: newMaintenance.priority,
+          estimatedCost: parseInt(newMaintenance.estimatedCost) || 0,
+          description: newMaintenance.description?.trim() || "",
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to schedule maintenance"
+        throw new Error(errorMessage)
+      }
+
+      toast({
+        title: "Success",
+        description: "Maintenance scheduled successfully.",
+      })
+
+      setNewMaintenance({
+        vehicleId: "",
+        type: "",
+        scheduledDate: "",
+        priority: "medium",
+        estimatedCost: "",
+        description: "",
+      })
+      setShowMaintenanceDialog(false)
+      fetchMaintenanceSchedules()
+    } catch (error: any) {
+      console.error("Error scheduling maintenance:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to schedule maintenance. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const updateVehicleStatus = async (vehicleId: string, newStatus: string) => {
     try {
-      if (vehicleId) {
-        await updateVehicleInFirebase(vehicleId, { status: newStatus as Vehicle["status"] })
+      const response = await fetch(`/api/fleet/${vehicleId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to update vehicle status"
+        throw new Error(errorMessage)
       }
-    } catch (error) {
+
+      toast({
+        title: "Success",
+        description: `Vehicle status updated to ${newStatus.replace("_", " ")}.`,
+      })
+
+      fetchVehicles()
+    } catch (error: any) {
       console.error("Error updating vehicle status:", error)
-      alert("Failed to update vehicle status. Please check your Firebase configuration and try again.")
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to update vehicle status. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
   const deleteVehicle = async (vehicleId: string) => {
-    if (!confirm("Are you sure you want to delete this vehicle?")) {
-      return
-    }
+    if (!confirm("Are you sure you want to delete this vehicle? This action cannot be undone.")) return
 
     try {
-      setIsLoading(true)
-      if (vehicleId) {
-        await deleteVehicleFromFirebase(vehicleId)
+      const response = await fetch(`/api/fleet/${vehicleId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to delete vehicle"
+        throw new Error(errorMessage)
       }
-    } catch (error) {
+
+      toast({
+        title: "Success",
+        description: "Vehicle deleted successfully.",
+      })
+
+      fetchVehicles()
+    } catch (error: any) {
       console.error("Error deleting vehicle:", error)
-      alert("Failed to delete vehicle. Please check your Firebase configuration and try again.")
-    } finally {
-      setIsLoading(false)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete vehicle. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const updateMaintenanceStatus = async (maintenanceId: string, status: string) => {
+    try {
+      const response = await fetch(`/api/fleet/maintenance/${maintenanceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to update maintenance status"
+        throw new Error(errorMessage)
+      }
+
+      toast({
+        title: "Success",
+        description: `Maintenance status updated to ${status.replace("_", " ")}.`,
+      })
+
+      fetchMaintenanceSchedules()
+    } catch (error: any) {
+      console.error("Error updating maintenance status:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to update maintenance status. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const deleteMaintenance = async (maintenanceId: string) => {
+    if (!confirm("Are you sure you want to delete this maintenance schedule? This action cannot be undone.")) return
+
+    try {
+      const response = await fetch(`/api/fleet/maintenance/${maintenanceId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.message || errorData.error || "Failed to delete maintenance schedule"
+        throw new Error(errorMessage)
+      }
+
+      toast({
+        title: "Success",
+        description: "Maintenance schedule deleted successfully.",
+      })
+
+      fetchMaintenanceSchedules()
+    } catch (error: any) {
+      console.error("Error deleting maintenance schedule:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete maintenance schedule. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -271,7 +506,7 @@ export default function FleetManagement() {
             <p className="text-xs text-muted-foreground">
               {vehicles.filter((v) => v.status === "active").length} active
             </p>
-            {isLoading && <p className="text-xs text-gray-400 mt-1">Loading...</p>}
+            {loading && <p className="text-xs text-gray-400 mt-1">Loading...</p>}
           </CardContent>
         </Card>
 
@@ -405,8 +640,8 @@ export default function FleetManagement() {
                         <Label htmlFor="driver">Assigned Driver</Label>
                         <Input
                           id="driver"
-                          value={newVehicle.driver}
-                          onChange={(e) => setNewVehicle({ ...newVehicle, driver: e.target.value })}
+                          value={newVehicle.driverName}
+                          onChange={(e) => setNewVehicle({ ...newVehicle, driverName: e.target.value })}
                           placeholder="Driver name"
                         />
                       </div>
@@ -419,8 +654,15 @@ export default function FleetManagement() {
                           placeholder="e.g., Colombo - Kandy"
                         />
                       </div>
-                      <Button onClick={addVehicle} className="w-full" disabled={isLoading}>
-                        {isLoading ? "Adding..." : "Add Vehicle"}
+                      <Button onClick={addVehicle} className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Adding...
+                          </>
+                        ) : (
+                          "Add Vehicle"
+                        )}
                       </Button>
                     </div>
                   </DialogContent>
@@ -467,20 +709,18 @@ export default function FleetManagement() {
               </div>
 
               {/* Vehicle Grid */}
-              {isLoading ? (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <p className="text-gray-600">Loading vehicles...</p>
-                  </CardContent>
-                </Card>
+              {loading ? (
+                <div className="p-12 text-center">
+                  <Loader2 className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-spin" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Loading vehicles...</h3>
+                  <p className="text-gray-600">Please wait while we fetch fleet data.</p>
+                </div>
               ) : filteredVehicles.length === 0 ? (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <Bus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles found</h3>
-                    <p className="text-gray-600">Get started by adding your first vehicle to the fleet.</p>
-                  </CardContent>
-                </Card>
+                <div className="p-12 text-center">
+                  <Bus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles found</h3>
+                  <p className="text-gray-600">{searchTerm || statusFilter !== "all" || maintenanceFilter !== "all" ? "No vehicles match your current filters." : "Get started by adding your first vehicle to the fleet."}</p>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {filteredVehicles.map((vehicle) => (
@@ -524,11 +764,11 @@ export default function FleetManagement() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-gray-500" />
-                            <span>{vehicle.driver}</span>
+                            <span>{vehicle.driverName || (vehicle as any).driver || "No driver assigned"}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Route className="h-4 w-4 text-gray-500" />
-                            <span>{vehicle.route}</span>
+                            <span>{vehicle.route || "No route assigned"}</span>
                           </div>
                         </div>
 
@@ -658,8 +898,8 @@ export default function FleetManagement() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -673,13 +913,13 @@ export default function FleetManagement() {
               <CardDescription>Monitor live locations and status of all vehicles</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Map Placeholder */}
-              <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center mb-6">
-                <div className="text-center">
-                  <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">Interactive Map View</p>
-                  <p className="text-sm text-gray-500">Real-time vehicle locations would be displayed here</p>
-                </div>
+              {/* Interactive Map */}
+              <div className="mb-6">
+                <FleetMap
+                  vehicles={vehicles.filter((v) => v.status === "active" || v.status === "maintenance")}
+                  selectedVehicle={selectedVehicle}
+                  onVehicleClick={setSelectedVehicle}
+                />
               </div>
 
               {/* Vehicle Status List */}
@@ -703,9 +943,13 @@ export default function FleetManagement() {
                         </div>
                         <div className="text-center">
                           <p className="text-gray-500">Driver</p>
-                          <p className="font-medium">{vehicle.driver}</p>
+                          <p className="font-medium">{vehicle.driverName || "No driver"}</p>
                         </div>
-                        <Button size="sm" variant="outline">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedVehicle(vehicle)}
+                        >
                           <Navigation className="h-4 w-4 mr-1" />
                           Track
                         </Button>
@@ -812,8 +1056,15 @@ export default function FleetManagement() {
                           placeholder="Maintenance details..."
                         />
                       </div>
-                      <Button onClick={scheduleMaintenance} className="w-full">
-                        Schedule Maintenance
+                      <Button onClick={scheduleMaintenance} className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Scheduling...
+                          </>
+                        ) : (
+                          "Schedule Maintenance"
+                        )}
                       </Button>
                     </div>
                   </DialogContent>
@@ -865,11 +1116,15 @@ export default function FleetManagement() {
                         <Edit className="h-4 w-4 mr-1" />
                         Edit
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateMaintenanceStatus(maintenance.id, "completed")}
+                      >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Complete
                       </Button>
-                      <Button size="sm" variant="destructive">
+                      <Button size="sm" variant="destructive" onClick={() => deleteMaintenance(maintenance.id)}>
                         <Trash2 className="h-4 w-4 mr-1" />
                         Cancel
                       </Button>

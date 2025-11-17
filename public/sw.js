@@ -55,6 +55,8 @@ self.addEventListener("push", (event) => {
   let notificationData = {
     title: "SafeDriver Alert",
     body: "You have a new notification",
+    icon: "/placeholder-logo.png",
+    badge: "/placeholder-logo.png",
     tag: "safedriver-notification",
     requireInteraction: false,
     actions: [],
@@ -221,23 +223,32 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(handleResourceRequest(request))
 })
 
-// API request handler - Network first, then cache
+// API request handler - Network first, then cache (only for GET requests)
 async function handleApiRequest(request) {
   const cacheName = DYNAMIC_CACHE
+
+  // Don't cache POST, PUT, DELETE, PATCH requests - only GET requests
+  if (request.method !== "GET") {
+    return fetch(request)
+  }
 
   try {
     // Try network first
     const networkResponse = await fetch(request)
 
+    // Return the response even if it's not ok (to show real API errors)
+    // Only cache successful responses
     if (networkResponse.ok) {
-      // Cache successful responses
       const cache = await caches.open(cacheName)
       cache.put(request, networkResponse.clone())
-      return networkResponse
     }
-
-    throw new Error("Network response not ok")
+    
+    // Always return the network response so real errors are visible
+    return networkResponse
   } catch (error) {
+    // Only fallback to cache/offline if the fetch itself failed (network error)
+    // This means the server couldn't be reached, not that it returned an error
+    
     // Fallback to cache
     const cachedResponse = await caches.match(request)
 
@@ -255,11 +266,11 @@ async function handleApiRequest(request) {
       return modifiedResponse
     }
 
-    // Return offline fallback
+    // Return offline fallback only if we truly can't reach the server
     return new Response(
       JSON.stringify({
         error: "Offline",
-        message: "This data is not available offline",
+        message: "Unable to reach the server. Please check your connection and ensure the dev server is running.",
         offline: true,
       }),
       {
@@ -293,9 +304,14 @@ async function handleNavigationRequest(request) {
   }
 }
 
-// Resource request handler - Cache first, then network
+// Resource request handler - Cache first, then network (only for GET requests)
 async function handleResourceRequest(request) {
   try {
+    // Only cache GET requests - POST, PUT, DELETE, etc. should not be cached
+    if (request.method !== "GET") {
+      return fetch(request)
+    }
+
     const cachedResponse = await caches.match(request)
     if (cachedResponse) {
       return cachedResponse
@@ -303,9 +319,11 @@ async function handleResourceRequest(request) {
 
     const networkResponse = await fetch(request)
 
-    // Cache the response
-    const cache = await caches.open(DYNAMIC_CACHE)
-    cache.put(request, networkResponse.clone())
+    // Only cache successful GET responses
+    if (networkResponse.ok) {
+      const cache = await caches.open(DYNAMIC_CACHE)
+      cache.put(request, networkResponse.clone())
+    }
 
     return networkResponse
   } catch (error) {
