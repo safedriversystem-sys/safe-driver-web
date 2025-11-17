@@ -37,155 +37,30 @@ import {
   Shield,
   TrendingUp,
   TrendingDown,
+  FileText,
 } from "lucide-react"
-
-// Mock fleet data
-const mockVehicles = [
-  {
-    id: "VH001",
-    busNumber: "NB-1234",
-    model: "Tata LP 1618",
-    year: 2022,
-    status: "active",
-    location: { lat: 6.9271, lng: 79.8612, address: "Colombo Fort" },
-    driver: "Kamal Perera",
-    route: "Colombo - Kandy",
-    fuel: 85,
-    mileage: 45230,
-    lastService: "2024-12-15",
-    nextService: "2025-02-15",
-    maintenanceStatus: "good",
-    speed: 45,
-    engineTemp: 85,
-    batteryLevel: 92,
-    safetyScore: 88,
-    alerts: 2,
-    serviceHistory: [
-      { date: "2024-12-15", type: "Regular Service", cost: 15000, description: "Oil change, brake inspection" },
-      { date: "2024-10-20", type: "Tire Replacement", cost: 25000, description: "Replaced front tires" },
-      { date: "2024-08-10", type: "Engine Maintenance", cost: 35000, description: "Engine tune-up and cleaning" },
-    ],
-  },
-  {
-    id: "VH002",
-    busNumber: "WP-5678",
-    model: "Ashok Leyland Viking",
-    year: 2021,
-    status: "maintenance",
-    location: { lat: 6.0535, lng: 80.221, address: "Galle Workshop" },
-    driver: "Sunil Silva",
-    route: "Galle - Matara",
-    fuel: 60,
-    mileage: 67890,
-    lastService: "2024-11-30",
-    nextService: "2025-01-30",
-    maintenanceStatus: "needs_attention",
-    speed: 0,
-    engineTemp: 70,
-    batteryLevel: 88,
-    safetyScore: 92,
-    alerts: 1,
-    serviceHistory: [
-      { date: "2024-11-30", type: "Brake Service", cost: 18000, description: "Brake pad replacement" },
-      { date: "2024-09-15", type: "Regular Service", cost: 12000, description: "Routine maintenance" },
-    ],
-  },
-  {
-    id: "VH003",
-    busNumber: "CP-9012",
-    model: "Eicher Skyline Pro",
-    year: 2023,
-    status: "active",
-    location: { lat: 7.2906, lng: 80.6337, address: "Negombo Bus Stand" },
-    driver: "Nimal Fernando",
-    route: "Negombo - Colombo",
-    fuel: 92,
-    mileage: 23450,
-    lastService: "2025-01-05",
-    nextService: "2025-03-05",
-    maintenanceStatus: "excellent",
-    speed: 35,
-    engineTemp: 82,
-    batteryLevel: 95,
-    safetyScore: 96,
-    alerts: 0,
-    serviceHistory: [
-      { date: "2025-01-05", type: "Regular Service", cost: 14000, description: "Full service and inspection" },
-      { date: "2024-11-10", type: "AC Service", cost: 8000, description: "AC system maintenance" },
-    ],
-  },
-  {
-    id: "VH004",
-    busNumber: "SG-3456",
-    model: "Tata Ultra 1518",
-    year: 2020,
-    status: "inactive",
-    location: { lat: 7.9553, lng: 81.0014, address: "Anuradhapura Depot" },
-    driver: "Ravi Kumara",
-    route: "Anuradhapura - Polonnaruwa",
-    fuel: 25,
-    mileage: 89560,
-    lastService: "2024-10-15",
-    nextService: "2024-12-15",
-    maintenanceStatus: "overdue",
-    speed: 0,
-    engineTemp: 65,
-    batteryLevel: 75,
-    safetyScore: 72,
-    alerts: 4,
-    serviceHistory: [
-      { date: "2024-10-15", type: "Engine Repair", cost: 45000, description: "Major engine overhaul" },
-      { date: "2024-08-20", type: "Transmission Service", cost: 28000, description: "Transmission fluid change" },
-    ],
-  },
-]
-
-const mockMaintenanceSchedule = [
-  {
-    id: "MS001",
-    vehicleId: "VH001",
-    busNumber: "NB-1234",
-    type: "Regular Service",
-    scheduledDate: "2025-02-15",
-    status: "scheduled",
-    priority: "medium",
-    estimatedCost: 15000,
-    description: "Routine maintenance and inspection",
-  },
-  {
-    id: "MS002",
-    vehicleId: "VH004",
-    busNumber: "SG-3456",
-    type: "Engine Repair",
-    scheduledDate: "2025-01-20",
-    status: "overdue",
-    priority: "high",
-    estimatedCost: 35000,
-    description: "Engine diagnostic and repair",
-  },
-  {
-    id: "MS003",
-    vehicleId: "VH002",
-    busNumber: "WP-5678",
-    type: "Tire Replacement",
-    scheduledDate: "2025-01-25",
-    status: "in_progress",
-    priority: "medium",
-    estimatedCost: 22000,
-    description: "Replace rear tires",
-  },
-]
+import { 
+  getVehicles, 
+  addVehicle as addVehicleToFirebase, 
+  updateVehicle as updateVehicleInFirebase,
+  deleteVehicle as deleteVehicleFromFirebase,
+  subscribeToVehicles,
+  type Vehicle 
+} from "@/lib/firebase/vehicles"
 
 export default function FleetManagement() {
-  const [vehicles, setVehicles] = useState(mockVehicles)
-  const [maintenanceSchedule, setMaintenanceSchedule] = useState(mockMaintenanceSchedule)
-  const [selectedVehicle, setSelectedVehicle] = useState(null)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [maintenanceSchedule, setMaintenanceSchedule] = useState<any[]>([])
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [maintenanceFilter, setMaintenanceFilter] = useState("all")
   const [showAddVehicle, setShowAddVehicle] = useState(false)
   const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [newVehicle, setNewVehicle] = useState({
+    documentId: "",
+    deviceId: "",
     busNumber: "",
     model: "",
     year: "",
@@ -201,22 +76,32 @@ export default function FleetManagement() {
     description: "",
   })
 
-  // Real-time updates simulation
+  // Load vehicles from Firebase on mount
   useEffect(() => {
-    const interval = setInterval(() => {
-      setVehicles((prev) =>
-        prev.map((vehicle) => ({
-          ...vehicle,
-          fuel: Math.max(20, vehicle.fuel + (Math.random() - 0.5) * 5),
-          speed:
-            vehicle.status === "active" ? Math.max(0, Math.min(60, vehicle.speed + (Math.random() - 0.5) * 10)) : 0,
-          engineTemp: Math.max(70, Math.min(100, vehicle.engineTemp + (Math.random() - 0.5) * 3)),
-          batteryLevel: Math.max(70, Math.min(100, vehicle.batteryLevel + (Math.random() - 0.5) * 2)),
-        })),
-      )
-    }, 5000)
+    const loadVehicles = async () => {
+      try {
+        setIsLoading(true)
+        const firebaseVehicles = await getVehicles()
+        console.log("Loaded vehicles from Firebase:", firebaseVehicles.length)
+        setVehicles(firebaseVehicles)
+        console.log("✅ Using Firebase for vehicle data")
+      } catch (error) {
+        console.error("❌ Error loading vehicles from Firebase:", error)
+        setVehicles([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-    return () => clearInterval(interval)
+    loadVehicles()
+  }, [])
+
+  // Subscribe to real-time updates from Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToVehicles((updatedVehicles) => {
+      setVehicles(updatedVehicles)
+    })
+    return () => unsubscribe()
   }, [])
 
   const getStatusColor = (status: string) => {
@@ -262,6 +147,8 @@ export default function FleetManagement() {
 
   const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch =
+      vehicle.documentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vehicle.deviceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.busNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.driver.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.route.toLowerCase().includes(searchTerm.toLowerCase())
@@ -270,12 +157,18 @@ export default function FleetManagement() {
     return matchesSearch && matchesStatus && matchesMaintenance
   })
 
-  const addVehicle = () => {
-    const vehicle = {
-      id: `VH${String(vehicles.length + 1).padStart(3, "0")}`,
+  const addVehicle = async () => {
+    if (!newVehicle.documentId || !newVehicle.busNumber) {
+      alert("Please fill in Document ID (Number Plate) and Bus Number")
+      return
+    }
+
+    const vehicleData: Omit<Vehicle, "id" | "createdAt" | "updatedAt"> = {
+      documentId: newVehicle.documentId.toUpperCase(),
+      deviceId: newVehicle.deviceId || undefined,
       busNumber: newVehicle.busNumber,
       model: newVehicle.model,
-      year: Number.parseInt(newVehicle.year),
+      year: Number.parseInt(newVehicle.year) || new Date().getFullYear(),
       status: "inactive",
       location: { lat: 6.9271, lng: 79.8612, address: "Colombo Depot" },
       driver: newVehicle.driver,
@@ -292,9 +185,18 @@ export default function FleetManagement() {
       alerts: 0,
       serviceHistory: [],
     }
-    setVehicles([...vehicles, vehicle])
-    setNewVehicle({ busNumber: "", model: "", year: "", driver: "", route: "" })
-    setShowAddVehicle(false)
+
+    try {
+      setIsLoading(true)
+      await addVehicleToFirebase(vehicleData)
+      setNewVehicle({ documentId: "", deviceId: "", busNumber: "", model: "", year: "", driver: "", route: "" })
+      setShowAddVehicle(false)
+    } catch (error) {
+      console.error("Error adding vehicle:", error)
+      alert("Failed to add vehicle. Please check your Firebase configuration and try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const scheduleMaintenance = () => {
@@ -321,13 +223,32 @@ export default function FleetManagement() {
     setShowMaintenanceDialog(false)
   }
 
-  const updateVehicleStatus = (vehicleId: string, newStatus: string) => {
-    setVehicles(vehicles.map((vehicle) => (vehicle.id === vehicleId ? { ...vehicle, status: newStatus } : vehicle)))
+  const updateVehicleStatus = async (vehicleId: string, newStatus: string) => {
+    try {
+      if (vehicleId) {
+        await updateVehicleInFirebase(vehicleId, { status: newStatus as Vehicle["status"] })
+      }
+    } catch (error) {
+      console.error("Error updating vehicle status:", error)
+      alert("Failed to update vehicle status. Please check your Firebase configuration and try again.")
+    }
   }
 
-  const deleteVehicle = (vehicleId: string) => {
-    if (confirm("Are you sure you want to delete this vehicle?")) {
-      setVehicles(vehicles.filter((vehicle) => vehicle.id !== vehicleId))
+  const deleteVehicle = async (vehicleId: string) => {
+    if (!confirm("Are you sure you want to delete this vehicle?")) {
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      if (vehicleId) {
+        await deleteVehicleFromFirebase(vehicleId)
+      }
+    } catch (error) {
+      console.error("Error deleting vehicle:", error)
+      alert("Failed to delete vehicle. Please check your Firebase configuration and try again.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -350,6 +271,7 @@ export default function FleetManagement() {
             <p className="text-xs text-muted-foreground">
               {vehicles.filter((v) => v.status === "active").length} active
             </p>
+            {isLoading && <p className="text-xs text-gray-400 mt-1">Loading...</p>}
           </CardContent>
         </Card>
 
@@ -375,7 +297,7 @@ export default function FleetManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-tech-600">
-              {Math.round(vehicles.reduce((acc, v) => acc + v.fuel, 0) / vehicles.length)}%
+              {vehicles.length > 0 ? Math.round(vehicles.reduce((acc, v) => acc + v.fuel, 0) / vehicles.length) : 0}%
             </div>
             <p className="text-xs text-muted-foreground">Fleet average</p>
           </CardContent>
@@ -388,7 +310,7 @@ export default function FleetManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-safety-600">
-              {Math.round(vehicles.reduce((acc, v) => acc + v.safetyScore, 0) / vehicles.length)}%
+              {vehicles.length > 0 ? Math.round(vehicles.reduce((acc, v) => acc + v.safetyScore, 0) / vehicles.length) : 0}%
             </div>
             <p className="text-xs text-muted-foreground">Fleet average</p>
           </CardContent>
@@ -426,12 +348,38 @@ export default function FleetManagement() {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="busNumber">Bus Number</Label>
+                        <Label htmlFor="documentId">
+                          Document ID (Number Plate) <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="documentId"
+                          value={newVehicle.documentId}
+                          onChange={(e) => setNewVehicle({ ...newVehicle, documentId: e.target.value.toUpperCase() })}
+                          placeholder="e.g., ABC-1234"
+                          required
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Vehicle registration number / Number plate</p>
+                      </div>
+                      <div>
+                        <Label htmlFor="deviceId">Device ID</Label>
+                        <Input
+                          id="deviceId"
+                          value={newVehicle.deviceId}
+                          onChange={(e) => setNewVehicle({ ...newVehicle, deviceId: e.target.value.toUpperCase() })}
+                          placeholder="e.g., DEV-001"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">GPS/Tracking device ID (optional)</p>
+                      </div>
+                      <div>
+                        <Label htmlFor="busNumber">
+                          Bus Number <span className="text-red-500">*</span>
+                        </Label>
                         <Input
                           id="busNumber"
                           value={newVehicle.busNumber}
                           onChange={(e) => setNewVehicle({ ...newVehicle, busNumber: e.target.value })}
                           placeholder="e.g., NB-1234"
+                          required
                         />
                       </div>
                       <div>
@@ -471,8 +419,8 @@ export default function FleetManagement() {
                           placeholder="e.g., Colombo - Kandy"
                         />
                       </div>
-                      <Button onClick={addVehicle} className="w-full">
-                        Add Vehicle
+                      <Button onClick={addVehicle} className="w-full" disabled={isLoading}>
+                        {isLoading ? "Adding..." : "Add Vehicle"}
                       </Button>
                     </div>
                   </DialogContent>
@@ -486,7 +434,7 @@ export default function FleetManagement() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
-                      placeholder="Search vehicles..."
+                      placeholder="Search by number plate, device ID, bus number, driver, or route..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
@@ -519,15 +467,47 @@ export default function FleetManagement() {
               </div>
 
               {/* Vehicle Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {filteredVehicles.map((vehicle) => (
-                  <Card key={vehicle.id} className="hover:shadow-lg transition-shadow">
+              {isLoading ? (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <p className="text-gray-600">Loading vehicles...</p>
+                  </CardContent>
+                </Card>
+              ) : filteredVehicles.length === 0 ? (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <Bus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles found</h3>
+                    <p className="text-gray-600">Get started by adding your first vehicle to the fleet.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {filteredVehicles.map((vehicle) => (
+                    <Card key={vehicle.id || `vehicle-${vehicle.busNumber}`} className="hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle className="text-lg">{vehicle.busNumber}</CardTitle>
-                          <CardDescription>
-                            {vehicle.model} ({vehicle.year})
+                          <CardDescription className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                {vehicle.documentId || "N/A"}
+                              </span>
+                              {vehicle.deviceId && (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1 text-blue-600">
+                                    <Gauge className="h-3 w-3" />
+                                    {vehicle.deviceId}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            <span>
+                              {vehicle.model} ({vehicle.year})
+                            </span>
                           </CardDescription>
                         </div>
                         <div className="flex gap-2">
@@ -647,7 +627,11 @@ export default function FleetManagement() {
                           </Button>
                           <Select
                             value={vehicle.status}
-                            onValueChange={(value) => updateVehicleStatus(vehicle.id, value)}
+                            onValueChange={(value) => {
+                              if (vehicle.id) {
+                                updateVehicleStatus(vehicle.id, value)
+                              }
+                            }}
                           >
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue />
@@ -658,7 +642,16 @@ export default function FleetManagement() {
                               <SelectItem value="inactive">Inactive</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Button size="sm" variant="destructive" onClick={() => deleteVehicle(vehicle.id)}>
+                          <Button 
+                            size="sm" 
+                            variant="destructive" 
+                            onClick={() => {
+                              if (vehicle.id) {
+                                deleteVehicle(vehicle.id)
+                              }
+                            }}
+                            disabled={!vehicle.id}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -667,6 +660,7 @@ export default function FleetManagement() {
                   </Card>
                 ))}
               </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -755,11 +749,13 @@ export default function FleetManagement() {
                             <SelectValue placeholder="Select vehicle" />
                           </SelectTrigger>
                           <SelectContent>
-                            {vehicles.map((vehicle) => (
-                              <SelectItem key={vehicle.id} value={vehicle.id}>
-                                {vehicle.busNumber} - {vehicle.model}
-                              </SelectItem>
-                            ))}
+                            {vehicles
+                              .filter((vehicle) => vehicle.id)
+                              .map((vehicle) => (
+                                <SelectItem key={vehicle.id!} value={vehicle.id!}>
+                                  {vehicle.busNumber} - {vehicle.model}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -975,7 +971,7 @@ export default function FleetManagement() {
                     <div
                       className="h-2 bg-yellow-500 rounded-full"
                       style={{
-                        width: `${(vehicles.filter((v) => v.status === "maintenance").length / vehicles.length) * 100}%`,
+                        width: `${vehicles.length > 0 ? (vehicles.filter((v) => v.status === "maintenance").length / vehicles.length) * 100 : 0}%`,
                       }}
                     ></div>
                   </div>
@@ -989,7 +985,7 @@ export default function FleetManagement() {
                     <div
                       className="h-2 bg-gray-500 rounded-full"
                       style={{
-                        width: `${(vehicles.filter((v) => v.status === "inactive").length / vehicles.length) * 100}%`,
+                        width: `${vehicles.length > 0 ? (vehicles.filter((v) => v.status === "inactive").length / vehicles.length) * 100 : 0}%`,
                       }}
                     ></div>
                   </div>

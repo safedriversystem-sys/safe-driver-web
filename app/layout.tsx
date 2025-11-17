@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { AdminHeader } from "@/components/admin-header"
@@ -14,9 +14,19 @@ export const metadata: Metadata = {
   title: "SafeDriver Authority Panel",
   description: "Transport Safety Management System",
   manifest: "/manifest.json",
-  themeColor: "#3b82f6",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
-    generator: 'v0.dev'
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SafeDriver",
+  },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#3b82f6',
 }
 
 export default function RootLayout({
@@ -26,12 +36,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="SafeDriver" />
-      </head>
       <body className={inter.className}>
         <div className="min-h-screen bg-gray-50">
           <AdminHeader />

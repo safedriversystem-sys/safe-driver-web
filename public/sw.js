@@ -1,6 +1,6 @@
-const CACHE_NAME = "safedriver-v1"
-const STATIC_CACHE = "safedriver-static-v1"
-const DYNAMIC_CACHE = "safedriver-dynamic-v1"
+const CACHE_NAME = "safedriver-v2"
+const STATIC_CACHE = "safedriver-static-v2"
+const DYNAMIC_CACHE = "safedriver-dynamic-v2"
 
 // Assets to cache immediately
 const STATIC_ASSETS = [
@@ -55,8 +55,6 @@ self.addEventListener("push", (event) => {
   let notificationData = {
     title: "SafeDriver Alert",
     body: "You have a new notification",
-    icon: "/icons/icon-192x192.png",
-    badge: "/icons/badge-72x72.png",
     tag: "safedriver-notification",
     requireInteraction: false,
     actions: [],
@@ -80,8 +78,8 @@ self.addEventListener("push", (event) => {
         notificationData.requireInteraction = true
         notificationData.tag = "critical-alert"
         notificationData.actions = [
-          { action: "acknowledge", title: "Acknowledge", icon: "/icons/check.png" },
-          { action: "view", title: "View Details", icon: "/icons/view.png" },
+          { action: "acknowledge", title: "Acknowledge" },
+          { action: "view", title: "View Details" },
         ]
         break
 
@@ -89,22 +87,22 @@ self.addEventListener("push", (event) => {
         notificationData.requireInteraction = true
         notificationData.tag = "driver-emergency"
         notificationData.actions = [
-          { action: "contact", title: "Contact Driver", icon: "/icons/phone.png" },
-          { action: "dispatch", title: "Dispatch Help", icon: "/icons/emergency.png" },
+          { action: "contact", title: "Contact Driver" },
+          { action: "dispatch", title: "Dispatch Help" },
         ]
         break
 
       case "maintenance_due":
         notificationData.actions = [
-          { action: "schedule", title: "Schedule", icon: "/icons/calendar.png" },
-          { action: "dismiss", title: "Dismiss", icon: "/icons/close.png" },
+          { action: "schedule", title: "Schedule" },
+          { action: "dismiss", title: "Dismiss" },
         ]
         break
 
       case "route_deviation":
         notificationData.actions = [
-          { action: "track", title: "Track Vehicle", icon: "/icons/location.png" },
-          { action: "contact", title: "Contact Driver", icon: "/icons/phone.png" },
+          { action: "track", title: "Track Vehicle" },
+          { action: "contact", title: "Contact Driver" },
         ]
         break
     }
@@ -201,6 +199,11 @@ self.addEventListener("notificationclose", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event
   const url = new URL(request.url)
+
+  // Bypass Next.js internal files - let Next.js handle these
+  if (url.pathname.startsWith("/_next/")) {
+    return
+  }
 
   // Handle API requests
   if (url.pathname.startsWith("/api/")) {
