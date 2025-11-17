@@ -481,12 +481,12 @@ export default function DriversPage() {
               Add New Driver
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0 pb-4">
               <DialogTitle>Add New Driver</DialogTitle>
               <DialogDescription>Enter driver information to add them to the system</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
               <div>
                 <Label htmlFor="name">Full Name</Label>
                 <Input
@@ -669,15 +669,15 @@ export default function DriversPage() {
       ) : (
         <div className="space-y-4">
           {filteredDrivers.map((driver) => (
-          <Card key={driver.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start">
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+          <Card key={driver.id} className="hover:shadow-md transition-shadow overflow-visible">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <Users className="h-6 w-6 text-blue-600" />
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-lg font-semibold">{driver.name}</h3>
                       <Badge variant={getStatusColor(driver.status)}>
                         {driver.status.replace("_", " ").toUpperCase()}
@@ -693,7 +693,7 @@ export default function DriversPage() {
                             ? `Route: ${driver.route}`
                             : "No bus or route assigned"}
                     </p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
                       <span className="flex items-center">
                         <Phone className="h-3 w-3 mr-1" />
                         {driver.phone}
@@ -705,7 +705,7 @@ export default function DriversPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="text-right">
                     <p className="text-sm text-gray-600">Safety Score</p>
                     <p className={`text-2xl font-bold ${getSafetyScoreColor(driver.safetyScore)}`}>
@@ -716,34 +716,36 @@ export default function DriversPage() {
                     <p className="text-sm text-gray-600">Alerts</p>
                     <p className="text-2xl font-bold">{driver.alertCount}</p>
                   </div>
-                  <div className="flex flex-col space-y-2">
-                    <Button size="sm" variant="outline" onClick={() => setSelectedDriver(driver)}>
+                  <div className="flex flex-col gap-2 w-[110px]">
+                    <Button size="sm" variant="outline" onClick={() => setSelectedDriver(driver)} className="w-full justify-start">
                       <Eye className="h-4 w-4 mr-1" />
                       View
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEditDriver(driver)}>
+                    <Button size="sm" variant="outline" onClick={() => handleEditDriver(driver)} className="w-full justify-start">
                       <Edit className="h-4 w-4 mr-1" />
                       Edit
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleContactDriver(driver)}>
+                    <Button size="sm" variant="outline" onClick={() => handleContactDriver(driver)} className="w-full justify-start">
                       <Phone className="h-4 w-4 mr-1" />
                       Call
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={driver.status === "on_duty" ? "destructive" : "default"}
-                      onClick={() => handleToggleStatus(driver.id)}
-                    >
-                      {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
                       onClick={() => handleDeleteClick(driver)}
                       disabled={isDeleting}
+                      className="w-full justify-start bg-red-600 hover:bg-red-700 text-white"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
                       Delete
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={driver.status === "on_duty" ? "destructive" : "default"}
+                      onClick={() => handleToggleStatus(driver.id)}
+                      className="w-full justify-start"
+                    >
+                      {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
                     </Button>
                   </div>
                 </div>
@@ -760,12 +762,12 @@ export default function DriversPage() {
           setIsEditDialogOpen(open)
           if (!open) setEditingDriver(null)
         }}>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0 pb-4">
               <DialogTitle>Edit Driver - {editingDriver.name}</DialogTitle>
               <DialogDescription>Update driver information</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
               <div>
                 <Label htmlFor="edit-name">Full Name *</Label>
                 <Input
