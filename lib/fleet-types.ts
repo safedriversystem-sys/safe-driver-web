@@ -18,6 +18,7 @@ export interface ServiceHistoryItem {
 
 export interface Vehicle {
   id: string
+  busNumberPlate?: string
   busNumber?: string
   documentId?: string
   deviceId?: string
@@ -44,6 +45,7 @@ export interface Vehicle {
 }
 
 export interface CreateVehicleInput {
+  busNumberPlate: string
   busNumber?: string
   documentId?: string
   deviceId?: string
@@ -59,6 +61,7 @@ export interface CreateVehicleInput {
 }
 
 export interface UpdateVehicleInput {
+  busNumberPlate?: string
   busNumber?: string
   documentId?: string
   deviceId?: string

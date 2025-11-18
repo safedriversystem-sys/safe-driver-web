@@ -73,6 +73,7 @@ export default function FleetManagement() {
   const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
   const [newVehicle, setNewVehicle] = useState({
+    busNumberPlate: "",
     documentId: "",
     deviceId: "",
     busNumber: "",
@@ -209,6 +210,7 @@ export default function FleetManagement() {
 
   const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch =
+      vehicle.busNumberPlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.documentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.deviceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.busNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -222,6 +224,16 @@ export default function FleetManagement() {
   const addVehicle = async () => {
     // Client-side validation
     const errors: string[] = []
+    
+    // Validate BUS Number Plate format (NB-XXXX)
+    if (!newVehicle.busNumberPlate?.trim()) {
+      errors.push("BUS Number Plate is required")
+    } else {
+      const busPlatePattern = /^NB-\d{4}$/
+      if (!busPlatePattern.test(newVehicle.busNumberPlate.trim().toUpperCase())) {
+        errors.push("BUS Number Plate must be in format NB-XXXX (e.g., NB-4565)")
+      }
+    }
     
     if (!newVehicle.model?.trim()) {
       errors.push("Vehicle model is required")
@@ -256,6 +268,7 @@ export default function FleetManagement() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          busNumberPlate: newVehicle.busNumberPlate.trim().toUpperCase(),
           busNumber: newVehicle.busNumber?.trim() || undefined,
           model: newVehicle.model.trim(),
           year: parseInt(newVehicle.year),
@@ -277,7 +290,7 @@ export default function FleetManagement() {
         description: "Vehicle added successfully.",
       })
 
-      setNewVehicle({ documentId: "", deviceId: "", busNumber: "", model: "", year: "", driverName: "", route: "", driver: "" })
+      setNewVehicle({ busNumberPlate: "", documentId: "", deviceId: "", busNumber: "", model: "", year: "", driverName: "", route: "", driver: "" })
       setShowAddVehicle(false)
       fetchVehicles()
     } catch (error: any) {
@@ -419,6 +432,16 @@ export default function FleetManagement() {
     // Client-side validation
     const errors: string[] = []
     
+    // Validate BUS Number Plate format (NB-XXXX)
+    if (!editingVehicle.busNumberPlate?.trim()) {
+      errors.push("BUS Number Plate is required")
+    } else {
+      const busPlatePattern = /^NB-\d{4}$/
+      if (!busPlatePattern.test(editingVehicle.busNumberPlate.trim().toUpperCase())) {
+        errors.push("BUS Number Plate must be in format NB-XXXX (e.g., NB-4565)")
+      }
+    }
+    
     if (!editingVehicle.model?.trim()) {
       errors.push("Vehicle model is required")
     }
@@ -449,6 +472,7 @@ export default function FleetManagement() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          busNumberPlate: editingVehicle.busNumberPlate?.trim().toUpperCase() || undefined,
           busNumber: editingVehicle.busNumber?.trim() || undefined,
           model: editingVehicle.model.trim(),
           year: editingVehicle.year,
@@ -682,17 +706,39 @@ export default function FleetManagement() {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="documentId">
-                          Document ID (Number Plate) <span className="text-red-500">*</span>
+                        <Label htmlFor="busNumberPlate">
+                          BUS Number Plate <span className="text-red-500">*</span>
                         </Label>
+                        <Input
+                          id="busNumberPlate"
+                          value={newVehicle.busNumberPlate}
+                          onChange={(e) => {
+                            let value = e.target.value.toUpperCase()
+                            // Auto-format: Add NB- prefix if user types numbers
+                            if (value && !value.startsWith("NB-")) {
+                              if (/^\d+$/.test(value.replace("NB-", ""))) {
+                                value = "NB-" + value.replace("NB-", "")
+                              }
+                            }
+                            // Limit to format NB-XXXX
+                            if (value.length > 7) value = value.substring(0, 7)
+                            setNewVehicle({ ...newVehicle, busNumberPlate: value })
+                          }}
+                          placeholder="NB-4565"
+                          required
+                          maxLength={7}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
+                      </div>
+                      <div>
+                        <Label htmlFor="documentId">Document ID (Number Plate)</Label>
                         <Input
                           id="documentId"
                           value={newVehicle.documentId}
                           onChange={(e) => setNewVehicle({ ...newVehicle, documentId: e.target.value.toUpperCase() })}
                           placeholder="e.g., ABC-1234"
-                          required
                         />
-                        <p className="text-xs text-gray-500 mt-1">Vehicle registration number / Number plate</p>
+                        <p className="text-xs text-gray-500 mt-1">Vehicle registration number / Number plate (optional)</p>
                       </div>
                       <div>
                         <Label htmlFor="deviceId">Device ID</Label>
@@ -811,11 +857,11 @@ export default function FleetManagement() {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {filteredVehicles.map((vehicle) => (
-                    <Card key={vehicle.id || `vehicle-${vehicle.busNumber}`} className="hover:shadow-lg transition-shadow overflow-visible">
+                    <Card key={vehicle.id || `vehicle-${vehicle.busNumberPlate || vehicle.busNumber}`} className="hover:shadow-lg transition-shadow overflow-visible">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg">{vehicle.busNumber}</CardTitle>
+                          <CardTitle className="text-lg">{vehicle.busNumberPlate || vehicle.busNumber || "N/A"}</CardTitle>
                           <CardDescription className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
                               <span className="flex items-center gap-1">
@@ -1021,7 +1067,7 @@ export default function FleetManagement() {
                       <div className="flex items-center gap-3">
                         <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                         <div>
-                          <p className="font-medium">{vehicle.busNumber}</p>
+                          <p className="font-medium">{vehicle.busNumberPlate || vehicle.busNumber || "N/A"}</p>
                           <p className="text-sm text-gray-600">{vehicle.location.address}</p>
                         </div>
                       </div>
@@ -1086,7 +1132,7 @@ export default function FleetManagement() {
                               .filter((vehicle) => vehicle.id)
                               .map((vehicle) => (
                                 <SelectItem key={vehicle.id!} value={vehicle.id!}>
-                                  {vehicle.busNumber} - {vehicle.model}
+                                  {vehicle.busNumberPlate || vehicle.busNumber || "N/A"} - {vehicle.model}
                                 </SelectItem>
                               ))}
                           </SelectContent>
@@ -1345,7 +1391,7 @@ export default function FleetManagement() {
         <Dialog open={!!selectedVehicle} onOpenChange={() => setSelectedVehicle(null)}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{selectedVehicle.busNumber} - Detailed Information</DialogTitle>
+              <DialogTitle>{selectedVehicle.busNumberPlate || selectedVehicle.busNumber || "N/A"} - Detailed Information</DialogTitle>
               <DialogDescription>
                 {selectedVehicle.model} ({selectedVehicle.year})
               </DialogDescription>
@@ -1408,6 +1454,31 @@ export default function FleetManagement() {
               <DialogDescription>Update vehicle information</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+              <div>
+                <Label htmlFor="edit-busNumberPlate">
+                  BUS Number Plate <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="edit-busNumberPlate"
+                  value={editingVehicle.busNumberPlate || ""}
+                  onChange={(e) => {
+                    let value = e.target.value.toUpperCase()
+                    // Auto-format: Add NB- prefix if user types numbers
+                    if (value && !value.startsWith("NB-")) {
+                      if (/^\d+$/.test(value.replace("NB-", ""))) {
+                        value = "NB-" + value.replace("NB-", "")
+                      }
+                    }
+                    // Limit to format NB-XXXX
+                    if (value.length > 7) value = value.substring(0, 7)
+                    setEditingVehicle({ ...editingVehicle, busNumberPlate: value })
+                  }}
+                  placeholder="NB-4565"
+                  required
+                  maxLength={7}
+                />
+                <p className="text-xs text-gray-500 mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
+              </div>
               <div>
                 <Label htmlFor="edit-documentId">Document ID (Number Plate)</Label>
                 <Input
@@ -1525,7 +1596,7 @@ export default function FleetManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Vehicle</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{vehicleToDelete?.busNumber || vehicleToDelete?.documentId || vehicleToDelete?.id}</strong>? This action cannot be undone.
+              Are you sure you want to delete <strong>{vehicleToDelete?.busNumberPlate || vehicleToDelete?.busNumber || vehicleToDelete?.documentId || vehicleToDelete?.id}</strong>? This action cannot be undone.
               {vehicleToDelete?.status === "active" && (
                 <span className="block mt-2 text-amber-600 font-medium">
                   Warning: This vehicle is currently active. Make sure to update its status first.

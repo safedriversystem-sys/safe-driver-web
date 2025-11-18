@@ -75,6 +75,7 @@ export const fleetService = {
         const searchLower = filters.search.toLowerCase()
         vehicles = vehicles.filter(
           (vehicle) =>
+            vehicle.busNumberPlate?.toLowerCase().includes(searchLower) ||
             vehicle.busNumber?.toLowerCase().includes(searchLower) ||
             vehicle.documentId?.toLowerCase().includes(searchLower) ||
             vehicle.deviceId?.toLowerCase().includes(searchLower) ||
@@ -123,6 +124,7 @@ export const fleetService = {
 
       const vehicle: Vehicle = {
         id,
+        busNumberPlate: input.busNumberPlate,
         busNumber: input.busNumber,
         documentId: input.documentId,
         deviceId: input.deviceId,
@@ -287,7 +289,7 @@ export const fleetService = {
       const schedule: MaintenanceSchedule = {
         id,
         vehicleId: input.vehicleId,
-        busNumber: vehicle.busNumber || vehicle.documentId || vehicle.id,
+        busNumber: vehicle.busNumberPlate || vehicle.busNumber || vehicle.documentId || vehicle.id,
         type: input.type,
         scheduledDate: input.scheduledDate,
         status: "scheduled",

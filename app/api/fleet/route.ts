@@ -11,6 +11,11 @@ try {
 }
 
 const createVehicleSchema = z.object({
+  busNumberPlate: z
+    .string()
+    .min(1, "BUS Number Plate is required")
+    .regex(/^NB-\d{4}$/, "BUS Number Plate must be in format NB-XXXX (e.g., NB-4565)")
+    .transform((val) => val.toUpperCase()),
   busNumber: z
     .preprocess(
       (val) => (val === "" || val === null || val === undefined ? undefined : val),
