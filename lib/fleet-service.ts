@@ -13,18 +13,14 @@ import type {
 const VEHICLES_COLLECTION = "vehicles"
 const MAINTENANCE_COLLECTION = "maintenance_schedules"
 
-// Generate vehicle ID
-const generateVehicleId = async (): Promise<string> => {
+// Check if a vehicle with the given busNumberPlate already exists
+const checkBusNumberPlateExists = async (busNumberPlate: string): Promise<boolean> => {
   try {
-    const vehicles = await firestoreService.getCollection<Vehicle>(VEHICLES_COLLECTION)
-    const maxId = vehicles.reduce((max, vehicle) => {
-      const num = parseInt(vehicle.id.replace("VH", ""))
-      return num > max ? num : max
-    }, 0)
-    return `VH${String(maxId + 1).padStart(3, "0")}`
+    const vehicle = await firestoreService.getDocument<Vehicle>(VEHICLES_COLLECTION, busNumberPlate)
+    return vehicle !== null
   } catch (error) {
-    console.warn("Could not fetch existing vehicles to generate ID, starting from VH001:", error)
-    return "VH001"
+    // If document doesn't exist, return false
+    return false
   }
 }
 
@@ -117,14 +113,29 @@ export const fleetService = {
   // Create a new vehicle
   createVehicle: async (input: CreateVehicleInput): Promise<Vehicle> => {
     try {
-      const id = await generateVehicleId()
+      // Use busNumberPlate as the document ID
+      if (!input.busNumberPlate) {
+        throw new Error("BUS Number Plate is required")
+      }
+
+      // Normalize busNumberPlate to uppercase
+      const busNumberPlate = input.busNumberPlate.toUpperCase()
+
+      // Check if a vehicle with this busNumberPlate already exists
+      const exists = await checkBusNumberPlateExists(busNumberPlate)
+      if (exists) {
+        throw new Error(`A vehicle with BUS Number Plate "${busNumberPlate}" already exists`)
+      }
+
+      // Use busNumberPlate as the document ID
+      const id = busNumberPlate
       const now = new Date().toISOString()
       const nextServiceDate = new Date()
       nextServiceDate.setDate(nextServiceDate.getDate() + 60) // 60 days from now
 
       const vehicle: Vehicle = {
         id,
-        busNumberPlate: input.busNumberPlate,
+        busNumberPlate: busNumberPlate,
         busNumber: input.busNumber,
         documentId: input.documentId,
         deviceId: input.deviceId,
@@ -155,6 +166,7 @@ export const fleetService = {
       }
 
       const { id: _, ...vehicleData } = vehicle
+      // busNumberPlate is already included in vehicleData from the vehicle object above
 
       await firestoreService.setDocument(VEHICLES_COLLECTION, id, vehicleData)
 
@@ -179,8 +191,51 @@ export const fleetService = {
         throw new Error("Vehicle not found")
       }
 
+      // If busNumberPlate is being changed, check if the new one already exists
+      if (input.busNumberPlate && input.busNumberPlate.toUpperCase() !== id.toUpperCase()) {
+        const newBusNumberPlate = input.busNumberPlate.toUpperCase()
+        const exists = await checkBusNumberPlateExists(newBusNumberPlate)
+        if (exists) {
+          throw new Error(`A vehicle with BUS Number Plate "${newBusNumberPlate}" already exists`)
+        }
+
+        // If busNumberPlate is changing, we need to create a new document and delete the old one
+        // First, create the new vehicle with updated data
+        const { busNumberPlate: newId, ...updateData } = input
+        const newVehicleData: Partial<Vehicle> = {
+          ...existingVehicle,
+          ...updateData,
+          busNumberPlate: newBusNumberPlate,
+          id: newBusNumberPlate,
+          updatedAt: new Date().toISOString(),
+        }
+
+        // Create new document with new ID
+        await firestoreService.setDocument(VEHICLES_COLLECTION, newBusNumberPlate, newVehicleData)
+
+        // Update all maintenance schedules that reference the old vehicle ID
+        try {
+          const maintenanceSchedules = await fleetService.getAllMaintenanceSchedules(id)
+          for (const schedule of maintenanceSchedules) {
+            await firestoreService.updateDocument(MAINTENANCE_COLLECTION, schedule.id, {
+              vehicleId: newBusNumberPlate,
+            })
+          }
+        } catch (error) {
+          console.warn("Failed to update maintenance schedules for vehicle ID change:", error)
+          // Continue even if maintenance schedule update fails
+        }
+
+        // Delete old document
+        await firestoreService.deleteDocument(VEHICLES_COLLECTION, id)
+
+        return newVehicleData as Vehicle
+      }
+
+      // Normal update - busNumberPlate is not changing
+      const { busNumberPlate: _, ...updateData } = input // Remove busNumberPlate from update if present
       const updatedVehicle: Partial<Vehicle> = {
-        ...input,
+        ...updateData,
         updatedAt: new Date().toISOString(),
       }
 
