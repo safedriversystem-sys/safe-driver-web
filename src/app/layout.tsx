@@ -62,7 +62,7 @@ export default function RootLayout({
             </div>
 
             {/* Main Content - full width on mobile, adjusted margin on desktop */}
-            <main className="flex-1 md:ml-64 p-4 md:p-6 pt-20 md:pt-24 bg-gray-50 min-h-screen w-full">{children}</main>
+            <main className="flex-1 md:ml-64 p-4 md:p-6 pt-20 md:pt-24 bg-gray-50 min-h-screen w-full relative z-0">{children}</main>
           </div>
 
           {/* Mobile Navigation - visible only on mobile */}

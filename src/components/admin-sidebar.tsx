@@ -1,8 +1,9 @@
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { useLiveAlerts } from "@/hooks/use-live-alerts"
 import {
   LayoutDashboard,
   AlertTriangle,
@@ -30,10 +31,13 @@ const navigation = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
-  const router = useRouter()
+  const { alerts: liveAlerts } = useLiveAlerts()
+  
+  // Count active alerts (alerts with status "active")
+  const activeAlertsCount = liveAlerts.filter((alert) => alert.status === "active").length
 
   return (
-    <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto shadow-sm">
+    <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto shadow-sm z-50">
       <div className="flex flex-col h-full">
         <div className="p-4">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Main Navigation</div>
@@ -45,25 +49,15 @@ export function AdminSidebar() {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer relative z-10",
                     isActive ? "bg-primary-50 text-primary-600" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                   )}
-                  onClick={(e) => {
-                    // Ensure regular clicks open in the same tab using Next.js router
-                    if (e.ctrlKey || e.metaKey || e.button === 1) {
-                      // Allow middle-click and Ctrl/Cmd+click to work normally (open in new tab)
-                      return
-                    }
-                    // For regular clicks, use Next.js router for client-side navigation
-                    e.preventDefault()
-                    router.push(item.href)
-                  }}
                 >
                   <item.icon className={cn("h-5 w-5", isActive ? "text-primary-500" : "text-gray-400")} />
                   <span>{item.name}</span>
-                  {item.name === "Live Alerts" && (
+                  {item.name === "Live Alerts" && activeAlertsCount > 0 && (
                     <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                      3
+                      {activeAlertsCount}
                     </span>
                   )}
                 </Link>
@@ -75,7 +69,7 @@ export function AdminSidebar() {
         <div className="mt-auto p-4 border-t border-gray-200">
           <Link
             href="/help"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 cursor-pointer"
           >
             <HelpCircle className="h-5 w-5 text-gray-400" />
             <span>Help & Support</span>

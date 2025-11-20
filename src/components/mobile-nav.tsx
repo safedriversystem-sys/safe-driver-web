@@ -62,19 +62,6 @@ const navigation = [
     href: "/analytics",
     icon: BarChart3,
   },
-  {
-    title: "Communication",
-    href: "/communication",
-    icon: MessageSquare,
-    badge: "5",
-  },
-  {
-    title: "Emergency",
-    href: "/emergency",
-    icon: Shield,
-    badge: "SOS",
-    className: "text-red-600 hover:text-red-700",
-  },
 ]
 
 const additionalLinks = [
