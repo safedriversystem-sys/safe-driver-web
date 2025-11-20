@@ -47,8 +47,8 @@ const getAlertDisplay = (alert: any) => {
 }
 
 export default function HomePage() {
-  // Get real-time alerts from Firebase
-  const { alerts: liveAlerts, isLoading: isLoadingAlerts } = useLiveAlerts()
+  // Get real-time alerts from Firebase (including history)
+  const { alerts: liveAlerts, historyAlerts, isLoading: isLoadingAlerts } = useLiveAlerts()
   
   // Driver stats state
   const [driverStats, setDriverStats] = useState({
@@ -149,14 +149,20 @@ export default function HomePage() {
 
   // Calculate stats from real-time data
   const fleetStats = useMemo(() => {
-    const activeAlerts = liveAlerts.filter((a) => a.status === "active").length
-    const resolvedAlerts = liveAlerts.filter((a) => a.status === "resolved").length
+    // Get today's alerts from both live and history (same logic as alerts page history tab)
+    const todayLiveAlerts = liveAlerts.filter((alert) => isToday(alert.timestamp))
+    const todayHistoryAlerts = historyAlerts.filter((alert) => isToday(alert.timestamp))
     
-    // Get today's alerts
-    const todayAlertsList = liveAlerts.filter((alert) => isToday(alert.timestamp))
-    const todayAlerts = todayAlertsList.length
-    const todayActiveAlerts = todayAlertsList.filter((a) => a.status === "active").length
-    const todayResolvedAlerts = todayAlertsList.filter((a) => a.status === "resolved").length
+    // Combine today's alerts and remove duplicates based on alert ID
+    const combinedTodayAlerts = [...todayLiveAlerts, ...todayHistoryAlerts]
+    const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) =>
+      index === self.findIndex((a) => a.id === alert.id)
+    )
+    
+    // Calculate today's alert counts
+    const todayAlerts = uniqueTodayAlerts.length
+    const todayActiveAlerts = uniqueTodayAlerts.filter((a) => a.status === "active").length
+    const todayResolvedAlerts = uniqueTodayAlerts.filter((a) => a.status === "resolved").length
 
     // Get fleet statistics from fleet management
     const totalVehicles = fleetVehicles.length || 0
@@ -180,7 +186,7 @@ export default function HomePage() {
       safetyScore: Math.round(safetyScore),
       complianceRate: 96, // This would need to come from another data source
     }
-  }, [liveAlerts, driverStats, fleetVehicles])
+  }, [liveAlerts, historyAlerts, driverStats, fleetVehicles])
 
   // Get recent alerts (latest 3, sorted by timestamp)
   const recentAlerts = useMemo(() => {

@@ -38,6 +38,40 @@ export default function AlertsPage() {
     }
   }, [liveAlerts])
 
+  // Helper function to check if alert is from today
+  const isToday = (timestamp: string | number | undefined): boolean => {
+    if (!timestamp) return false
+    
+    try {
+      // Get today's date at midnight for accurate comparison
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      // Handle both string and number timestamps
+      let alertTimestamp: number
+      if (typeof timestamp === "string") {
+        alertTimestamp = new Date(timestamp).getTime()
+      } else if (typeof timestamp === "number") {
+        // If it's a number, check if it's in seconds or milliseconds
+        alertTimestamp = timestamp < 10000000000 ? timestamp * 1000 : timestamp
+      } else {
+        return false
+      }
+      
+      // Check if timestamp is valid
+      if (isNaN(alertTimestamp)) return false
+      
+      const alertDate = new Date(alertTimestamp)
+      alertDate.setHours(0, 0, 0, 0)
+      
+      // Compare dates
+      return alertDate.getTime() === today.getTime()
+    } catch (error) {
+      console.error("Error parsing alert timestamp:", timestamp, error)
+      return false
+    }
+  }
+
   // Merge live alerts with status tracking
   const alerts = liveAlerts.map((alert) => ({
     ...alert,
@@ -47,8 +81,24 @@ export default function AlertsPage() {
   // Filter alerts based on active tab
   useEffect(() => {
     if (activeTab === "history") {
-      // Show history alerts
-      setFilteredAlerts(historyAlerts)
+      // Show only today's alerts in history (combine today's live alerts and today's history alerts)
+      const todayLiveAlerts = alerts.filter((alert) => isToday(alert.timestamp))
+      const todayHistoryAlerts = historyAlerts.filter((alert) => isToday(alert.timestamp))
+      
+      // Combine and remove duplicates based on alert ID
+      const combinedTodayAlerts = [...todayLiveAlerts, ...todayHistoryAlerts]
+      const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) =>
+        index === self.findIndex((a) => a.id === alert.id)
+      )
+      
+      // Sort by timestamp (newest first)
+      uniqueTodayAlerts.sort((a, b) => {
+        const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
+        const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
+        return timeB - timeA
+      })
+      
+      setFilteredAlerts(uniqueTodayAlerts)
     } else if (activeTab === "all") {
       setFilteredAlerts(alerts)
     } else {
