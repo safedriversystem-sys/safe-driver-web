@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -19,9 +20,50 @@ import {
   Settings,
   CheckCircle,
   Bell,
+  MessageSquare,
+  Bus,
+  Car,
 } from "lucide-react"
+import { useLiveAlerts } from "@/hooks/use-live-alerts"
+
+// Helper function to format relative time
+const formatRelativeTime = (timestamp: string | number): string => {
+  if (!timestamp) return "Unknown"
+  
+  const timestampMs = typeof timestamp === "string" ? new Date(timestamp).getTime() : timestamp
+  const now = Date.now()
+  const diffMs = now - timestampMs
+  const diffSeconds = Math.floor(diffMs / 1000)
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffSeconds < 60) {
+    return `${diffSeconds} second${diffSeconds !== 1 ? "s" : ""} ago`
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes !== 1 ? "s" : ""} ago`
+  } else if (diffHours < 24) {
+    return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`
+  } else {
+    return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`
+  }
+}
 
 export default function AnalyticsPage() {
+  // Get real-time alerts
+  const { alerts: liveAlerts, isLoading: isLoadingAlerts } = useLiveAlerts()
+  
+  // Feedback state
+  const [feedback, setFeedback] = useState<any[]>([])
+  const [isLoadingFeedback, setIsLoadingFeedback] = useState(true)
+  
+  // Drivers state
+  const [recentDrivers, setRecentDrivers] = useState<any[]>([])
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(true)
+  
+  // Fleet state
+  const [recentFleet, setRecentFleet] = useState<any[]>([])
+  const [isLoadingFleet, setIsLoadingFleet] = useState(true)
   // Simple static data - no undefined values possible
   const metrics = {
     safetyScore: 94,
@@ -33,6 +75,159 @@ export default function AnalyticsPage() {
     quality: 94,
     reliability: 91,
   }
+
+  // Fetch feedback
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      try {
+        setIsLoadingFeedback(true)
+        const response = await fetch("/api/feedback?limit=10", {
+          cache: "no-store",
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setFeedback(data)
+        }
+      } catch (error) {
+        console.error("Error fetching feedback:", error)
+      } finally {
+        setIsLoadingFeedback(false)
+      }
+    }
+
+    fetchFeedback()
+    const interval = setInterval(fetchFeedback, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Fetch recent drivers
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      try {
+        setIsLoadingDrivers(true)
+        const response = await fetch("/api/drivers?limit=10", {
+          cache: "no-store",
+        })
+        if (response.ok) {
+          const data = await response.json()
+          // Filter to only recent registrations (last 7 days)
+          const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+          const recent = data.filter((driver: any) => {
+            if (!driver.createdAt) return false
+            const createdAt = new Date(driver.createdAt).getTime()
+            return createdAt > sevenDaysAgo
+          })
+          setRecentDrivers(recent)
+        }
+      } catch (error) {
+        console.error("Error fetching drivers:", error)
+      } finally {
+        setIsLoadingDrivers(false)
+      }
+    }
+
+    fetchDrivers()
+    const interval = setInterval(fetchDrivers, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Fetch recent fleet
+  useEffect(() => {
+    const fetchFleet = async () => {
+      try {
+        setIsLoadingFleet(true)
+        const response = await fetch("/api/fleet?limit=10", {
+          cache: "no-store",
+        })
+        if (response.ok) {
+          const data = await response.json()
+          // Filter to only recent registrations (last 7 days)
+          const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+          const recent = data.filter((vehicle: any) => {
+            if (!vehicle.createdAt) return false
+            const createdAt = new Date(vehicle.createdAt).getTime()
+            return createdAt > sevenDaysAgo
+          })
+          setRecentFleet(recent)
+        }
+      } catch (error) {
+        console.error("Error fetching fleet:", error)
+      } finally {
+        setIsLoadingFleet(false)
+      }
+    }
+
+    fetchFleet()
+    const interval = setInterval(fetchFleet, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Combine all activities into a unified feed
+  const recentActivities = useMemo(() => {
+    const activities: any[] = []
+
+    // Add alerts
+    liveAlerts.slice(0, 5).forEach((alert) => {
+      const busNumber = alert.number_plate || alert.busNumber || "Unknown"
+      activities.push({
+        id: `alert-${alert.id}`,
+        type: "alert",
+        title: `${alert.type} alert`,
+        description: `${alert.description || alert.type} - Vehicle ${busNumber}`,
+        timestamp: alert.timestamp || Date.now(),
+        icon: AlertTriangle,
+        iconColor: alert.severity === "high" ? "text-red-600" : "text-orange-600",
+      })
+    })
+
+    // Add feedback
+    feedback.slice(0, 3).forEach((item) => {
+      activities.push({
+        id: `feedback-${item.id || item.documentId}`,
+        type: "feedback",
+        title: item.title || "New feedback received",
+        description: item.description || item.comment || "Customer feedback",
+        timestamp: item.timestamp || Date.now(),
+        icon: MessageSquare,
+        iconColor: item.status === "resolved" ? "text-green-600" : "text-blue-600",
+      })
+    })
+
+    // Add driver registrations
+    recentDrivers.slice(0, 2).forEach((driver) => {
+      activities.push({
+        id: `driver-${driver.id || driver.documentId}`,
+        type: "driver",
+        title: "New driver registered",
+        description: `${driver.name || "Driver"} has been registered`,
+        timestamp: driver.createdAt || Date.now(),
+        icon: Users,
+        iconColor: "text-green-600",
+      })
+    })
+
+    // Add fleet registrations
+    recentFleet.slice(0, 2).forEach((vehicle) => {
+      activities.push({
+        id: `fleet-${vehicle.id || vehicle.documentId}`,
+        type: "fleet",
+        title: "New vehicle registered",
+        description: `${vehicle.busNumberPlate || vehicle.busNumber || "Vehicle"} has been added to fleet`,
+        timestamp: vehicle.createdAt || Date.now(),
+        icon: Bus,
+        iconColor: "text-blue-600",
+      })
+    })
+
+    // Sort by timestamp (newest first) and limit to 6 most recent
+    return activities
+      .sort((a, b) => {
+        const timeA = typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp
+        const timeB = typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp
+        return timeB - timeA
+      })
+      .slice(0, 6)
+  }, [liveAlerts, feedback, recentDrivers, recentFleet])
 
   const insights = [
     {
@@ -244,34 +439,31 @@ export default function AnalyticsPage() {
               <CardDescription>Latest alerts and notifications</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3 border rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <div className="flex-1">
-                    <div className="font-medium">Safety training completed</div>
-                    <div className="text-sm text-gray-600">Driver certification program finished successfully</div>
-                  </div>
-                  <div className="text-xs text-gray-500">2 hours ago</div>
+              {isLoadingAlerts && isLoadingFeedback && isLoadingDrivers && isLoadingFleet ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-sm text-gray-500">Loading activities...</div>
                 </div>
-
-                <div className="flex items-center gap-3 p-3 border rounded-lg">
-                  <AlertTriangle className="h-5 w-5 text-orange-600" />
-                  <div className="flex-1">
-                    <div className="font-medium">Maintenance alert</div>
-                    <div className="text-sm text-gray-600">Vehicle NB-1234 requires scheduled maintenance</div>
-                  </div>
-                  <div className="text-xs text-gray-500">4 hours ago</div>
+              ) : recentActivities.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-sm text-gray-500">No recent activities</div>
                 </div>
-
-                <div className="flex items-center gap-3 p-3 border rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-blue-600" />
-                  <div className="flex-1">
-                    <div className="font-medium">Compliance check passed</div>
-                    <div className="text-sm text-gray-600">Monthly regulatory compliance audit completed</div>
-                  </div>
-                  <div className="text-xs text-gray-500">1 day ago</div>
+              ) : (
+                <div className="space-y-4">
+                  {recentActivities.map((activity) => {
+                    const IconComponent = activity.icon || Bell
+                    return (
+                      <div key={activity.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <IconComponent className={`h-5 w-5 ${activity.iconColor || "text-gray-600"}`} />
+                        <div className="flex-1">
+                          <div className="font-medium">{activity.title}</div>
+                          <div className="text-sm text-gray-600">{activity.description}</div>
+                        </div>
+                        <div className="text-xs text-gray-500">{formatRelativeTime(activity.timestamp)}</div>
+                      </div>
+                    )
+                  })}
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
