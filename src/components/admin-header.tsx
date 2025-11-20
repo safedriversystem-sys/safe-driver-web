@@ -614,20 +614,6 @@ export function AdminHeader() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/communication" className="cursor-pointer flex items-center">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Communication
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/emergency" className="cursor-pointer flex items-center text-red-600">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  Emergency Response
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
