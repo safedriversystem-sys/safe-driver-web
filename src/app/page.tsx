@@ -1,46 +1,186 @@
 "use client"
 
+import { useMemo, useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Car, Users, AlertTriangle, CheckCircle, Activity, Shield, Bell, TrendingUp, MapPin, Clock } from "lucide-react"
 import Link from "next/link"
+import { useLiveAlerts } from "@/hooks/use-live-alerts"
+
+// Helper function to format relative time
+const formatRelativeTime = (timestamp: string | number): string => {
+  if (!timestamp) return "Unknown"
+  
+  const timestampMs = typeof timestamp === "string" ? new Date(timestamp).getTime() : timestamp
+  const now = Date.now()
+  const diffMs = now - timestampMs
+  const diffSeconds = Math.floor(diffMs / 1000)
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffSeconds < 60) {
+    return `${diffSeconds} second${diffSeconds !== 1 ? "s" : ""} ago`
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes !== 1 ? "s" : ""} ago`
+  } else if (diffHours < 24) {
+    return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`
+  } else {
+    return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`
+  }
+}
+
+// Helper function to get alert icon and type
+const getAlertDisplay = (alert: any) => {
+  const type = alert.type?.toLowerCase() || ""
+  const severity = alert.severity || "low"
+
+  if (type === "drowsiness" || severity === "high") {
+    return { icon: AlertTriangle, color: "text-orange-600", displayType: "warning" }
+  }
+  if (type === "phone_usage" || type === "distraction") {
+    return { icon: Clock, color: "text-blue-600", displayType: "info" }
+  }
+  return { icon: CheckCircle, color: "text-green-600", displayType: "success" }
+}
 
 export default function HomePage() {
-  // Simple static data to avoid any undefined issues
-  const fleetStats = {
-    totalVehicles: 24,
-    activeVehicles: 19,
-    driversOnDuty: 15,
-    alertsToday: 3,
-    safetyScore: 94,
-    complianceRate: 96,
+  // Get real-time alerts from Firebase
+  const { alerts: liveAlerts, isLoading: isLoadingAlerts } = useLiveAlerts()
+  
+  // Driver stats state
+  const [driverStats, setDriverStats] = useState({
+    total: 0,
+    onDuty: 0,
+    offDuty: 0,
+    suspended: 0,
+  })
+  const [isLoadingDriverStats, setIsLoadingDriverStats] = useState(true)
+
+  // Fetch driver stats
+  useEffect(() => {
+    const fetchDriverStats = async () => {
+      try {
+        setIsLoadingDriverStats(true)
+        const response = await fetch("/api/drivers/stats", {
+          cache: "no-store",
+        })
+        if (response.ok) {
+          const stats = await response.json()
+          setDriverStats(stats)
+        }
+      } catch (error) {
+        console.error("Error fetching driver stats:", error)
+      } finally {
+        setIsLoadingDriverStats(false)
+      }
+    }
+
+    fetchDriverStats()
+    // Refresh driver stats every 30 seconds
+    const interval = setInterval(fetchDriverStats, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Helper function to check if alert is from today
+  const isToday = (timestamp: string | number | undefined): boolean => {
+    if (!timestamp) return false
+    
+    try {
+      // Get today's date at midnight for accurate comparison
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      // Handle both string and number timestamps
+      let alertTimestamp: number
+      if (typeof timestamp === "string") {
+        alertTimestamp = new Date(timestamp).getTime()
+      } else if (typeof timestamp === "number") {
+        // If it's a number, check if it's in seconds or milliseconds
+        alertTimestamp = timestamp < 10000000000 ? timestamp * 1000 : timestamp
+      } else {
+        return false
+      }
+      
+      // Check if timestamp is valid
+      if (isNaN(alertTimestamp)) return false
+      
+      const alertDate = new Date(alertTimestamp)
+      alertDate.setHours(0, 0, 0, 0)
+      
+      // Compare dates
+      return alertDate.getTime() === today.getTime()
+    } catch (error) {
+      console.error("Error parsing alert timestamp:", timestamp, error)
+      return false
+    }
   }
 
-  const recentAlerts = [
-    {
-      id: 1,
-      type: "warning",
-      message: "Driver fatigue detected - Vehicle NB-1234",
-      time: "2 minutes ago",
-      status: "active",
-    },
-    {
-      id: 2,
-      type: "info",
-      message: "Maintenance scheduled - Vehicle WP-5678",
-      time: "15 minutes ago",
-      status: "resolved",
-    },
-    {
-      id: 3,
-      type: "success",
-      message: "Route completed successfully - Vehicle CP-9012",
-      time: "1 hour ago",
-      status: "resolved",
-    },
-  ]
+  // Calculate stats from real-time data
+  const fleetStats = useMemo(() => {
+    const activeAlerts = liveAlerts.filter((a) => a.status === "active").length
+    const resolvedAlerts = liveAlerts.filter((a) => a.status === "resolved").length
+    
+    // Get today's alerts
+    const todayAlertsList = liveAlerts.filter((alert) => isToday(alert.timestamp))
+    const todayAlerts = todayAlertsList.length
+    const todayActiveAlerts = todayAlertsList.filter((a) => a.status === "active").length
+    const todayResolvedAlerts = todayAlertsList.filter((a) => a.status === "resolved").length
+
+    // Get unique devices/vehicles from alerts
+    const uniqueDevices = new Set(liveAlerts.map((a) => a.deviceId || a.busNumber).filter(Boolean))
+    
+    // Calculate safety score based on alerts (fewer alerts = higher score)
+    const totalAlerts = liveAlerts.length
+    const highSeverityAlerts = liveAlerts.filter((a) => a.severity === "high").length
+    const safetyScore = totalAlerts > 0 
+      ? Math.max(0, Math.min(100, 100 - (highSeverityAlerts * 10) - (totalAlerts * 2)))
+      : 100
+
+    return {
+      totalVehicles: uniqueDevices.size || 0,
+      activeVehicles: uniqueDevices.size || 0,
+      driversOnDuty: driverStats.onDuty || 0,
+      totalDrivers: driverStats.total || 0,
+      alertsToday: todayAlerts,
+      todayActiveAlerts,
+      todayResolvedAlerts,
+      safetyScore: Math.round(safetyScore),
+      complianceRate: 96, // This would need to come from another data source
+    }
+  }, [liveAlerts, driverStats])
+
+  // Get recent alerts (latest 3, sorted by timestamp)
+  const recentAlerts = useMemo(() => {
+    if (!liveAlerts || liveAlerts.length === 0) {
+      return []
+    }
+
+    return liveAlerts
+      .sort((a, b) => {
+        const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
+        const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
+        return timeB - timeA
+      })
+      .slice(0, 3)
+      .map((alert) => {
+        const display = getAlertDisplay(alert)
+        const busNumber = alert.number_plate || alert.busNumber || "Unknown"
+        const message = alert.description || `${alert.type} detected`
+        
+        return {
+          id: alert.id,
+          type: display.displayType,
+          message: `${message}${busNumber !== "Unknown" ? ` - Vehicle ${busNumber}` : ""}`,
+          time: formatRelativeTime(alert.timestamp || Date.now()),
+          status: alert.status || "active",
+          icon: display.icon,
+          color: display.color,
+        }
+      })
+  }, [liveAlerts])
 
   const quickActions = [
     { title: "View Fleet", href: "/fleet", icon: Car, color: "bg-blue-500" },
@@ -76,8 +216,12 @@ export default function HomePage() {
             <Users className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fleetStats.driversOnDuty}</div>
-            <p className="text-xs text-muted-foreground">Out of {fleetStats.totalVehicles} total drivers</p>
+            <div className="text-2xl font-bold">
+              {isLoadingDriverStats ? "..." : fleetStats.driversOnDuty}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Out of {isLoadingDriverStats ? "..." : fleetStats.totalDrivers} total drivers
+            </p>
           </CardContent>
         </Card>
 
@@ -99,7 +243,9 @@ export default function HomePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{fleetStats.alertsToday}</div>
-            <p className="text-xs text-muted-foreground">2 resolved, 1 active</p>
+            <p className="text-xs text-muted-foreground">
+              {fleetStats.todayResolvedAlerts} resolved, {fleetStats.todayActiveAlerts} active
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -115,20 +261,33 @@ export default function HomePage() {
             <CardDescription>Latest safety and operational alerts</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentAlerts.map((alert) => (
-                <div key={alert.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                  {alert.type === "warning" && <AlertTriangle className="h-5 w-5 text-orange-600" />}
-                  {alert.type === "info" && <Clock className="h-5 w-5 text-blue-600" />}
-                  {alert.type === "success" && <CheckCircle className="h-5 w-5 text-green-600" />}
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">{alert.message}</div>
-                    <div className="text-xs text-gray-500">{alert.time}</div>
-                  </div>
-                  <Badge variant={alert.status === "active" ? "destructive" : "secondary"}>{alert.status}</Badge>
-                </div>
-              ))}
-            </div>
+            {isLoadingAlerts ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-sm text-gray-500">Loading alerts...</div>
+              </div>
+            ) : recentAlerts.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-sm text-gray-500">No recent alerts</div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentAlerts.map((alert) => {
+                  const IconComponent = alert.icon || AlertTriangle
+                  return (
+                    <div key={alert.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <IconComponent className={`h-5 w-5 ${alert.color || "text-gray-600"}`} />
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{alert.message}</div>
+                        <div className="text-xs text-gray-500">{alert.time}</div>
+                      </div>
+                      <Badge variant={alert.status === "active" ? "destructive" : "secondary"}>
+                        {alert.status}
+                      </Badge>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
             <div className="mt-4">
               <Button variant="outline" className="w-full" asChild>
                 <Link href="/alerts">View All Alerts</Link>
@@ -222,74 +381,6 @@ export default function HomePage() {
         </CardContent>
       </Card>
 
-      {/* Performance Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Safety Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Incident Rate</span>
-                <span className="font-bold text-green-600">0.02%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Training Completion</span>
-                <span className="font-bold">95%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Compliance Score</span>
-                <span className="font-bold text-blue-600">{fleetStats.complianceRate}%</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Operational Metrics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Fleet Utilization</span>
-                <span className="font-bold">79%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">On-Time Performance</span>
-                <span className="font-bold text-green-600">92%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Fuel Efficiency</span>
-                <span className="font-bold">8.5 km/L</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="text-sm">
-                <div className="font-medium">Last Route Completed</div>
-                <div className="text-gray-600">Colombo to Kandy - 2 hours ago</div>
-              </div>
-              <div className="text-sm">
-                <div className="font-medium">Driver Check-in</div>
-                <div className="text-gray-600">3 drivers started shifts</div>
-              </div>
-              <div className="text-sm">
-                <div className="font-medium">System Update</div>
-                <div className="text-gray-600">Safety protocols updated</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }
