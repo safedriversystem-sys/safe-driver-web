@@ -59,6 +59,10 @@ export default function HomePage() {
   })
   const [isLoadingDriverStats, setIsLoadingDriverStats] = useState(true)
 
+  // Fleet vehicles state
+  const [fleetVehicles, setFleetVehicles] = useState<any[]>([])
+  const [isLoadingFleet, setIsLoadingFleet] = useState(true)
+
   // Fetch driver stats
   useEffect(() => {
     const fetchDriverStats = async () => {
@@ -81,6 +85,31 @@ export default function HomePage() {
     fetchDriverStats()
     // Refresh driver stats every 30 seconds
     const interval = setInterval(fetchDriverStats, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Fetch fleet vehicles
+  useEffect(() => {
+    const fetchFleetVehicles = async () => {
+      try {
+        setIsLoadingFleet(true)
+        const response = await fetch("/api/fleet", {
+          cache: "no-store",
+        })
+        if (response.ok) {
+          const vehicles = await response.json()
+          setFleetVehicles(vehicles)
+        }
+      } catch (error) {
+        console.error("Error fetching fleet vehicles:", error)
+      } finally {
+        setIsLoadingFleet(false)
+      }
+    }
+
+    fetchFleetVehicles()
+    // Refresh fleet data every 30 seconds
+    const interval = setInterval(fetchFleetVehicles, 30000)
     return () => clearInterval(interval)
   }, [])
 
@@ -129,8 +158,9 @@ export default function HomePage() {
     const todayActiveAlerts = todayAlertsList.filter((a) => a.status === "active").length
     const todayResolvedAlerts = todayAlertsList.filter((a) => a.status === "resolved").length
 
-    // Get unique devices/vehicles from alerts
-    const uniqueDevices = new Set(liveAlerts.map((a) => a.deviceId || a.busNumber).filter(Boolean))
+    // Get fleet statistics from fleet management
+    const totalVehicles = fleetVehicles.length || 0
+    const activeVehicles = fleetVehicles.filter((v) => v.status === "active").length || 0
     
     // Calculate safety score based on alerts (fewer alerts = higher score)
     const totalAlerts = liveAlerts.length
@@ -140,8 +170,8 @@ export default function HomePage() {
       : 100
 
     return {
-      totalVehicles: uniqueDevices.size || 0,
-      activeVehicles: uniqueDevices.size || 0,
+      totalVehicles,
+      activeVehicles,
       driversOnDuty: driverStats.onDuty || 0,
       totalDrivers: driverStats.total || 0,
       alertsToday: todayAlerts,
@@ -150,7 +180,7 @@ export default function HomePage() {
       safetyScore: Math.round(safetyScore),
       complianceRate: 96, // This would need to come from another data source
     }
-  }, [liveAlerts, driverStats])
+  }, [liveAlerts, driverStats, fleetVehicles])
 
   // Get recent alerts (latest 3, sorted by timestamp)
   const recentAlerts = useMemo(() => {
@@ -205,8 +235,12 @@ export default function HomePage() {
             <Car className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fleetStats.totalVehicles}</div>
-            <p className="text-xs text-muted-foreground">{fleetStats.activeVehicles} currently active</p>
+            <div className="text-2xl font-bold">
+              {isLoadingFleet ? "..." : fleetStats.totalVehicles}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {isLoadingFleet ? "..." : fleetStats.activeVehicles} currently active
+            </p>
           </CardContent>
         </Card>
 
