@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Car, Users, AlertTriangle, CheckCircle, Activity, Shield, Bell, TrendingUp, MapPin, Clock } from "lucide-react"
+import { Car, Users, AlertTriangle, CheckCircle, Activity, Shield, Bell, TrendingUp, MapPin, Clock, MessageSquare, Star } from "lucide-react"
 import Link from "next/link"
 import { useLiveAlerts } from "@/hooks/use-live-alerts"
 
@@ -63,6 +63,10 @@ export default function HomePage() {
   const [fleetVehicles, setFleetVehicles] = useState<any[]>([])
   const [isLoadingFleet, setIsLoadingFleet] = useState(true)
 
+  // Feedback state
+  const [feedback, setFeedback] = useState<any[]>([])
+  const [isLoadingFeedback, setIsLoadingFeedback] = useState(true)
+
   // Fetch driver stats
   useEffect(() => {
     const fetchDriverStats = async () => {
@@ -110,6 +114,31 @@ export default function HomePage() {
     fetchFleetVehicles()
     // Refresh fleet data every 30 seconds
     const interval = setInterval(fetchFleetVehicles, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Fetch feedback data
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      try {
+        setIsLoadingFeedback(true)
+        const response = await fetch("/api/feedback?limit=10", {
+          cache: "no-store",
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setFeedback(data)
+        }
+      } catch (error) {
+        console.error("Error fetching feedback:", error)
+      } finally {
+        setIsLoadingFeedback(false)
+      }
+    }
+
+    fetchFeedback()
+    // Refresh feedback every 30 seconds
+    const interval = setInterval(fetchFeedback, 30000)
     return () => clearInterval(interval)
   }, [])
 
@@ -187,6 +216,52 @@ export default function HomePage() {
       complianceRate: 96, // This would need to come from another data source
     }
   }, [liveAlerts, historyAlerts, driverStats, fleetVehicles])
+
+  // Calculate feedback stats
+  const feedbackStats = useMemo(() => {
+    const total = feedback.length
+    const submitted = feedback.filter((f) => f.status === "submitted").length
+    const resolved = feedback.filter((f) => f.status === "resolved").length
+    const averageRating =
+      feedback.length > 0
+        ? feedback.reduce((sum, f) => sum + (f.rating?.overall || 0), 0) / feedback.length
+        : 0
+
+    return {
+      total,
+      submitted,
+      resolved,
+      averageRating: Math.round(averageRating * 10) / 10,
+    }
+  }, [feedback])
+
+  // Get recent feedback (latest 3, sorted by timestamp)
+  const recentFeedback = useMemo(() => {
+    if (!feedback || feedback.length === 0) {
+      return []
+    }
+
+    return feedback
+      .sort((a, b) => {
+        const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
+        const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
+        return timeB - timeA
+      })
+      .slice(0, 3)
+      .map((item) => {
+        const statusColor = item.status === "resolved" ? "text-green-600" : item.status === "acknowledged" ? "text-blue-600" : "text-yellow-600"
+        return {
+          id: item.id || item.documentId,
+          title: item.title || "Untitled Feedback",
+          description: item.description || item.comment || "No description",
+          status: item.status || "submitted",
+          statusColor,
+          rating: item.rating?.overall || null,
+          busNumber: item.busNumber || "N/A",
+          time: formatRelativeTime(item.timestamp || Date.now()),
+        }
+      })
+  }, [feedback])
 
   // Get recent alerts (latest 3, sorted by timestamp)
   const recentAlerts = useMemo(() => {
@@ -336,56 +411,54 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        {/* System Status */}
+        {/* Recent Feedback */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-green-600" />
-              System Status
+              <MessageSquare className="h-5 w-5 text-blue-600" />
+              Recent Feedback
             </CardTitle>
-            <CardDescription>Current system health and performance</CardDescription>
+            <CardDescription>Recent customer feedback and reviews</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">GPS Tracking</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-medium">Online</span>
-                </div>
+            {isLoadingFeedback ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-sm text-gray-500">Loading feedback...</div>
               </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Camera Systems</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-medium">Active</span>
-                </div>
+            ) : recentFeedback.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-sm text-gray-500">No feedback available</div>
               </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Communication</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-medium">Connected</span>
-                </div>
+            ) : (
+              <div className="space-y-4">
+                {recentFeedback.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3 p-3 border rounded-lg">
+                    <MessageSquare className={`h-5 w-5 ${item.statusColor} mt-0.5`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">{item.title}</div>
+                      <div className="text-xs text-gray-500 line-clamp-2 mt-1">{item.description}</div>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        <span>Bus: {item.busNumber}</span>
+                        {item.rating && (
+                          <div className="flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <span>{item.rating}/5</span>
+                          </div>
+                        )}
+                        <span>{item.time}</span>
+                      </div>
+                    </div>
+                    <Badge variant={item.status === "resolved" ? "default" : item.status === "acknowledged" ? "secondary" : "outline"}>
+                      {item.status}
+                    </Badge>
+                  </div>
+                ))}
               </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Data Processing</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                  <span className="text-sm font-medium">Processing</span>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm">Overall Health</span>
-                  <span className="text-sm font-medium">98%</span>
-                </div>
-                <Progress value={98} />
-              </div>
+            )}
+            <div className="mt-4">
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/compliance">View All Feedback</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
