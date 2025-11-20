@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { useLiveAlerts } from "@/hooks/use-live-alerts"
 import {
   LayoutDashboard,
   AlertTriangle,
@@ -30,6 +31,10 @@ const navigation = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const { alerts: liveAlerts } = useLiveAlerts()
+  
+  // Count active alerts (alerts with status "active")
+  const activeAlertsCount = liveAlerts.filter((alert) => alert.status === "active").length
 
   return (
     <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white border-r border-gray-200 overflow-y-auto shadow-sm z-50">
@@ -50,9 +55,9 @@ export function AdminSidebar() {
                 >
                   <item.icon className={cn("h-5 w-5", isActive ? "text-primary-500" : "text-gray-400")} />
                   <span>{item.name}</span>
-                  {item.name === "Live Alerts" && (
+                  {item.name === "Live Alerts" && activeAlertsCount > 0 && (
                     <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                      3
+                      {activeAlertsCount}
                     </span>
                   )}
                 </Link>

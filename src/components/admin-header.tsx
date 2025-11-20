@@ -11,9 +11,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Settings, LogOut, Shield, Search, Mic, AlertTriangle, MessageSquare, Users, Bus, MapPin, FileText } from "lucide-react"
+import { Bell, Settings, LogOut, Shield, Search, Mic, AlertTriangle, MessageSquare, Users, Bus, MapPin, FileText, CheckCircle, Clock, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { useLiveAlerts } from "@/hooks/use-live-alerts"
+import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface SearchResult {
   type: "driver" | "fleet" | "route" | "alert"
@@ -23,15 +26,255 @@ interface SearchResult {
   href: string
 }
 
+interface Notification {
+  id: string
+  type: "alert" | "driver_registration" | "fleet_registration" | "maintenance" | "system"
+  title: string
+  message: string
+  timestamp: string | number
+  read: boolean
+  href?: string
+  severity?: "high" | "medium" | "low"
+}
+
 export function AdminHeader() {
   const router = useRouter()
-  const [notifications, setNotifications] = useState(3)
+  const { alerts: liveAlerts } = useLiveAlerts()
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [showResults, setShowResults] = useState(false)
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Load saved notifications from localStorage
+  useEffect(() => {
+    try {
+      const savedNotifications = localStorage.getItem("safedriver-notifications")
+      if (savedNotifications) {
+        const parsed = JSON.parse(savedNotifications)
+        setNotifications(parsed)
+        setUnreadCount(parsed.filter((n: Notification) => !n.read).length)
+      }
+    } catch (error) {
+      console.error("Error loading saved notifications:", error)
+    }
+  }, [])
+
+  // Save notifications to localStorage whenever they change
+  useEffect(() => {
+    if (notifications.length > 0) {
+      try {
+        localStorage.setItem("safedriver-notifications", JSON.stringify(notifications))
+      } catch (error) {
+        console.error("Error saving notifications:", error)
+      }
+    }
+  }, [notifications])
+
+  // Fetch notifications (drivers, fleet, etc.)
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        // Load existing notifications from localStorage
+        let existingNotifications: Notification[] = []
+        try {
+          const saved = localStorage.getItem("safedriver-notifications")
+          if (saved) {
+            existingNotifications = JSON.parse(saved)
+          }
+        } catch (error) {
+          console.error("Error loading existing notifications:", error)
+        }
+
+        const existingIds = new Set(existingNotifications.map((n) => n.id))
+        const allNotifications: Notification[] = [...existingNotifications]
+
+        // Add live alerts as notifications (only if not already exists)
+        liveAlerts
+          .filter((alert) => alert.status === "active")
+          .slice(0, 5) // Limit to 5 most recent
+          .forEach((alert) => {
+            if (!existingIds.has(alert.id)) {
+              allNotifications.push({
+                id: alert.id,
+                type: "alert",
+                title: `${alert.type} Alert`,
+                message: `${alert.description} - Vehicle ${alert.number_plate || alert.busNumber || "Unknown"}`,
+                timestamp: alert.timestamp || Date.now(),
+                read: false,
+                href: "/alerts",
+                severity: alert.severity || "medium",
+              })
+            } else {
+              // Update existing alert notification if it's still active
+              const existingIndex = allNotifications.findIndex((n) => n.id === alert.id)
+              if (existingIndex !== -1) {
+                allNotifications[existingIndex] = {
+                  ...allNotifications[existingIndex],
+                  message: `${alert.description} - Vehicle ${alert.number_plate || alert.busNumber || "Unknown"}`,
+                  timestamp: alert.timestamp || allNotifications[existingIndex].timestamp,
+                  severity: alert.severity || "medium",
+                }
+              }
+            }
+          })
+
+        // Fetch recent driver registrations (last 24 hours)
+        try {
+          const driversResponse = await fetch("/api/drivers?limit=10")
+          if (driversResponse.ok) {
+            const drivers = await driversResponse.json()
+            const recentDrivers = drivers.filter((driver: any) => {
+              if (!driver.createdAt) return false
+              const createdAt = new Date(driver.createdAt).getTime()
+              const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+              return createdAt > oneDayAgo
+            })
+
+            recentDrivers.slice(0, 3).forEach((driver: any) => {
+              const notificationId = `driver-${driver.id || driver.documentId}`
+              if (!existingIds.has(notificationId)) {
+                allNotifications.push({
+                  id: notificationId,
+                  type: "driver_registration",
+                  title: "New Driver Registered",
+                  message: `${driver.name} has been registered`,
+                  timestamp: driver.createdAt || Date.now(),
+                  read: false,
+                  href: `/drivers/${driver.id || driver.documentId}`,
+                  severity: "low",
+                })
+              }
+            })
+          }
+        } catch (error) {
+          console.error("Error fetching driver notifications:", error)
+        }
+
+        // Fetch recent fleet registrations (last 24 hours)
+        try {
+          const fleetResponse = await fetch("/api/fleet?limit=10")
+          if (fleetResponse.ok) {
+            const vehicles = await fleetResponse.json()
+            const recentVehicles = vehicles.filter((vehicle: any) => {
+              if (!vehicle.createdAt) return false
+              const createdAt = new Date(vehicle.createdAt).getTime()
+              const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+              return createdAt > oneDayAgo
+            })
+
+            recentVehicles.slice(0, 3).forEach((vehicle: any) => {
+              const notificationId = `fleet-${vehicle.id || vehicle.documentId}`
+              if (!existingIds.has(notificationId)) {
+                allNotifications.push({
+                  id: notificationId,
+                  type: "fleet_registration",
+                  title: "New Vehicle Registered",
+                  message: `${vehicle.busNumberPlate || vehicle.busNumber || "Vehicle"} has been added to fleet`,
+                  timestamp: vehicle.createdAt || Date.now(),
+                  read: false,
+                  href: `/fleet/${vehicle.id || vehicle.documentId}`,
+                  severity: "low",
+                })
+              }
+            })
+          }
+        } catch (error) {
+          console.error("Error fetching fleet notifications:", error)
+        }
+
+        // Remove old notifications (older than 7 days)
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+        const filteredNotifications = allNotifications.filter((notification) => {
+          const timestamp = typeof notification.timestamp === "string" 
+            ? new Date(notification.timestamp).getTime() 
+            : notification.timestamp
+          return timestamp > sevenDaysAgo
+        })
+
+        // Sort by timestamp (newest first)
+        filteredNotifications.sort((a, b) => {
+          const timeA = typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp
+          const timeB = typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp
+          return timeB - timeA
+        })
+
+        // Limit to 50 most recent notifications
+        const limitedNotifications = filteredNotifications.slice(0, 50)
+
+        setNotifications(limitedNotifications)
+        setUnreadCount(limitedNotifications.filter((n) => !n.read).length)
+      } catch (error) {
+        console.error("Error fetching notifications:", error)
+      }
+    }
+
+    fetchNotifications()
+    // Refresh notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000)
+    return () => clearInterval(interval)
+  }, [liveAlerts])
+
+  const markAsRead = (notificationId: string) => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+      // Save to localStorage
+      try {
+        localStorage.setItem("safedriver-notifications", JSON.stringify(updated))
+      } catch (error) {
+        console.error("Error saving notifications:", error)
+      }
+      return updated
+    })
+    setUnreadCount((prev) => Math.max(0, prev - 1))
+  }
+
+  const markAllAsRead = () => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, read: true }))
+      // Save to localStorage
+      try {
+        localStorage.setItem("safedriver-notifications", JSON.stringify(updated))
+      } catch (error) {
+        console.error("Error saving notifications:", error)
+      }
+      return updated
+    })
+    setUnreadCount(0)
+  }
+
+  const getNotificationIcon = (type: Notification["type"]) => {
+    switch (type) {
+      case "alert":
+        return <AlertTriangle className="h-4 w-4 text-orange-600" />
+      case "driver_registration":
+        return <Users className="h-4 w-4 text-blue-600" />
+      case "fleet_registration":
+        return <Bus className="h-4 w-4 text-green-600" />
+      case "maintenance":
+        return <Settings className="h-4 w-4 text-yellow-600" />
+      default:
+        return <Bell className="h-4 w-4 text-gray-600" />
+    }
+  }
+
+  const formatNotificationTime = (timestamp: string | number): string => {
+    const timestampMs = typeof timestamp === "string" ? new Date(timestamp).getTime() : timestamp
+    const now = Date.now()
+    const diffMs = now - timestampMs
+    const diffMinutes = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMinutes < 1) return "Just now"
+    if (diffMinutes < 60) return `${diffMinutes}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    return `${diffDays}d ago`
+  }
 
   // Handle search functionality
   useEffect(() => {
@@ -234,16 +477,110 @@ export function AdminHeader() {
           </Button>
 
           {/* Notifications */}
-          <div className="relative">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5 text-gray-600" />
-              {notifications > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {notifications}
-                </span>
+          <DropdownMenu open={isNotificationOpen} onOpenChange={setIsNotificationOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5 text-gray-600" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 p-0">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="font-semibold text-sm">Notifications</h3>
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={markAllAsRead}
+                  >
+                    Mark all as read
+                  </Button>
+                )}
+              </div>
+              <ScrollArea className="h-[400px]">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-gray-500">
+                    <Bell className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p>No notifications</p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={cn(
+                          "p-4 hover:bg-gray-50 transition-colors cursor-pointer relative",
+                          !notification.read && "bg-blue-50/50"
+                        )}
+                        onClick={() => {
+                          markAsRead(notification.id)
+                          if (notification.href) {
+                            router.push(notification.href)
+                            setIsNotificationOpen(false)
+                          }
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5">{getNotificationIcon(notification.type)}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={cn("text-sm font-medium", !notification.read && "font-semibold")}>
+                                {notification.title}
+                              </p>
+                              {!notification.read && (
+                                <div className="h-2 w-2 bg-blue-600 rounded-full flex-shrink-0 mt-1.5" />
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                              {notification.message}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs text-gray-400">
+                                {formatNotificationTime(notification.timestamp)}
+                              </span>
+                              {notification.severity && (
+                                <Badge
+                                  variant={
+                                    notification.severity === "high"
+                                      ? "destructive"
+                                      : notification.severity === "medium"
+                                        ? "default"
+                                        : "secondary"
+                                  }
+                                  className="text-xs h-4"
+                                >
+                                  {notification.severity}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+              {notifications.length > 0 && (
+                <div className="p-2 border-t">
+                  <Button
+                    variant="ghost"
+                    className="w-full text-xs"
+                    onClick={() => {
+                      router.push("/alerts")
+                      setIsNotificationOpen(false)
+                    }}
+                  >
+                    View all notifications
+                  </Button>
+                </div>
               )}
-            </Button>
-          </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* User Menu */}
           <DropdownMenu>
