@@ -182,6 +182,83 @@ export class VoiceAlertManager {
     }
   }
 
+  // Create alert with bus number and proper alert message (e.g., "NB-9999 Yawn detected")
+  static createBusAlert(
+    busNumber: string,
+    alertMessage: string,
+    alertType: string,
+    options: Partial<VoiceAlert> = {}
+  ): VoiceAlert {
+    // Extract clean alert message from Firebase alert message
+    // Convert alert message to a shorter, clearer format
+    let cleanMessage = alertMessage.toLowerCase()
+    
+    // Map common alert messages to shorter, clearer formats
+    if (cleanMessage.includes("yawn")) {
+      cleanMessage = "Yawn detected"
+    } else if (cleanMessage.includes("head turn") || cleanMessage.includes("turn away") || cleanMessage.includes("complete turn away")) {
+      cleanMessage = "Head turn detected"
+    } else if (cleanMessage.includes("drowsy") || cleanMessage.includes("drowsiness")) {
+      cleanMessage = "Drowsiness detected"
+    } else if (cleanMessage.includes("phone") || cleanMessage.includes("mobile")) {
+      cleanMessage = "Phone usage detected"
+    } else if (cleanMessage.includes("speed") || cleanMessage.includes("speeding")) {
+      cleanMessage = "Speeding detected"
+    } else if (cleanMessage.includes("distraction") || cleanMessage.includes("distracted")) {
+      cleanMessage = "Distraction detected"
+    } else if (cleanMessage.includes("face not visible") || cleanMessage.includes("driver face not visible")) {
+      cleanMessage = "Face not visible"
+    } else if (cleanMessage.includes("eye closed") || cleanMessage.includes("eyes closed")) {
+      cleanMessage = "Eyes closed detected"
+    } else if (cleanMessage.includes("looking away") || cleanMessage.includes("look away")) {
+      cleanMessage = "Looking away detected"
+    } else {
+      // Extract key words from the message
+      // Remove common prefixes like "Driver face not visible for X seconds -"
+      const withoutPrefix = alertMessage.replace(/^.*?-\s*/i, "").trim()
+      const words = withoutPrefix.split(" ")
+      
+      // Take first 3-4 meaningful words
+      if (words.length > 4) {
+        cleanMessage = words.slice(0, 4).join(" ")
+      } else {
+        cleanMessage = withoutPrefix
+      }
+      
+      // Capitalize first letter
+      cleanMessage = cleanMessage.charAt(0).toUpperCase() + cleanMessage.slice(1)
+    }
+
+    // Format: "NB-9999 Yawn detected" or just "Yawn detected" if no bus number
+    const message = busNumber && busNumber.trim() ? `${busNumber} ${cleanMessage}` : cleanMessage
+
+    // Determine priority based on alert type
+    let priority: "low" | "normal" | "high" | "critical" = "normal"
+    switch (alertType) {
+      case "drowsiness":
+        priority = "critical"
+        break
+      case "distraction":
+        priority = "high"
+        break
+      case "phone_usage":
+      case "speeding":
+        priority = "high"
+        break
+      default:
+        priority = "normal"
+    }
+
+    return {
+      id: `bus-${alertType}-${Date.now()}`,
+      message,
+      priority,
+      repeat: options.repeat || (priority === "critical" ? 3 : 1),
+      interval: options.interval || (priority === "critical" ? 10000 : 0),
+      expiresAt: options.expiresAt,
+    }
+  }
+
   static createVehicleAlert(vehicleId: string, alertType: string, options: Partial<VoiceAlert> = {}): VoiceAlert {
     let message = ""
     let priority: "low" | "normal" | "high" | "critical" = "normal"

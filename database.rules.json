@@ -1,7 +1,13 @@
 {
   "rules": {
-    ".read": "now < 1735689600000",
-    ".write": "now < 1735689600000"
+    "alerts": {
+      ".read": true,
+      ".write": false
+    },
+    "devices": {
+      ".read": true,
+      ".write": false
+    }
   }
 }
 
