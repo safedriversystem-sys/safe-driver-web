@@ -1,98 +1,106 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, Phone, MapPin, Clock, RefreshCw, CheckCircle, Bell, Volume, VolumeX } from "lucide-react"
+import { AlertTriangle, Phone, MapPin, Clock, RefreshCw, CheckCircle, Bell, Volume, VolumeX, History } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VoiceAlertManager } from "@/lib/voice-alert-manager"
 import { EmergencyResponseSystem } from "@/lib/emergency-response-system"
-
-// Mock data for alerts
-const mockAlerts = [
-  {
-    id: "ALT001",
-    type: "drowsiness",
-    severity: "high",
-    driverName: "Kamal Perera",
-    driverId: "DRV001",
-    busNumber: "NB-1234",
-    route: "Colombo - Kandy",
-    location: "Kadawatha Junction",
-    timestamp: new Date().toISOString(),
-    status: "active",
-    description: "Driver showing signs of drowsiness",
-  },
-  {
-    id: "ALT002",
-    type: "phone_usage",
-    severity: "medium",
-    driverName: "Sunil Silva",
-    driverId: "DRV002",
-    busNumber: "WP-5678",
-    route: "Galle - Matara",
-    location: "Hikkaduwa",
-    timestamp: new Date(Date.now() - 300000).toISOString(),
-    status: "acknowledged",
-    description: "Driver using phone while driving",
-  },
-  {
-    id: "ALT003",
-    type: "speeding",
-    severity: "medium",
-    driverName: "Nimal Perera",
-    driverId: "DRV003",
-    busNumber: "CP-9012",
-    route: "Colombo - Negombo",
-    location: "Ja-Ela",
-    timestamp: new Date(Date.now() - 600000).toISOString(),
-    status: "active",
-    description: "Vehicle exceeding speed limit by 15 km/h",
-  },
-  {
-    id: "ALT004",
-    type: "distraction",
-    severity: "high",
-    driverName: "Amal Fernando",
-    driverId: "DRV004",
-    busNumber: "WP-3456",
-    route: "Colombo - Gampaha",
-    location: "Kelaniya",
-    timestamp: new Date(Date.now() - 900000).toISOString(),
-    status: "resolved",
-    description: "Driver distracted for more than 5 seconds",
-  },
-  {
-    id: "ALT005",
-    type: "maintenance",
-    severity: "low",
-    driverName: "Saman Kumara",
-    driverId: "DRV005",
-    busNumber: "SP-7890",
-    route: "Matara - Galle",
-    location: "Weligama",
-    timestamp: new Date(Date.now() - 1200000).toISOString(),
-    status: "active",
-    description: "Vehicle maintenance due in 2 days",
-  },
-]
+import { useLiveAlerts, type Alert } from "@/hooks/use-live-alerts"
+import { TestFirebaseConnection } from "@/components/test-firebase-connection"
 
 export default function AlertsPage() {
-  const [alerts, setAlerts] = useState(mockAlerts)
-  const [filteredAlerts, setFilteredAlerts] = useState(mockAlerts)
-  const [isLoading, setIsLoading] = useState(false)
+  // Use live alerts from Firebase Realtime Database
+  const { alerts: liveAlerts, historyAlerts, isLoading: isLoadingAlerts, error } = useLiveAlerts()
+  
+  // Track alert statuses (acknowledged/resolved) in local state
+  const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved">>({})
+  const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>([])
   const [activeTab, setActiveTab] = useState("all")
   const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(true)
+  const previousAlertsRef = useRef<Alert[]>([])
 
+  // Debug: Log alerts when they change
   useEffect(() => {
-    // Filter alerts based on active tab
-    if (activeTab === "all") {
+    if (liveAlerts.length > 0) {
+      console.log("🎯 Live alerts updated:", liveAlerts.length, "alerts")
+      liveAlerts.forEach((alert, index) => {
+        console.log(`  Alert ${index + 1}:`, {
+          id: alert.id,
+          deviceId: alert.deviceId,
+          type: alert.type,
+          message: alert.description,
+          timestamp: alert.timestamp,
+        })
+      })
+    }
+  }, [liveAlerts])
+
+  // Merge live alerts with status tracking
+  const alerts = liveAlerts.map((alert) => ({
+    ...alert,
+    status: alertStatuses[alert.id] || alert.status,
+  }))
+
+  // Filter alerts based on active tab
+  useEffect(() => {
+    if (activeTab === "history") {
+      // Show history alerts
+      setFilteredAlerts(historyAlerts)
+    } else if (activeTab === "all") {
       setFilteredAlerts(alerts)
     } else {
       setFilteredAlerts(alerts.filter((alert) => alert.status === activeTab))
     }
-  }, [alerts, activeTab])
+  }, [alerts, historyAlerts, activeTab])
+
+  // Detect new alerts and trigger voice/emergency notifications
+  useEffect(() => {
+    if (liveAlerts.length === 0) return
+
+    // Find new alerts (alerts that weren't in the previous list)
+    const previousAlertIds = new Set(previousAlertsRef.current.map((a) => a.id))
+    const newAlerts = liveAlerts.filter((alert) => !previousAlertIds.has(alert.id))
+
+    // Update previous alerts ref
+    previousAlertsRef.current = liveAlerts
+
+    // Process new alerts
+    newAlerts.forEach((alert) => {
+      // Trigger voice alert if enabled
+      if (voiceAlertsEnabled) {
+        const alertManager = VoiceAlertManager.getInstance()
+        // Use bus number (number_plate) and alert description for voice alert
+        const busNumber = alert.number_plate || alert.busNumber || ""
+        const alertMessage = alert.description || ""
+        
+        // Create voice alert with bus number and proper message format
+        const voiceAlert = VoiceAlertManager.createBusAlert(busNumber, alertMessage, alert.type)
+        alertManager.addAlert(voiceAlert)
+        
+        console.log(`🔊 Voice alert created: "${voiceAlert.message}"`)
+      }
+
+      // Trigger emergency response for high severity alerts
+      if (alert.severity === "high" && (alert.type === "drowsiness" || alert.type === "distraction")) {
+        const emergencySystem = EmergencyResponseSystem.getInstance()
+        emergencySystem.triggerEmergency(`${alert.type}_level_critical`, {
+          driverId: alert.driverId,
+          vehicleId: alert.busNumber,
+          location: {
+            latitude: 6.9271, // Default location - you may want to get this from devices collection
+            longitude: 79.8612,
+            address: alert.location,
+          },
+          description: `Critical ${alert.type} detected for driver ${alert.driverName}`,
+          severity: "critical",
+          metadata: { alertId: alert.id },
+        })
+      }
+    })
+  }, [liveAlerts, voiceAlertsEnabled])
 
   useEffect(() => {
     // Check if voice alerts are enabled in localStorage
@@ -112,34 +120,6 @@ export default function AlertsPage() {
 
     document.addEventListener("voice-acknowledge-alert", handleVoiceAcknowledge)
 
-    // Set up emergency response system
-    const emergencySystem = EmergencyResponseSystem.getInstance()
-
-    // Simulate emergency triggers for high severity alerts
-    const handleEmergencyTrigger = (alert: any) => {
-      if (alert.severity === "high" && alert.type === "drowsiness") {
-        emergencySystem.triggerEmergency("drowsiness_level_critical", {
-          driverId: alert.driverId,
-          vehicleId: alert.busNumber,
-          location: {
-            latitude: 6.9271,
-            longitude: 79.8612,
-            address: alert.location,
-          },
-          description: `Critical drowsiness detected for driver ${alert.driverName}`,
-          severity: "critical",
-          metadata: { alertId: alert.id },
-        })
-      }
-    }
-
-    // Check for emergency conditions in existing alerts
-    alerts.forEach((alert) => {
-      if (alert.status === "active" && alert.severity === "high") {
-        handleEmergencyTrigger(alert)
-      }
-    })
-
     // Clean up
     return () => {
       document.removeEventListener("voice-acknowledge-alert", handleVoiceAcknowledge)
@@ -147,85 +127,17 @@ export default function AlertsPage() {
   }, [alerts])
 
   const refreshAlerts = () => {
-    setIsLoading(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      // Add a new random alert occasionally
-      if (Math.random() > 0.5) {
-        const alertTypes = ["drowsiness", "phone_usage", "speeding", "distraction", "maintenance"]
-        const randomType = alertTypes[Math.floor(Math.random() * alertTypes.length)]
-        const randomDriver = ["Kamal Perera", "Sunil Silva", "Nimal Perera", "Amal Fernando", "Saman Kumara"][
-          Math.floor(Math.random() * 5)
-        ]
-        const randomDriverId = ["DRV001", "DRV002", "DRV003", "DRV004", "DRV005"][Math.floor(Math.random() * 5)]
-        const randomBus = ["NB-1234", "WP-5678", "CP-9012", "WP-3456", "SP-7890"][Math.floor(Math.random() * 5)]
-        const randomRoute = [
-          "Colombo - Kandy",
-          "Galle - Matara",
-          "Colombo - Negombo",
-          "Colombo - Gampaha",
-          "Matara - Galle",
-        ][Math.floor(Math.random() * 5)]
-        const randomLocation = ["Kadawatha Junction", "Hikkaduwa", "Ja-Ela", "Kelaniya", "Weligama"][
-          Math.floor(Math.random() * 5)
-        ]
-
-        const newAlert = {
-          id: `ALT${Date.now()}`,
-          type: randomType,
-          severity:
-            randomType === "drowsiness" || randomType === "distraction"
-              ? "high"
-              : randomType === "maintenance"
-                ? "low"
-                : "medium",
-          driverName: randomDriver,
-          driverId: randomDriverId,
-          busNumber: randomBus,
-          route: randomRoute,
-          location: randomLocation,
-          timestamp: new Date().toISOString(),
-          status: "active",
-          description: getAlertDescription(randomType),
-        }
-
-        // After creating newAlert, add emergency check:
-        if (newAlert.severity === "high" && (newAlert.type === "drowsiness" || newAlert.type === "distraction")) {
-          const emergencySystem = EmergencyResponseSystem.getInstance()
-          emergencySystem.triggerEmergency(`${newAlert.type}_level_critical`, {
-            driverId: newAlert.driverId,
-            vehicleId: newAlert.busNumber,
-            location: {
-              latitude: 6.9271,
-              longitude: 79.8612,
-              address: newAlert.location,
-            },
-            description: `Critical ${newAlert.type} detected for driver ${newAlert.driverName}`,
-            severity: "critical",
-            metadata: { alertId: newAlert.id },
-          })
-        }
-
-        setAlerts((prev) => [newAlert, ...prev])
-
-        // Play voice alert for new alert if enabled
-        if (voiceAlertsEnabled) {
-          const alertManager = VoiceAlertManager.getInstance()
-          alertManager.addAlert(VoiceAlertManager.createDriverAlert(randomDriver, randomType))
-        }
-      }
-
-      setIsLoading(false)
-    }, 1000)
+    // Alerts are automatically refreshed via Firebase Realtime Database listener
+    // This function can be used to manually trigger a refresh if needed
+    console.log("Alerts are automatically updated in real-time from Firebase")
   }
 
   const handleAcknowledgeAlert = (alertId: string) => {
-    setAlerts((prev) => prev.map((alert) => (alert.id === alertId ? { ...alert, status: "acknowledged" } : alert)))
+    setAlertStatuses((prev) => ({ ...prev, [alertId]: "acknowledged" }))
   }
 
   const handleResolveAlert = (alertId: string) => {
-    setAlerts((prev) => prev.map((alert) => (alert.id === alertId ? { ...alert, status: "resolved" } : alert)))
+    setAlertStatuses((prev) => ({ ...prev, [alertId]: "resolved" }))
   }
 
   const handleContactDriver = (alert: any) => {
@@ -317,8 +229,63 @@ export default function AlertsPage() {
 
   return (
     <div className="container mx-auto py-6">
+      <TestFirebaseConnection />
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <h1 className="text-2xl font-bold mb-4 sm:mb-0">Safety Alerts</h1>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold mb-1">Live Alerts</h1>
+          {error && (
+            <div className="mt-2 p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm font-medium text-red-800 mb-2">Error loading alerts:</p>
+              <p className="text-sm text-red-600 font-semibold">{error.message}</p>
+              {error.message.includes("Permission denied") && (
+                <div className="mt-3 p-3 bg-white border border-red-300 rounded">
+                  <p className="text-xs font-semibold text-red-800 mb-2">🔧 Quick Fix:</p>
+                  <ol className="text-xs text-red-700 space-y-1 list-decimal list-inside">
+                    <li>Go to: <a href="https://console.firebase.google.com/project/safe-driver-system/database/safe-driver-system-default-rtdb/rules" target="_blank" rel="noopener noreferrer" className="underline font-medium">Firebase Database Rules</a></li>
+                    <li>Paste these rules:
+                      <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-x-auto">{`{
+  "rules": {
+    "alerts": {
+      ".read": true,
+      ".write": false
+    },
+    "devices": {
+      ".read": true,
+      ".write": false
+    }
+  }
+}`}</pre>
+                    </li>
+                    <li>Click <strong>"Publish"</strong> button</li>
+                    <li>Wait 30 seconds, then refresh this page</li>
+                  </ol>
+                </div>
+              )}
+              <p className="text-xs text-red-500 mt-2">
+                Check browser console (F12) for detailed error messages
+              </p>
+            </div>
+          )}
+          {isLoadingAlerts && !error && (
+            <p className="text-sm text-blue-600 flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              Connecting to Firebase Realtime Database...
+            </p>
+          )}
+          {!error && !isLoadingAlerts && (
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Real-time alerts from Firebase • {alerts.length} alert{alerts.length !== 1 ? "s" : ""} found
+              </p>
+              {alerts.length === 0 && (
+                <p className="text-xs text-orange-600 mt-1">
+                  ⚠️ No alerts found. Check browser console (F12) for connection details.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={toggleVoiceAlerts} className="flex items-center gap-2">
             {voiceAlertsEnabled ? <Volume className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
@@ -328,28 +295,46 @@ export default function AlertsPage() {
             variant="outline"
             size="sm"
             onClick={refreshAlerts}
-            disabled={isLoading}
+            disabled={isLoadingAlerts}
             className="flex items-center gap-2"
+            title="Alerts update automatically in real-time"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
+            <RefreshCw className={`h-4 w-4 ${isLoadingAlerts ? "animate-spin" : ""}`} />
+            {isLoadingAlerts ? "Loading..." : "Live"}
           </Button>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="all">All ({alerts.length})</TabsTrigger>
           <TabsTrigger value="active">Active ({alerts.filter((a) => a.status === "active").length})</TabsTrigger>
           <TabsTrigger value="acknowledged">
             Acknowledged ({alerts.filter((a) => a.status === "acknowledged").length})
           </TabsTrigger>
           <TabsTrigger value="resolved">Resolved ({alerts.filter((a) => a.status === "resolved").length})</TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-1">
+            <History className="h-3 w-3" />
+            History ({historyAlerts.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-6">
-          <div className="space-y-4">
-            {filteredAlerts.map((alert) => (
+          {isLoadingAlerts && (
+            <Card>
+              <CardContent className="flex items-center justify-center p-12">
+                <div className="text-center">
+                  <RefreshCw className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
+                  <h3 className="mt-4 text-lg font-medium">Loading alerts...</h3>
+                  <p className="mt-2 text-sm text-gray-500">Connecting to Firebase Realtime Database</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!isLoadingAlerts && (
+            <div className="space-y-4">
+              {filteredAlerts.map((alert) => (
               <Card key={alert.id} className="w-full">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -357,11 +342,16 @@ export default function AlertsPage() {
                       {getAlertIcon(alert.type)}
                       <div>
                         <CardTitle className="text-lg">{alert.description}</CardTitle>
-                        <CardDescription className="flex items-center gap-2 mt-1">
+                        <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
                           <span>{alert.driverName}</span>
                           <span>•</span>
-                          <span>{alert.busNumber}</span>
-                          <span>•</span>
+                          {/* Show number_plate if available, otherwise show busNumber, but not both if they're the same */}
+                          {(alert.number_plate || alert.busNumber) && (
+                            <>
+                              <span className="font-medium">{alert.number_plate || alert.busNumber}</span>
+                              <span>•</span>
+                            </>
+                          )}
                           <span>{formatTime(alert.timestamp)}</span>
                         </CardDescription>
                       </div>
@@ -382,9 +372,15 @@ export default function AlertsPage() {
                       <span className="text-sm font-medium">Route:</span>
                       <span className="text-sm">{alert.route}</span>
                     </div>
+                    {alert.number_plate && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Number Plate:</span>
+                        <span className="text-sm font-semibold">{alert.number_plate}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {alert.status === "active" && (
+                  {alert.status === "active" && activeTab !== "history" && (
                     <div className="flex gap-2">
                       <Button
                         size="sm"
@@ -414,24 +410,54 @@ export default function AlertsPage() {
                       </Button>
                     </div>
                   )}
+                  {activeTab === "history" && (
+                    <div className="text-xs text-muted-foreground italic">
+                      Historical alert - archived
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
 
-            {filteredAlerts.length === 0 && (
-              <Card>
-                <CardContent className="flex items-center justify-center p-6">
-                  <div className="text-center">
-                    <Bell className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-lg font-medium">No alerts found</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {activeTab === "all" ? "There are no alerts at the moment." : `There are no ${activeTab} alerts.`}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+              {filteredAlerts.length === 0 && !isLoadingAlerts && (
+                <Card>
+                  <CardContent className="flex items-center justify-center p-6">
+                    <div className="text-center max-w-md">
+                      <Bell className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-lg font-medium">No alerts found</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {activeTab === "all" 
+                          ? "There are no alerts at the moment." 
+                          : activeTab === "history"
+                          ? "No historical alerts found."
+                          : `There are no ${activeTab} alerts.`}
+                      </p>
+                      {!error && (
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-left">
+                          <p className="text-xs font-medium text-blue-800 mb-2">Debugging Steps:</p>
+                          <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                            <li>Open browser console (F12) and check for Firebase connection messages</li>
+                            <li>Verify data exists in Firebase Console at: <code className="bg-blue-100 px-1 rounded">/alerts/14:85:7F:BF:40:78/latest</code></li>
+                            <li>Check that the <code className="bg-blue-100 px-1 rounded">latest</code> node has: message, tag, time, type</li>
+                            <li>Verify database rules allow read access to <code className="bg-blue-100 px-1 rounded">/alerts</code></li>
+                          </ol>
+                        </div>
+                      )}
+                      {error && (
+                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                          <p className="text-xs font-medium text-red-800 mb-1">Error:</p>
+                          <p className="text-xs text-red-600">{error.message}</p>
+                          <p className="mt-2 text-xs text-red-500">
+                            Check browser console (F12) for detailed error messages
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
