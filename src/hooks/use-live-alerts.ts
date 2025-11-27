@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { realtimeDbService } from "@/lib/firebase/realtime-db"
-import { initializeFirebase } from "@/lib/firebase/config"
+import { initializeFirebase, getFirebaseFirestore } from "@/lib/firebase/config"
 import { DataSnapshot } from "firebase/database"
+import { collection, getDocs, query, orderBy, limit, doc, onSnapshot, QuerySnapshot, DocumentData } from "firebase/firestore"
 
 export interface FirebaseAlert {
   message: string
@@ -140,6 +141,8 @@ export function useLiveAlerts() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [devices, setDevices] = useState<Record<string, DeviceInfo>>({})
+  const [availableDeviceIds, setAvailableDeviceIds] = useState<string[]>([])
+  const historyAlertsMapRef = useRef<Map<string, Alert>>(new Map())
 
   // Initialize Firebase and listen to devices for device information
   useEffect(() => {
@@ -243,17 +246,11 @@ export function useLiveAlerts() {
           // Iterate through each device
           const deviceIds = Object.keys(data)
           console.log(`🔍 Found ${deviceIds.length} device(s):`, deviceIds)
-
-          // Separate arrays for latest and history alerts
-          const historyAlertsList: Alert[] = []
+          
+          // Update available device IDs for history loading
+          setAvailableDeviceIds(deviceIds)
 
           deviceIds.forEach((deviceId) => {
-            // Filter to only process device 14:85:7F:BF:40:78
-            if (deviceId !== "14:85:7F:BF:40:78") {
-              console.log(`⏭️ Skipping device ${deviceId} - only processing 14:85:7F:BF:40:78`)
-              return
-            }
-
             const deviceAlert: any = data[deviceId]
             console.log(`🔍 Processing device ${deviceId}:`, deviceAlert)
             console.log(`🔍 Device alert type:`, typeof deviceAlert)
@@ -287,25 +284,6 @@ export function useLiveAlerts() {
                 hasLatest: !!(deviceAlert && deviceAlert.latest),
               })
             }
-
-            // Process history alerts
-            if (deviceAlert && deviceAlert.history) {
-              const history = deviceAlert.history
-              console.log(`📜 Found history for ${deviceId}:`, Object.keys(history).length, "alerts")
-              
-              Object.keys(history).forEach((historyKey) => {
-                const historyAlert = history[historyKey] as FirebaseAlert
-                if (historyAlert && historyAlert.message && historyAlert.tag && historyAlert.time && historyAlert.type) {
-                  const alert = transformAlert(deviceId, historyAlert, deviceInfo)
-                  // Mark history alerts as resolved by default
-                  alert.status = "resolved"
-                  historyAlertsList.push(alert)
-                  console.log(`✅ Added history alert: ${alert.id}`)
-                }
-              })
-            } else {
-              console.log(`⚠️ No history found for device ${deviceId}`)
-            }
           })
 
           // Sort by timestamp (newest first)
@@ -315,17 +293,8 @@ export function useLiveAlerts() {
             return timeB - timeA
           })
 
-          // Sort history alerts by timestamp (newest first)
-          historyAlertsList.sort((a, b) => {
-            const timeA = new Date(a.timestamp).getTime()
-            const timeB = new Date(b.timestamp).getTime()
-            return timeB - timeA
-          })
-
           console.log(`✅ Total latest alerts processed: ${transformedAlerts.length}`, transformedAlerts)
-          console.log(`✅ Total history alerts processed: ${historyAlertsList.length}`, historyAlertsList)
           setAlerts(transformedAlerts)
-          setHistoryAlerts(historyAlertsList)
           setIsLoading(false)
         } catch (err) {
           console.error("❌ Error processing alerts:", err)
@@ -344,6 +313,126 @@ export function useLiveAlerts() {
       setIsLoading(false)
     }
   }, [devices]) // Re-run when devices data changes
+
+  // Load history alerts from Firestore with real-time updates
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    try {
+      initializeFirebase()
+      const firestore = getFirebaseFirestore()
+      
+      console.log("📜 Setting up real-time history alerts listeners from Firestore...")
+      
+      // Get all device IDs from devices state or availableDeviceIds (from alerts data)
+      // Prefer devices state, but fallback to availableDeviceIds if devices not loaded yet
+      const deviceIdsFromDevices = Object.keys(devices)
+      const deviceIds = deviceIdsFromDevices.length > 0 ? deviceIdsFromDevices : availableDeviceIds
+      
+      if (deviceIds.length === 0) {
+        console.log("⚠️ No devices found, skipping history alerts listeners")
+        return
+      }
+      
+      console.log(`📱 Setting up real-time listeners for ${deviceIds.length} device(s):`, deviceIds)
+      
+      // Get today's date and past 7 days for history
+      const dates: string[] = []
+      const today = new Date()
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today)
+        date.setDate(date.getDate() - i)
+        const dateStr = date.toISOString().split("T")[0] // Format: YYYY-MM-DD
+        dates.push(dateStr)
+      }
+      
+      // Reset the alerts map when setting up new listeners
+      historyAlertsMapRef.current.clear()
+      const unsubscribeFunctions: (() => void)[] = []
+      
+      // Helper function to update history alerts state
+      const updateHistoryAlerts = () => {
+        const historyAlertsList = Array.from(historyAlertsMapRef.current.values()).sort((a, b) => {
+          const timeA = new Date(a.timestamp).getTime()
+          const timeB = new Date(b.timestamp).getTime()
+          return timeB - timeA
+        })
+        setHistoryAlerts(historyAlertsList)
+      }
+      
+      // Set up real-time listeners for each device and date
+      deviceIds.forEach((deviceId) => {
+        dates.forEach((date) => {
+          try {
+            // Firestore path: alerts/{macaddress}/{date}/{documentID}
+            // Access subcollection: collection(doc(firestore, "alerts", deviceId), date)
+            const deviceDocRef = doc(firestore, "alerts", deviceId)
+            const alertsRef = collection(deviceDocRef, date)
+            const alertsQuery = query(alertsRef, orderBy("time", "desc"))
+            
+            // Set up real-time listener
+            const unsubscribe = onSnapshot(
+              alertsQuery,
+              (querySnapshot: QuerySnapshot<DocumentData>) => {
+                try {
+                  console.log(`📡 Real-time update for device ${deviceId} on date ${date}: ${querySnapshot.docs.length} alerts`)
+                  
+                  // Process all documents from this snapshot
+                  querySnapshot.docs.forEach((doc) => {
+                    const alertData = doc.data() as FirebaseAlert
+                    
+                    // Validate required fields
+                    if (alertData && alertData.message && alertData.tag && alertData.time && alertData.type) {
+                      const deviceInfo = devices[deviceId]
+                      const alert = transformAlert(deviceId, alertData, deviceInfo)
+                      // Mark history alerts as resolved by default
+                      alert.status = "resolved"
+                      // Use document ID + timestamp for unique ID
+                      alert.id = `${deviceId}-${date}-${doc.id}-${alertData.time}`
+                      
+                      // Add or update in map (deduplication)
+                      historyAlertsMapRef.current.set(alert.id, alert)
+                      console.log(`✅ Updated history alert: ${alert.id}`)
+                    } else {
+                      console.warn(`⚠️ Incomplete alert data in Firestore ${deviceId}/${date}/${doc.id}:`, alertData)
+                    }
+                  })
+                  
+                  // Update state with all alerts
+                  updateHistoryAlerts()
+                } catch (err) {
+                  console.error(`❌ Error processing real-time update for ${deviceId}/${date}:`, err)
+                }
+              },
+              (error) => {
+                // Only log if it's not a "not found" error (which is expected for missing dates)
+                if (error.code !== "not-found") {
+                  console.warn(`⚠️ Error in real-time listener for device ${deviceId} on date ${date}:`, error)
+                }
+              }
+            )
+            
+            unsubscribeFunctions.push(unsubscribe)
+          } catch (dateError) {
+            // Continue with other dates/devices even if one fails
+            if ((dateError as any)?.code !== "not-found") {
+              console.warn(`⚠️ Error setting up listener for device ${deviceId} on date ${date}:`, dateError)
+            }
+          }
+        })
+      })
+      
+      // Cleanup all listeners on unmount
+      return () => {
+        console.log("🧹 Cleaning up history alerts real-time listeners...")
+        unsubscribeFunctions.forEach((unsubscribe) => unsubscribe())
+      }
+    } catch (err) {
+      console.error("❌ Error setting up history alerts real-time listeners:", err)
+    }
+  }, [devices, availableDeviceIds]) // Re-run when devices data or available device IDs change
 
   return { alerts, historyAlerts, isLoading, error }
 }
