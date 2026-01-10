@@ -30,8 +30,8 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   Bus,
   MapPin,
-  Wrench,
-  CheckCircle,
+  FileText,
+  Loader2,
   Fuel,
   Search,
   Plus,
@@ -42,15 +42,9 @@ import {
   User,
   Route,
   Gauge,
-  Battery,
-  Thermometer,
   Shield,
-  TrendingUp,
-  TrendingDown,
-  FileText,
-  Loader2,
 } from "lucide-react"
-import type { Vehicle, MaintenanceSchedule } from "@/lib/fleet-types"
+import type { Vehicle } from "@/lib/fleet-types"
 import { useToast } from "@/hooks/use-toast"
 import { FleetMap } from "@/components/fleet-map"
 
@@ -60,12 +54,9 @@ export default function FleetManagement() {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [maintenanceFilter, setMaintenanceFilter] = useState("all")
   const [loading, setLoading] = useState(true)
   const [showAddVehicle, setShowAddVehicle] = useState(false)
-  const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [editingMaintenance, setEditingMaintenance] = useState<MaintenanceSchedule | null>(null)
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
   const [showEditVehicle, setShowEditVehicle] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -100,9 +91,6 @@ export default function FleetManagement() {
       const params = new URLSearchParams()
       if (statusFilter !== "all") {
         params.append("status", statusFilter)
-      }
-      if (maintenanceFilter !== "all") {
-        params.append("maintenanceStatus", maintenanceFilter)
       }
       if (searchTerm) {
         params.append("search", searchTerm)
@@ -141,20 +129,8 @@ export default function FleetManagement() {
   }
 
   // Fetch maintenance schedules
-  const fetchMaintenanceSchedules = async () => {
-    try {
-      const response = await fetch("/api/fleet/maintenance")
-      if (!response.ok) throw new Error("Failed to fetch maintenance schedules")
-      const data = await response.json()
-      setMaintenanceSchedule(data)
-    } catch (error) {
-      console.error("Error fetching maintenance schedules:", error)
-    }
-  }
-
   useEffect(() => {
     fetchVehicles()
-    fetchMaintenanceSchedules()
   }, [])
 
   // Refetch when filters change
@@ -165,7 +141,7 @@ export default function FleetManagement() {
 
     return () => clearTimeout(timeoutId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter, maintenanceFilter])
+  }, [searchTerm, statusFilter])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -180,33 +156,6 @@ export default function FleetManagement() {
     }
   }
 
-  const getMaintenanceStatusColor = (status: string) => {
-    switch (status) {
-      case "excellent":
-        return "success"
-      case "good":
-        return "success"
-      case "needs_attention":
-        return "warning"
-      case "overdue":
-        return "destructive"
-      default:
-        return "secondary"
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "destructive"
-      case "medium":
-        return "warning"
-      case "low":
-        return "secondary"
-      default:
-        return "secondary"
-    }
-  }
 
   const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch =
@@ -217,8 +166,7 @@ export default function FleetManagement() {
       (vehicle.driverName || vehicle.driver || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (vehicle.route || "").toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || vehicle.status === statusFilter
-    const matchesMaintenance = maintenanceFilter === "all" || vehicle.maintenanceStatus === maintenanceFilter
-    return matchesSearch && matchesStatus && matchesMaintenance
+    return matchesSearch && matchesStatus
   })
 
   const addVehicle = async () => {
@@ -298,92 +246,6 @@ export default function FleetManagement() {
       toast({
         title: "Error",
         description: error?.message || "Failed to create vehicle. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const scheduleMaintenance = async () => {
-    // Client-side validation
-    const errors: string[] = []
-
-    if (!newMaintenance.vehicleId) {
-      errors.push("Please select a vehicle")
-    }
-
-    if (!newMaintenance.type?.trim()) {
-      errors.push("Maintenance type is required")
-    }
-
-    if (!newMaintenance.scheduledDate) {
-      errors.push("Scheduled date is required")
-    } else {
-      const selectedDate = new Date(newMaintenance.scheduledDate)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      if (selectedDate < today) {
-        errors.push("Scheduled date cannot be in the past")
-      }
-    }
-
-    if (newMaintenance.estimatedCost && isNaN(parseInt(newMaintenance.estimatedCost))) {
-      errors.push("Estimated cost must be a valid number")
-    } else if (newMaintenance.estimatedCost && parseInt(newMaintenance.estimatedCost) < 0) {
-      errors.push("Estimated cost cannot be negative")
-    }
-
-    if (errors.length > 0) {
-      toast({
-        title: "Validation Error",
-        description: errors.length === 1 ? errors[0] : `Please fix the following:\n${errors.join("\n")}`,
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      setIsSubmitting(true)
-      const response = await fetch("/api/fleet/maintenance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vehicleId: newMaintenance.vehicleId,
-          type: newMaintenance.type.trim(),
-          scheduledDate: newMaintenance.scheduledDate,
-          priority: newMaintenance.priority,
-          estimatedCost: parseInt(newMaintenance.estimatedCost) || 0,
-          description: newMaintenance.description?.trim() || "",
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        const errorMessage = errorData.message || errorData.error || "Failed to schedule maintenance"
-        throw new Error(errorMessage)
-      }
-
-      toast({
-        title: "Success",
-        description: "Maintenance scheduled successfully.",
-      })
-
-      setNewMaintenance({
-        vehicleId: "",
-        type: "",
-        scheduledDate: "",
-        priority: "medium",
-        estimatedCost: "",
-        description: "",
-      })
-      setShowMaintenanceDialog(false)
-      fetchMaintenanceSchedules()
-    } catch (error: any) {
-      console.error("Error scheduling maintenance:", error)
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to schedule maintenance. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -550,66 +412,6 @@ export default function FleetManagement() {
     }
   }
 
-  const updateMaintenanceStatus = async (maintenanceId: string, status: string) => {
-    try {
-      const response = await fetch(`/api/fleet/maintenance/${maintenanceId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        const errorMessage = errorData.message || errorData.error || "Failed to update maintenance status"
-        throw new Error(errorMessage)
-      }
-
-      toast({
-        title: "Success",
-        description: `Maintenance status updated to ${status.replace("_", " ")}.`,
-      })
-
-      fetchMaintenanceSchedules()
-    } catch (error: any) {
-      console.error("Error updating maintenance status:", error)
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to update maintenance status. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const deleteMaintenance = async (maintenanceId: string) => {
-    if (!confirm("Are you sure you want to delete this maintenance schedule? This action cannot be undone.")) return
-
-    try {
-      const response = await fetch(`/api/fleet/maintenance/${maintenanceId}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        const errorMessage = errorData.message || errorData.error || "Failed to delete maintenance schedule"
-        throw new Error(errorMessage)
-      }
-
-      toast({
-        title: "Success",
-        description: "Maintenance schedule deleted successfully.",
-      })
-
-      fetchMaintenanceSchedules()
-    } catch (error: any) {
-      console.error("Error deleting maintenance schedule:", error)
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to delete maintenance schedule. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -618,7 +420,7 @@ export default function FleetManagement() {
       </div>
 
       {/* Fleet Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
@@ -633,20 +435,7 @@ export default function FleetManagement() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Maintenance</CardTitle>
-            <Wrench className="h-4 w-4 text-warning-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-warning-600">
-              {vehicles.filter((v) => v.status === "maintenance").length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {maintenanceSchedule.filter((m) => m.status === "overdue").length} overdue
-            </p>
-          </CardContent>
-        </Card>
+
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -676,10 +465,9 @@ export default function FleetManagement() {
       </div>
 
       <Tabs defaultValue="vehicles" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="vehicles">Vehicle Fleet</TabsTrigger>
           <TabsTrigger value="tracking">Live Tracking</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
           <TabsTrigger value="analytics">Fleet Analytics</TabsTrigger>
         </TabsList>
 
@@ -823,20 +611,7 @@ export default function FleetManagement() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={maintenanceFilter} onValueChange={setMaintenanceFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Maintenance" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Conditions</SelectItem>
-                    <SelectItem value="excellent">Excellent</SelectItem>
-                    <SelectItem value="good">Good</SelectItem>
-                    <SelectItem value="needs_attention">Needs Attention</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -852,7 +627,7 @@ export default function FleetManagement() {
                 <div className="p-12 text-center">
                   <Bus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles found</h3>
-                  <p className="text-gray-600">{searchTerm || statusFilter !== "all" || maintenanceFilter !== "all" ? "No vehicles match your current filters." : "Get started by adding your first vehicle to the fleet."}</p>
+                  <p className="text-gray-600">{searchTerm || statusFilter !== "all" ? "No vehicles match your current filters." : "Get started by adding your first vehicle to the fleet."}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -885,9 +660,6 @@ export default function FleetManagement() {
                           </div>
                           <div className="flex gap-2">
                             <Badge variant={getStatusColor(vehicle.status)}>{vehicle.status.toUpperCase()}</Badge>
-                            <Badge variant={getMaintenanceStatusColor(vehicle.maintenanceStatus)}>
-                              {vehicle.maintenanceStatus.replace("_", " ").toUpperCase()}
-                            </Badge>
                           </div>
                         </div>
                       </CardHeader>
@@ -934,7 +706,6 @@ export default function FleetManagement() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="maintenance">Maintenance</SelectItem>
                                 <SelectItem value="inactive">Inactive</SelectItem>
                               </SelectContent>
                             </Select>
@@ -970,7 +741,7 @@ export default function FleetManagement() {
               {/* Interactive Map */}
               <div className="mb-6">
                 <FleetMap
-                  vehicles={vehicles.filter((v) => v.status === "active" || v.status === "maintenance")}
+                  vehicles={vehicles.filter((v) => v.status === "active")}
                   selectedVehicle={selectedVehicle}
                   onVehicleClick={setSelectedVehicle}
                 />
@@ -1015,180 +786,7 @@ export default function FleetManagement() {
           </Card>
         </TabsContent>
 
-        {/* Maintenance Tab */}
-        <TabsContent value="maintenance" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Maintenance Schedule</CardTitle>
-                  <CardDescription>Manage vehicle maintenance and service schedules</CardDescription>
-                </div>
-                <Dialog open={showMaintenanceDialog} onOpenChange={setShowMaintenanceDialog}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Schedule Maintenance
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Schedule Maintenance</DialogTitle>
-                      <DialogDescription>Schedule maintenance for a vehicle</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="vehicleSelect">Vehicle</Label>
-                        <Select
-                          value={newMaintenance.vehicleId}
-                          onValueChange={(value) => setNewMaintenance({ ...newMaintenance, vehicleId: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select vehicle" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {vehicles
-                              .filter((vehicle) => vehicle.id)
-                              .map((vehicle) => (
-                                <SelectItem key={vehicle.id!} value={vehicle.id!}>
-                                  {vehicle.busNumberPlate || vehicle.busNumber || "N/A"} - {vehicle.model}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="maintenanceType">Maintenance Type</Label>
-                        <Input
-                          id="maintenanceType"
-                          value={newMaintenance.type}
-                          onChange={(e) => setNewMaintenance({ ...newMaintenance, type: e.target.value })}
-                          placeholder="e.g., Regular Service, Brake Repair"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="scheduledDate">Scheduled Date</Label>
-                        <Input
-                          id="scheduledDate"
-                          type="date"
-                          value={newMaintenance.scheduledDate}
-                          onChange={(e) => setNewMaintenance({ ...newMaintenance, scheduledDate: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="priority">Priority</Label>
-                        <Select
-                          value={newMaintenance.priority}
-                          onValueChange={(value) => setNewMaintenance({ ...newMaintenance, priority: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="estimatedCost">Estimated Cost (LKR)</Label>
-                        <Input
-                          id="estimatedCost"
-                          type="number"
-                          value={newMaintenance.estimatedCost}
-                          onChange={(e) => setNewMaintenance({ ...newMaintenance, estimatedCost: e.target.value })}
-                          placeholder="15000"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          value={newMaintenance.description}
-                          onChange={(e) => setNewMaintenance({ ...newMaintenance, description: e.target.value })}
-                          placeholder="Maintenance details..."
-                        />
-                      </div>
-                      <Button onClick={scheduleMaintenance} className="w-full" disabled={isSubmitting}>
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Scheduling...
-                          </>
-                        ) : (
-                          "Schedule Maintenance"
-                        )}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {maintenanceSchedule.map((maintenance) => (
-                  <div key={maintenance.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h4 className="font-semibold">{maintenance.busNumber}</h4>
-                        <p className="text-sm text-gray-600">{maintenance.type}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Badge variant={getPriorityColor(maintenance.priority)}>
-                          {maintenance.priority.toUpperCase()}
-                        </Badge>
-                        <Badge
-                          variant={
-                            maintenance.status === "overdue"
-                              ? "destructive"
-                              : maintenance.status === "in_progress"
-                                ? "warning"
-                                : "secondary"
-                          }
-                        >
-                          {maintenance.status.replace("_", " ").toUpperCase()}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">Scheduled Date</p>
-                        <p className="font-medium">{maintenance.scheduledDate}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Estimated Cost</p>
-                        <p className="font-medium">LKR {maintenance.estimatedCost.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Description</p>
-                        <p className="font-medium">{maintenance.description}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-4">
-                      <Button size="sm" variant="outline">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateMaintenanceStatus(maintenance.id, "completed")}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Complete
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => deleteMaintenance(maintenance.id)}>
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
 
         {/* Fleet Analytics Tab */}
         <TabsContent value="analytics" className="space-y-6">
@@ -1200,7 +798,7 @@ export default function FleetManagement() {
               <CardDescription>Current status of all vehicles in the fleet</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-green-600 mb-2">
                     {vehicles.filter((v) => v.status === "active").length}
@@ -1211,20 +809,6 @@ export default function FleetManagement() {
                       className="h-2 bg-green-500 rounded-full"
                       style={{
                         width: `${(vehicles.filter((v) => v.status === "active").length / vehicles.length) * 100}%`,
-                      }}
-                    ></div>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-yellow-600 mb-2">
-                    {vehicles.filter((v) => v.status === "maintenance").length}
-                  </div>
-                  <p className="text-sm text-gray-600">In Maintenance</p>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div
-                      className="h-2 bg-yellow-500 rounded-full"
-                      style={{
-                        width: `${vehicles.length > 0 ? (vehicles.filter((v) => v.status === "maintenance").length / vehicles.length) * 100 : 0}%`,
                       }}
                     ></div>
                   </div>
@@ -1250,99 +834,84 @@ export default function FleetManagement() {
       </Tabs>
 
       {/* Vehicle Details Modal */}
-      {selectedVehicle && (
-        <Dialog open={!!selectedVehicle} onOpenChange={() => setSelectedVehicle(null)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{selectedVehicle.busNumberPlate || selectedVehicle.busNumber || "N/A"} - Detailed Information</DialogTitle>
-              <DialogDescription>
-                {selectedVehicle.model} ({selectedVehicle.year})
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              {/* Vehicle Status */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{Math.round(selectedVehicle.speed)}</div>
-                  <div className="text-sm text-gray-600">Speed (km/h)</div>
+      {
+        selectedVehicle && (
+          <Dialog open={!!selectedVehicle} onOpenChange={() => setSelectedVehicle(null)}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{selectedVehicle.busNumberPlate || selectedVehicle.busNumber || "N/A"} - Detailed Information</DialogTitle>
+                <DialogDescription>
+                  {selectedVehicle.model} ({selectedVehicle.year})
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                {/* Vehicle Status */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center p-3 border rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{Math.round(selectedVehicle.speed)}</div>
+                    <div className="text-sm text-gray-600">Speed (km/h)</div>
+                  </div>
+                  <div className="text-center p-3 border rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{Math.round(selectedVehicle.fuel)}%</div>
+                    <div className="text-sm text-gray-600">Fuel Level</div>
+                  </div>
+                  <div className="text-center p-3 border rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">{Math.round(selectedVehicle.engineTemp)}°C</div>
+                    <div className="text-sm text-gray-600">Engine Temp</div>
+                  </div>
+                  <div className="text-center p-3 border rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{selectedVehicle.safetyScore}%</div>
+                    <div className="text-sm text-gray-600">Safety Score</div>
+                  </div>
                 </div>
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{Math.round(selectedVehicle.fuel)}%</div>
-                  <div className="text-sm text-gray-600">Fuel Level</div>
-                </div>
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-2xl font-bold text-orange-600">{Math.round(selectedVehicle.engineTemp)}°C</div>
-                  <div className="text-sm text-gray-600">Engine Temp</div>
-                </div>
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">{selectedVehicle.safetyScore}%</div>
-                  <div className="text-sm text-gray-600">Safety Score</div>
-                </div>
-              </div>
 
-              {/* Service History */}
-              <div>
-                <h4 className="font-semibold mb-3">Service History</h4>
-                <div className="space-y-3">
-                  {selectedVehicle.serviceHistory.map((service, index) => (
-                    <div key={index} className="border rounded-lg p-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{service.type}</p>
-                          <p className="text-sm text-gray-600">{service.description}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">LKR {service.cost.toLocaleString()}</p>
-                          <p className="text-sm text-gray-600">{service.date}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {/* Service History */}
+
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )
+      }
 
       {/* Edit Vehicle Dialog */}
-      {editingVehicle && (
-        <Dialog open={showEditVehicle} onOpenChange={(open) => {
-          setShowEditVehicle(open)
-          if (!open) setEditingVehicle(null)
-        }}>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-            <DialogHeader className="flex-shrink-0 pb-4">
-              <DialogTitle>Edit Vehicle</DialogTitle>
-              <DialogDescription>Update vehicle information</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-              <div>
-                <Label htmlFor="edit-busNumberPlate">
-                  Bus Number Plate <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="edit-busNumberPlate"
-                  value={editingVehicle.busNumberPlate || ""}
-                  onChange={(e) => {
-                    let value = e.target.value.toUpperCase()
-                    // Auto-format: Add NB- prefix if user types numbers
-                    if (value && !value.startsWith("NB-")) {
-                      if (/^\d+$/.test(value.replace("NB-", ""))) {
-                        value = "NB-" + value.replace("NB-", "")
+      {
+        editingVehicle && (
+          <Dialog open={showEditVehicle} onOpenChange={(open) => {
+            setShowEditVehicle(open)
+            if (!open) setEditingVehicle(null)
+          }}>
+            <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader className="flex-shrink-0 pb-4">
+                <DialogTitle>Edit Vehicle</DialogTitle>
+                <DialogDescription>Update vehicle information</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+                <div>
+                  <Label htmlFor="edit-busNumberPlate">
+                    Bus Number Plate <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="edit-busNumberPlate"
+                    value={editingVehicle.busNumberPlate || ""}
+                    onChange={(e) => {
+                      let value = e.target.value.toUpperCase()
+                      // Auto-format: Add NB- prefix if user types numbers
+                      if (value && !value.startsWith("NB-")) {
+                        if (/^\d+$/.test(value.replace("NB-", ""))) {
+                          value = "NB-" + value.replace("NB-", "")
+                        }
                       }
-                    }
-                    // Limit to format NB-XXXX
-                    if (value.length > 7) value = value.substring(0, 7)
-                    setEditingVehicle({ ...editingVehicle, busNumberPlate: value })
-                  }}
-                  placeholder="NB-4565"
-                  required
-                  maxLength={7}
-                />
-                <p className="text-xs text-gray-500 mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
-              </div>
-              {/* <div>
+                      // Limit to format NB-XXXX
+                      if (value.length > 7) value = value.substring(0, 7)
+                      setEditingVehicle({ ...editingVehicle, busNumberPlate: value })
+                    }}
+                    placeholder="NB-4565"
+                    required
+                    maxLength={7}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
+                </div>
+                {/* <div>
                 <Label htmlFor="edit-documentId">Document ID (Number Plate)</Label>
                 <Input
                   id="edit-documentId"
@@ -1352,17 +921,17 @@ export default function FleetManagement() {
                 />
                 <p className="text-xs text-gray-500 mt-1">Vehicle registration number / Number plate</p>
               </div> */}
-              <div>
-                <Label htmlFor="edit-deviceId">Device ID</Label>
-                <Input
-                  id="edit-deviceId"
-                  value={editingVehicle.deviceId || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, deviceId: e.target.value.toUpperCase() })}
-                  placeholder="e.g., DEV-001"
-                />
-                <p className="text-xs text-gray-500 mt-1">GPS/Tracking device ID (optional)</p>
-              </div>
-              {/* <div>
+                <div>
+                  <Label htmlFor="edit-deviceId">Device ID</Label>
+                  <Input
+                    id="edit-deviceId"
+                    value={editingVehicle.deviceId || ""}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, deviceId: e.target.value.toUpperCase() })}
+                    placeholder="e.g., DEV-001"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">GPS/Tracking device ID (optional)</p>
+                </div>
+                {/* <div>
                 <Label htmlFor="edit-busNumber">Bus Number</Label>
                 <Input
                   id="edit-busNumber"
@@ -1371,87 +940,88 @@ export default function FleetManagement() {
                   placeholder="e.g., NB-1234"
                 />
               </div> */}
-              <div>
-                <Label htmlFor="edit-model">Vehicle Model *</Label>
-                <Input
-                  id="edit-model"
-                  value={editingVehicle.model}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, model: e.target.value })}
-                  placeholder="e.g., Tata LP 1618"
-                  required
-                />
+                <div>
+                  <Label htmlFor="edit-model">Vehicle Model *</Label>
+                  <Input
+                    id="edit-model"
+                    value={editingVehicle.model}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, model: e.target.value })}
+                    placeholder="e.g., Tata LP 1618"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-year">Year *</Label>
+                  <Input
+                    id="edit-year"
+                    type="number"
+                    value={editingVehicle.year}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, year: parseInt(e.target.value) || 0 })}
+                    placeholder="2024"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-driverName">Assigned Driver</Label>
+                  <Input
+                    id="edit-driverName"
+                    value={editingVehicle.driverName || ""}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, driverName: e.target.value })}
+                    placeholder="Driver name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-route">Route</Label>
+                  <Input
+                    id="edit-route"
+                    value={editingVehicle.route || ""}
+                    onChange={(e) => setEditingVehicle({ ...editingVehicle, route: e.target.value })}
+                    placeholder="e.g., Colombo - Kandy"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-status">Status</Label>
+                  <Select
+                    value={editingVehicle.status}
+                    onValueChange={(value: Vehicle["status"]) => setEditingVehicle({ ...editingVehicle, status: value })}
+                  >
+                    <SelectTrigger id="edit-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button onClick={handleUpdateVehicle} className="flex-1" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      "Update Vehicle"
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowEditVehicle(false)
+                      setEditingVehicle(null)
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit-year">Year *</Label>
-                <Input
-                  id="edit-year"
-                  type="number"
-                  value={editingVehicle.year}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, year: parseInt(e.target.value) || 0 })}
-                  placeholder="2024"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-driverName">Assigned Driver</Label>
-                <Input
-                  id="edit-driverName"
-                  value={editingVehicle.driverName || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, driverName: e.target.value })}
-                  placeholder="Driver name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-route">Route</Label>
-                <Input
-                  id="edit-route"
-                  value={editingVehicle.route || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, route: e.target.value })}
-                  placeholder="e.g., Colombo - Kandy"
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-status">Status</Label>
-                <Select
-                  value={editingVehicle.status}
-                  onValueChange={(value: Vehicle["status"]) => setEditingVehicle({ ...editingVehicle, status: value })}
-                >
-                  <SelectTrigger id="edit-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button onClick={handleUpdateVehicle} className="flex-1" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    "Update Vehicle"
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowEditVehicle(false)
-                    setEditingVehicle(null)
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )
+      }
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -1486,6 +1056,6 @@ export default function FleetManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </div >
   )
 }
