@@ -224,7 +224,7 @@ export default function FleetManagement() {
   const addVehicle = async () => {
     // Client-side validation
     const errors: string[] = []
-    
+
     // Validate BUS Number Plate format (NB-XXXX)
     if (!newVehicle.busNumberPlate?.trim()) {
       errors.push("BUS Number Plate is required")
@@ -234,11 +234,11 @@ export default function FleetManagement() {
         errors.push("BUS Number Plate must be in format NB-XXXX (e.g., NB-4565)")
       }
     }
-    
+
     if (!newVehicle.model?.trim()) {
       errors.push("Vehicle model is required")
     }
-    
+
     if (!newVehicle.year) {
       errors.push("Year is required")
     } else {
@@ -308,15 +308,15 @@ export default function FleetManagement() {
   const scheduleMaintenance = async () => {
     // Client-side validation
     const errors: string[] = []
-    
+
     if (!newMaintenance.vehicleId) {
       errors.push("Please select a vehicle")
     }
-    
+
     if (!newMaintenance.type?.trim()) {
       errors.push("Maintenance type is required")
     }
-    
+
     if (!newMaintenance.scheduledDate) {
       errors.push("Scheduled date is required")
     } else {
@@ -431,7 +431,7 @@ export default function FleetManagement() {
 
     // Client-side validation
     const errors: string[] = []
-    
+
     // Validate BUS Number Plate format (NB-XXXX)
     if (!editingVehicle.busNumberPlate?.trim()) {
       errors.push("BUS Number Plate is required")
@@ -441,11 +441,11 @@ export default function FleetManagement() {
         errors.push("BUS Number Plate must be in format NB-XXXX (e.g., NB-4565)")
       }
     }
-    
+
     if (!editingVehicle.model?.trim()) {
       errors.push("Vehicle model is required")
     }
-    
+
     if (!editingVehicle.year) {
       errors.push("Year is required")
     } else {
@@ -858,100 +858,100 @@ export default function FleetManagement() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {filteredVehicles.map((vehicle) => (
                     <Card key={vehicle.id || `vehicle-${vehicle.busNumberPlate || vehicle.busNumber}`} className="hover:shadow-lg transition-shadow overflow-visible">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">{vehicle.busNumberPlate || vehicle.busNumber || "N/A"}</CardTitle>
-                          <CardDescription className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="flex items-center gap-1">
-                                <FileText className="h-3 w-3" />
-                                {vehicle.documentId || "N/A"}
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-lg">{vehicle.busNumberPlate || vehicle.busNumber || "N/A"}</CardTitle>
+                            <CardDescription className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <span className="flex items-center gap-1">
+                                  <FileText className="h-3 w-3" />
+                                  {vehicle.documentId || "N/A"}
+                                </span>
+                                {vehicle.deviceId && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="flex items-center gap-1 text-blue-600">
+                                      <Gauge className="h-3 w-3" />
+                                      {vehicle.deviceId}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                              <span>
+                                {vehicle.model} ({vehicle.year})
                               </span>
-                              {vehicle.deviceId && (
-                                <>
-                                  <span>•</span>
-                                  <span className="flex items-center gap-1 text-blue-600">
-                                    <Gauge className="h-3 w-3" />
-                                    {vehicle.deviceId}
-                                  </span>
-                                </>
-                              )}
+                            </CardDescription>
+                          </div>
+                          <div className="flex gap-2">
+                            <Badge variant={getStatusColor(vehicle.status)}>{vehicle.status.toUpperCase()}</Badge>
+                            <Badge variant={getMaintenanceStatusColor(vehicle.maintenanceStatus)}>
+                              {vehicle.maintenanceStatus.replace("_", " ").toUpperCase()}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {/* Driver and Route Info */}
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-gray-500" />
+                              <span>{vehicle.driverName || (vehicle as any).driver || "No driver assigned"}</span>
                             </div>
-                            <span>
-                              {vehicle.model} ({vehicle.year})
-                            </span>
-                          </CardDescription>
-                        </div>
-                        <div className="flex gap-2">
-                          <Badge variant={getStatusColor(vehicle.status)}>{vehicle.status.toUpperCase()}</Badge>
-                          <Badge variant={getMaintenanceStatusColor(vehicle.maintenanceStatus)}>
-                            {vehicle.maintenanceStatus.replace("_", " ").toUpperCase()}
-                          </Badge>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {/* Driver and Route Info */}
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-500" />
-                            <span>{vehicle.driverName || (vehicle as any).driver || "No driver assigned"}</span>
+                            <div className="flex items-center gap-2">
+                              <Route className="h-4 w-4 text-gray-500" />
+                              <span>{vehicle.route || "No route assigned"}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Route className="h-4 w-4 text-gray-500" />
-                            <span>{vehicle.route || "No route assigned"}</span>
+
+                          {/* Location */}
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="h-4 w-4 text-gray-500" />
+                            <span>{vehicle.location.address}</span>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2 pt-2 flex-wrap items-center">
+                            <Button size="sm" variant="outline" onClick={() => setSelectedVehicle(vehicle)} className="flex-shrink-0">
+                              <Eye className="h-4 w-4 mr-1" />
+                              Details
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleEditVehicle(vehicle)} className="flex-shrink-0">
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Select
+                              value={vehicle.status}
+                              onValueChange={(value) => {
+                                if (vehicle.id) {
+                                  updateVehicleStatus(vehicle.id, value)
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-[120px] flex-shrink-0">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="maintenance">Maintenance</SelectItem>
+                                <SelectItem value="inactive">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteClick(vehicle)}
+                              disabled={!vehicle.id || isDeleting}
+                              className="bg-red-600 hover:bg-red-700 text-white flex-shrink-0"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
                           </div>
                         </div>
-
-                        {/* Location */}
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPin className="h-4 w-4 text-gray-500" />
-                          <span>{vehicle.location.address}</span>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 pt-2 flex-wrap items-center">
-                          <Button size="sm" variant="outline" onClick={() => setSelectedVehicle(vehicle)} className="flex-shrink-0">
-                            <Eye className="h-4 w-4 mr-1" />
-                            Details
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleEditVehicle(vehicle)} className="flex-shrink-0">
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Select
-                            value={vehicle.status}
-                            onValueChange={(value) => {
-                              if (vehicle.id) {
-                                updateVehicleStatus(vehicle.id, value)
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="h-8 text-xs w-[120px] flex-shrink-0">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="active">Active</SelectItem>
-                              <SelectItem value="maintenance">Maintenance</SelectItem>
-                              <SelectItem value="inactive">Inactive</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button 
-                            size="sm" 
-                            variant="destructive" 
-                            onClick={() => handleDeleteClick(vehicle)}
-                            disabled={!vehicle.id || isDeleting}
-                            className="bg-red-600 hover:bg-red-700 text-white flex-shrink-0"
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               )}
@@ -1192,63 +1192,7 @@ export default function FleetManagement() {
 
         {/* Fleet Analytics Tab */}
         <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Fleet Performance</CardTitle>
-                <CardDescription>Key performance indicators</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span>Average Fuel Efficiency</span>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                    <span className="font-bold text-green-600">12.5 km/L</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Maintenance Cost (Monthly)</span>
-                  <div className="flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4 text-red-600" />
-                    <span className="font-bold text-red-600">LKR 245,000</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Fleet Utilization</span>
-                  <span className="font-bold text-blue-600">87%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>On-Time Performance</span>
-                  <span className="font-bold text-green-600">94%</span>
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Maintenance Overview</CardTitle>
-                <CardDescription>Maintenance statistics and trends</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span>Scheduled This Month</span>
-                  <span className="font-bold text-blue-600">8</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Completed This Month</span>
-                  <span className="font-bold text-green-600">6</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Overdue</span>
-                  <span className="font-bold text-red-600">2</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Average Cost per Service</span>
-                  <span className="font-bold text-gray-900">LKR 18,500</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
 
           <Card>
             <CardHeader>
