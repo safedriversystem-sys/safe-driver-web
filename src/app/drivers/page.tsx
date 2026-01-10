@@ -106,13 +106,13 @@ export default function DriversPage() {
           cache: "no-store", // Ensure fresh data
         })
         clearTimeout(timeoutId)
-        
+
         const fetchTime = Date.now() - startTime
         console.log(`Drivers fetched in ${fetchTime}ms`)
-        
+
         if (!response.ok) throw new Error("Failed to fetch drivers")
         const data = await response.json()
-        
+
         // Update state immediately
         setDrivers(data)
         // Calculate stats from fetched drivers (much faster than separate API call)
@@ -127,7 +127,7 @@ export default function DriversPage() {
     } catch (error) {
       console.error("Error fetching drivers:", error)
       const errorMessage = error instanceof Error ? error.message : "Failed to load drivers"
-      
+
       // Check if it's a Firebase configuration error
       if (errorMessage.includes("Firebase not configured") || errorMessage.includes("503")) {
         toast({
@@ -211,32 +211,32 @@ export default function DriversPage() {
           // If response is not JSON, it might be a network error
           throw new Error("Network error: Unable to reach the server. Please check your connection and ensure the dev server is running.")
         }
-        
+
         const errorMessage = error.error || error.message || "Failed to create driver"
-        
+
         // Check if it's an offline error from service worker (must check this first)
         // Service worker returns 503 with { error: "Offline", offline: true } when server is unreachable
         const isOfflineError = error.offline === true || errorMessage === "Offline" || response.headers.get("X-Offline") === "true"
-        
+
         if (response.status === 503 && isOfflineError) {
           throw new Error("CONNECTION_ERROR: Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators).")
         }
-        
+
         // Also check for offline flag or "Offline" message regardless of status
         if (isOfflineError) {
           throw new Error("CONNECTION_ERROR: Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators).")
         }
-        
+
         // Check if it's a Firebase configuration error (but not an offline error)
         if (errorMessage.includes("Firebase not configured") || errorMessage.includes("Firebase initialization failed")) {
           throw new Error("Firebase not configured. Please set up Firebase by creating .env.local file. See SETUP_GUIDE.md")
         }
-        
+
         // Check for connection errors
         if (errorMessage.includes("Cannot connect to Firebase") || errorMessage.includes("ECONNREFUSED")) {
           throw new Error("Cannot connect to Firebase. Please ensure Firebase emulators are running: npm run firebase:emulators")
         }
-        
+
         throw new Error(errorMessage)
       }
 
@@ -257,7 +257,7 @@ export default function DriversPage() {
         experience: "",
       })
       setIsAddDialogOpen(false)
-      
+
       // Small delay to ensure Firestore write completes before fetching
       setTimeout(() => {
         fetchDrivers()
@@ -265,7 +265,7 @@ export default function DriversPage() {
     } catch (error: any) {
       console.error("Error creating driver:", error)
       const errorMessage = error?.message || error?.toString() || "Failed to create driver"
-      
+
       // Check if it's a connection error (marked with CONNECTION_ERROR prefix or contains connection/offline keywords)
       if (
         errorMessage.startsWith("CONNECTION_ERROR:") ||
@@ -274,10 +274,10 @@ export default function DriversPage() {
         (errorMessage === "Offline" || (errorMessage.includes("Offline") && !errorMessage.includes("Connection")))
       ) {
         // Extract the message after CONNECTION_ERROR: or use a default message
-        const description = errorMessage.startsWith("CONNECTION_ERROR:") 
+        const description = errorMessage.startsWith("CONNECTION_ERROR:")
           ? errorMessage.replace("CONNECTION_ERROR:", "").trim()
           : "Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators)."
-        
+
         toast({
           title: "Connection Error",
           description: description,
@@ -669,89 +669,141 @@ export default function DriversPage() {
       ) : (
         <div className="space-y-4">
           {filteredDrivers.map((driver) => (
-          <Card key={driver.id} className="hover:shadow-md transition-shadow overflow-visible">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Users className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-lg font-semibold">{driver.name}</h3>
-                      <Badge variant={getStatusColor(driver.status)}>
-                        {driver.status.replace("_", " ").toUpperCase()}
-                      </Badge>
+            <Card
+              key={driver.id}
+              className="group hover:shadow-lg transition-all duration-300 border-l-[6px] overflow-hidden"
+              style={{
+                borderLeftColor:
+                  driver.safetyScore >= 90 ? "#22c55e" : driver.safetyScore >= 75 ? "#eab308" : "#ef4444",
+              }}
+            >
+              <CardContent className="p-6">
+                <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-center">
+                  {/* Driver Profile Section */}
+                  <div className="flex-1 flex gap-5 w-full">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 border-2 border-white shadow-sm ring-1 ring-slate-100">
+                      <Users className="h-7 w-7 text-slate-600" />
                     </div>
-                    <p className="text-sm text-gray-600">License: {driver.licenseNumber}</p>
-                    <p className="text-sm text-gray-600">
-                      {driver.busNumber && driver.route
-                        ? `Bus: ${driver.busNumber} • Route: ${driver.route}`
-                        : driver.busNumber
-                          ? `Bus: ${driver.busNumber}`
-                          : driver.route
-                            ? `Route: ${driver.route}`
-                            : "No bus or route assigned"}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
-                      <span className="flex items-center">
-                        <Phone className="h-3 w-3 mr-1" />
-                        {driver.phone}
-                      </span>
-                      <span className="flex items-center">
-                        <Mail className="h-3 w-3 mr-1" />
-                        {driver.email}
-                      </span>
+
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-xl font-bold text-slate-900 leading-none truncate">
+                          {driver.name}
+                        </h3>
+                        <Badge
+                          variant={driver.status === "on_duty" ? "default" : "secondary"}
+                          className={`uppercase text-[10px] tracking-wider font-bold shadow-sm ${driver.status === "on_duty"
+                              ? "bg-green-600 hover:bg-green-700"
+                              : driver.status === "suspended"
+                                ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                        >
+                          {driver.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-slate-500">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-700">License:</span>
+                          <span className="font-mono">{driver.licenseNumber}</span>
+                        </div>
+                        {(driver.busNumber || driver.route) && (
+                          <div className="flex items-center gap-2 truncate">
+                            {driver.busNumber && (
+                              <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs font-semibold border border-blue-100">
+                                {driver.busNumber}
+                              </span>
+                            )}
+                            {driver.route && <span className="text-xs text-slate-600 truncate">{driver.route}</span>}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-3 col-span-1 sm:col-span-2 mt-1.5 pt-1.5 border-t border-dashed border-slate-100">
+                          <span className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 px-2 py-1 rounded-full">
+                            <Phone className="h-3 w-3" /> {driver.phone}
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 px-2 py-1 rounded-full truncate max-w-[200px]">
+                            <Mail className="h-3 w-3" /> {driver.email}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Safety Score</p>
-                    <p className={`text-2xl font-bold ${getSafetyScoreColor(driver.safetyScore)}`}>
-                      {driver.safetyScore}%
-                    </p>
+
+                  {/* Stats Section with vertical separator */}
+                  <div className="flex w-full lg:w-auto items-center justify-around lg:justify-center gap-8 px-6 py-3 lg:py-0 lg:border-l lg:border-r border-y lg:border-y-0 border-slate-100 bg-slate-50/50 lg:bg-transparent rounded-lg lg:rounded-none">
+                    <div className="text-center">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Safety</p>
+                      <div className={`text-3xl font-black tabular-nums tracking-tight ${getSafetyScoreColor(driver.safetyScore)}`}>
+                        {driver.safetyScore}
+                        <span className="text-base font-bold ml-0.5">%</span>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Alerts</p>
+                      <div className="text-3xl font-black tabular-nums tracking-tight text-slate-900">
+                        {driver.alertCount}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Alerts</p>
-                    <p className="text-2xl font-bold">{driver.alertCount}</p>
-                  </div>
-                  <div className="flex flex-col gap-2 w-[110px]">
-                    <Button size="sm" variant="outline" onClick={() => setSelectedDriver(driver)} className="w-full justify-start">
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEditDriver(driver)} className="w-full justify-start">
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleContactDriver(driver)} className="w-full justify-start">
-                      <Phone className="h-4 w-4 mr-1" />
-                      Call
-                    </Button>
+
+                  {/* Actions Section */}
+                  <div className="w-full lg:w-[150px] flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSelectedDriver(driver)}
+                        className="h-8 border border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
+                        title="View Details"
+                      >
+                        <Eye className="h-3.5 w-3.5 mr-1.5" /> View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleEditDriver(driver)}
+                        className="h-8 border border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
+                        title="Edit Driver"
+                      >
+                        <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleContactDriver(driver)}
+                        className="h-8 border border-slate-200 hover:border-green-300 hover:bg-green-50 hover:text-green-600"
+                        title="Call Driver"
+                      >
+                        <Phone className="h-3.5 w-3.5 mr-1.5" /> Call
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteClick(driver)}
+                        disabled={isDeleting}
+                        className="h-8 border border-slate-200 hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                        title="Delete Driver"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Del
+                      </Button>
+                    </div>
                     <Button
                       size="sm"
-                      variant="destructive"
-                      onClick={() => handleDeleteClick(driver)}
-                      disabled={isDeleting}
-                      className="w-full justify-start bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={driver.status === "on_duty" ? "destructive" : "default"}
                       onClick={() => handleToggleStatus(driver.id)}
-                      className="w-full justify-start"
+                      className={`w-full h-8 text-xs font-semibold shadow-sm transition-all ${driver.status === "on_duty"
+                          ? "bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 hover:border-amber-300"
+                          : "bg-slate-900 text-white hover:bg-slate-800"
+                        }`}
                     >
                       {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
                     </Button>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
@@ -978,10 +1030,10 @@ export default function DriversPage() {
                 </div>
               </TabsContent>
               <TabsContent value="history" className="space-y-4">
-                  <div>
-                    <Label>Last Alert</Label>
-                    <p className="font-medium">{selectedDriver.lastAlert || "Never"}</p>
-                  </div>
+                <div>
+                  <Label>Last Alert</Label>
+                  <p className="font-medium">{selectedDriver.lastAlert || "Never"}</p>
+                </div>
                 <div>
                   <Label>Recent Activity</Label>
                   <div className="space-y-2 mt-2">
