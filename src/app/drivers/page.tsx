@@ -25,9 +25,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit } from "lucide-react"
+import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit, MoreHorizontal } from "lucide-react"
 import type { Driver } from "@/lib/driver-types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -106,13 +113,13 @@ export default function DriversPage() {
           cache: "no-store", // Ensure fresh data
         })
         clearTimeout(timeoutId)
-        
+
         const fetchTime = Date.now() - startTime
         console.log(`Drivers fetched in ${fetchTime}ms`)
-        
+
         if (!response.ok) throw new Error("Failed to fetch drivers")
         const data = await response.json()
-        
+
         // Update state immediately
         setDrivers(data)
         // Calculate stats from fetched drivers (much faster than separate API call)
@@ -127,7 +134,7 @@ export default function DriversPage() {
     } catch (error) {
       console.error("Error fetching drivers:", error)
       const errorMessage = error instanceof Error ? error.message : "Failed to load drivers"
-      
+
       // Check if it's a Firebase configuration error
       if (errorMessage.includes("Firebase not configured") || errorMessage.includes("503")) {
         toast({
@@ -211,32 +218,32 @@ export default function DriversPage() {
           // If response is not JSON, it might be a network error
           throw new Error("Network error: Unable to reach the server. Please check your connection and ensure the dev server is running.")
         }
-        
+
         const errorMessage = error.error || error.message || "Failed to create driver"
-        
+
         // Check if it's an offline error from service worker (must check this first)
         // Service worker returns 503 with { error: "Offline", offline: true } when server is unreachable
         const isOfflineError = error.offline === true || errorMessage === "Offline" || response.headers.get("X-Offline") === "true"
-        
+
         if (response.status === 503 && isOfflineError) {
           throw new Error("CONNECTION_ERROR: Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators).")
         }
-        
+
         // Also check for offline flag or "Offline" message regardless of status
         if (isOfflineError) {
           throw new Error("CONNECTION_ERROR: Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators).")
         }
-        
+
         // Check if it's a Firebase configuration error (but not an offline error)
         if (errorMessage.includes("Firebase not configured") || errorMessage.includes("Firebase initialization failed")) {
           throw new Error("Firebase not configured. Please set up Firebase by creating .env.local file. See SETUP_GUIDE.md")
         }
-        
+
         // Check for connection errors
         if (errorMessage.includes("Cannot connect to Firebase") || errorMessage.includes("ECONNREFUSED")) {
           throw new Error("Cannot connect to Firebase. Please ensure Firebase emulators are running: npm run firebase:emulators")
         }
-        
+
         throw new Error(errorMessage)
       }
 
@@ -257,7 +264,7 @@ export default function DriversPage() {
         experience: "",
       })
       setIsAddDialogOpen(false)
-      
+
       // Small delay to ensure Firestore write completes before fetching
       setTimeout(() => {
         fetchDrivers()
@@ -265,7 +272,7 @@ export default function DriversPage() {
     } catch (error: any) {
       console.error("Error creating driver:", error)
       const errorMessage = error?.message || error?.toString() || "Failed to create driver"
-      
+
       // Check if it's a connection error (marked with CONNECTION_ERROR prefix or contains connection/offline keywords)
       if (
         errorMessage.startsWith("CONNECTION_ERROR:") ||
@@ -274,10 +281,10 @@ export default function DriversPage() {
         (errorMessage === "Offline" || (errorMessage.includes("Offline") && !errorMessage.includes("Connection")))
       ) {
         // Extract the message after CONNECTION_ERROR: or use a default message
-        const description = errorMessage.startsWith("CONNECTION_ERROR:") 
+        const description = errorMessage.startsWith("CONNECTION_ERROR:")
           ? errorMessage.replace("CONNECTION_ERROR:", "").trim()
           : "Unable to reach the server. Please ensure the development server is running (npm run dev) and Firebase emulators are running (npm run firebase:emulators)."
-        
+
         toast({
           title: "Connection Error",
           description: description,
@@ -669,89 +676,102 @@ export default function DriversPage() {
       ) : (
         <div className="space-y-4">
           {filteredDrivers.map((driver) => (
-          <Card key={driver.id} className="hover:shadow-md transition-shadow overflow-visible">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Users className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-lg font-semibold">{driver.name}</h3>
-                      <Badge variant={getStatusColor(driver.status)}>
-                        {driver.status.replace("_", " ").toUpperCase()}
-                      </Badge>
+            <Card key={driver.id} className="hover:shadow-lg transition-all duration-200 overflow-visible group border-l-4" style={{ borderLeftColor: driver.status === 'on_duty' ? '#22c55e' : driver.status === 'suspended' ? '#ef4444' : '#9ca3af' }}>
+              <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                  {/* Left Column: Avatar + Info */}
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${driver.status === 'on_duty' ? 'bg-green-100' :
+                        driver.status === 'suspended' ? 'bg-red-100' : 'bg-gray-100'
+                      }`}>
+                      <Users className={`h-7 w-7 ${driver.status === 'on_duty' ? 'text-green-600' :
+                          driver.status === 'suspended' ? 'text-red-600' : 'text-gray-600'
+                        }`} />
                     </div>
-                    <p className="text-sm text-gray-600">License: {driver.licenseNumber}</p>
-                    <p className="text-sm text-gray-600">
-                      {driver.busNumber && driver.route
-                        ? `Bus: ${driver.busNumber} • Route: ${driver.route}`
-                        : driver.busNumber
-                          ? `Bus: ${driver.busNumber}`
-                          : driver.route
-                            ? `Route: ${driver.route}`
-                            : "No bus or route assigned"}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
-                      <span className="flex items-center">
-                        <Phone className="h-3 w-3 mr-1" />
-                        {driver.phone}
-                      </span>
-                      <span className="flex items-center">
-                        <Mail className="h-3 w-3 mr-1" />
-                        {driver.email}
-                      </span>
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-xl font-bold text-gray-900">{driver.name}</h3>
+                        <Badge variant={getStatusColor(driver.status)}>
+                          {driver.status.replace("_", " ").toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p className="font-medium text-gray-700">License: {driver.licenseNumber}</p>
+                        <p>
+                          {driver.busNumber && driver.route
+                            ? `Bus: ${driver.busNumber} • Route: ${driver.route}`
+                            : driver.busNumber
+                              ? `Bus: ${driver.busNumber}`
+                              : driver.route
+                                ? `Route: ${driver.route}`
+                                : "No bus or route assigned"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-5 pt-1 text-sm text-gray-500 flex-wrap">
+                        <span className="flex items-center hover:text-blue-600 transition-colors cursor-pointer" onClick={() => handleContactDriver(driver)}>
+                          <Phone className="h-3.5 w-3.5 mr-1.5" />
+                          {driver.phone}
+                        </span>
+                        <span className="flex items-center hover:text-blue-600 transition-colors">
+                          <Mail className="h-3.5 w-3.5 mr-1.5" />
+                          {driver.email}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Stats + Actions */}
+                  <div className="flex items-center gap-6 flex-shrink-0 self-start sm:self-center mt-4 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end">
+                    <div className="flex gap-6 mr-2">
+                      <div className="text-right">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">Safety Score</p>
+                        <p className={`text-2xl font-bold ${getSafetyScoreColor(driver.safetyScore)} text-center`}>
+                          {driver.safetyScore}%
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">Alerts</p>
+                        <p className="text-2xl font-bold text-gray-900 text-center">{driver.alertCount}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setSelectedDriver(driver)} className="hidden sm:flex">
+                        View Profile
+                      </Button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-gray-100">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-5 w-5 text-gray-500" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => setSelectedDriver(driver)} className="sm:hidden">
+                            <Eye className="mr-2 h-4 w-4" /> View Profile
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditDriver(driver)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleContactDriver(driver)}>
+                            <Phone className="mr-2 h-4 w-4" /> Contact Driver
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleToggleStatus(driver.id)}>
+                            <Activity className="mr-2 h-4 w-4" />
+                            {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleDeleteClick(driver)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Driver
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Safety Score</p>
-                    <p className={`text-2xl font-bold ${getSafetyScoreColor(driver.safetyScore)}`}>
-                      {driver.safetyScore}%
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-600">Alerts</p>
-                    <p className="text-2xl font-bold">{driver.alertCount}</p>
-                  </div>
-                  <div className="flex flex-col gap-2 w-[110px]">
-                    <Button size="sm" variant="outline" onClick={() => setSelectedDriver(driver)} className="w-full justify-start">
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleEditDriver(driver)} className="w-full justify-start">
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleContactDriver(driver)} className="w-full justify-start">
-                      <Phone className="h-4 w-4 mr-1" />
-                      Call
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDeleteClick(driver)}
-                      disabled={isDeleting}
-                      className="w-full justify-start bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={driver.status === "on_duty" ? "destructive" : "default"}
-                      onClick={() => handleToggleStatus(driver.id)}
-                      className="w-full justify-start"
-                    >
-                      {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
@@ -978,10 +998,10 @@ export default function DriversPage() {
                 </div>
               </TabsContent>
               <TabsContent value="history" className="space-y-4">
-                  <div>
-                    <Label>Last Alert</Label>
-                    <p className="font-medium">{selectedDriver.lastAlert || "Never"}</p>
-                  </div>
+                <div>
+                  <Label>Last Alert</Label>
+                  <p className="font-medium">{selectedDriver.lastAlert || "Never"}</p>
+                </div>
                 <div>
                   <Label>Recent Activity</Label>
                   <div className="space-y-2 mt-2">
