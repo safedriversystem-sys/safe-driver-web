@@ -9,12 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VoiceAlertManager } from "@/lib/voice-alert-manager"
 import { EmergencyResponseSystem } from "@/lib/emergency-response-system"
 import { useLiveAlerts, type Alert } from "@/hooks/use-live-alerts"
-import { TestFirebaseConnection } from "@/components/test-firebase-connection"
+
 
 export default function AlertsPage() {
   // Use live alerts from Firebase Realtime Database
   const { alerts: liveAlerts, historyAlerts, isLoading: isLoadingAlerts, error } = useLiveAlerts()
-  
+
   // Track alert statuses (acknowledged/resolved) in local state
   const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved">>({})
   const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>([])
@@ -41,12 +41,12 @@ export default function AlertsPage() {
   // Helper function to check if alert is from today
   const isToday = (timestamp: string | number | undefined): boolean => {
     if (!timestamp) return false
-    
+
     try {
       // Get today's date at midnight for accurate comparison
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      
+
       // Handle both string and number timestamps
       let alertTimestamp: number
       if (typeof timestamp === "string") {
@@ -57,13 +57,13 @@ export default function AlertsPage() {
       } else {
         return false
       }
-      
+
       // Check if timestamp is valid
       if (isNaN(alertTimestamp)) return false
-      
+
       const alertDate = new Date(alertTimestamp)
       alertDate.setHours(0, 0, 0, 0)
-      
+
       // Compare dates
       return alertDate.getTime() === today.getTime()
     } catch (error) {
@@ -84,20 +84,20 @@ export default function AlertsPage() {
       // Show only today's alerts in history (combine today's live alerts and today's history alerts)
       const todayLiveAlerts = alerts.filter((alert) => isToday(alert.timestamp))
       const todayHistoryAlerts = historyAlerts.filter((alert) => isToday(alert.timestamp))
-      
+
       // Combine and remove duplicates based on alert ID
       const combinedTodayAlerts = [...todayLiveAlerts, ...todayHistoryAlerts]
       const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) =>
         index === self.findIndex((a) => a.id === alert.id)
       )
-      
+
       // Sort by timestamp (newest first)
       uniqueTodayAlerts.sort((a, b) => {
         const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
         const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
         return timeB - timeA
       })
-      
+
       setFilteredAlerts(uniqueTodayAlerts)
     } else if (activeTab === "all") {
       setFilteredAlerts(alerts)
@@ -125,11 +125,11 @@ export default function AlertsPage() {
         // Use bus number (number_plate) and alert description for voice alert
         const busNumber = alert.number_plate || alert.busNumber || ""
         const alertMessage = alert.description || ""
-        
+
         // Create voice alert with bus number and proper message format
         const voiceAlert = VoiceAlertManager.createBusAlert(busNumber, alertMessage, alert.type)
         alertManager.addAlert(voiceAlert)
-        
+
         console.log(`🔊 Voice alert created: "${voiceAlert.message}"`)
       }
 
@@ -279,8 +279,8 @@ export default function AlertsPage() {
 
   return (
     <div className="container mx-auto py-6">
-      <TestFirebaseConnection />
-      
+
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <div className="flex-1">
           <h1 className="text-2xl font-bold mb-1">Live Alerts</h1>
@@ -385,89 +385,89 @@ export default function AlertsPage() {
           {!isLoadingAlerts && (
             <div className="space-y-4">
               {filteredAlerts.map((alert) => (
-              <Card key={alert.id} className="w-full">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      {getAlertIcon(alert.type)}
-                      <div>
-                        <CardTitle className="text-lg">{alert.description}</CardTitle>
-                        <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span>{alert.driverName}</span>
-                          <span>•</span>
-                          {/* Show number_plate if available, otherwise show busNumber, but not both if they're the same */}
-                          {(alert.number_plate || alert.busNumber) && (
-                            <>
-                              <span className="font-medium">{alert.number_plate || alert.busNumber}</span>
-                              <span>•</span>
-                            </>
-                          )}
-                          <span>{formatTime(alert.timestamp)}</span>
-                        </CardDescription>
+                <Card key={alert.id} className="w-full">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        {getAlertIcon(alert.type)}
+                        <div>
+                          <CardTitle className="text-lg">{alert.description}</CardTitle>
+                          <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span>{alert.driverName}</span>
+                            <span>•</span>
+                            {/* Show number_plate if available, otherwise show busNumber, but not both if they're the same */}
+                            {(alert.number_plate || alert.busNumber) && (
+                              <>
+                                <span className="font-medium">{alert.number_plate || alert.busNumber}</span>
+                                <span>•</span>
+                              </>
+                            )}
+                            <span>{formatTime(alert.timestamp)}</span>
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge className={getSeverityColor(alert.severity)}>{alert.severity}</Badge>
+                        <Badge className={getStatusColor(alert.status)}>{alert.status}</Badge>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Badge className={getSeverityColor(alert.severity)}>{alert.severity}</Badge>
-                      <Badge className={getStatusColor(alert.status)}>{alert.status}</Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm">{alert.location}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Route:</span>
-                      <span className="text-sm">{alert.route}</span>
-                    </div>
-                    {alert.number_plate && (
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Number Plate:</span>
-                        <span className="text-sm font-semibold">{alert.number_plate}</span>
+                        <MapPin className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">{alert.location}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Route:</span>
+                        <span className="text-sm">{alert.route}</span>
+                      </div>
+                      {alert.number_plate && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Number Plate:</span>
+                          <span className="text-sm font-semibold">{alert.number_plate}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {alert.status === "active" && activeTab !== "history" && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleAcknowledgeAlert(alert.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Acknowledge
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleContactDriver(alert)}
+                          className="flex items-center gap-2"
+                        >
+                          <Phone className="h-4 w-4" />
+                          Contact Driver
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleResolveAlert(alert.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Resolve
+                        </Button>
                       </div>
                     )}
-                  </div>
-
-                  {alert.status === "active" && activeTab !== "history" && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleAcknowledgeAlert(alert.id)}
-                        className="flex items-center gap-2"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        Acknowledge
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleContactDriver(alert)}
-                        className="flex items-center gap-2"
-                      >
-                        <Phone className="h-4 w-4" />
-                        Contact Driver
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleResolveAlert(alert.id)}
-                        className="flex items-center gap-2"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        Resolve
-                      </Button>
-                    </div>
-                  )}
-                  {activeTab === "history" && (
-                    <div className="text-xs text-muted-foreground italic">
-                      Historical alert - archived
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    {activeTab === "history" && (
+                      <div className="text-xs text-muted-foreground italic">
+                        Historical alert - archived
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
 
               {filteredAlerts.length === 0 && !isLoadingAlerts && (
                 <Card>
@@ -476,11 +476,11 @@ export default function AlertsPage() {
                       <Bell className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-lg font-medium">No alerts found</h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        {activeTab === "all" 
-                          ? "There are no alerts at the moment." 
+                        {activeTab === "all"
+                          ? "There are no alerts at the moment."
                           : activeTab === "history"
-                          ? "No historical alerts found."
-                          : `There are no ${activeTab} alerts.`}
+                            ? "No historical alerts found."
+                            : `There are no ${activeTab} alerts.`}
                       </p>
                       {!error && (
                         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-left">
