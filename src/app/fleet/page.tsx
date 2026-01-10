@@ -616,15 +616,15 @@ export default function FleetManagement() {
               {/* Vehicle Grid */}
               {loading ? (
                 <div className="p-12 text-center">
-                  <Loader2 className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-spin" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Loading vehicles...</h3>
-                  <p className="text-gray-600">Please wait while we fetch fleet data.</p>
+                  <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">Loading vehicles...</h3>
+                  <p className="text-muted-foreground">Please wait while we fetch fleet data.</p>
                 </div>
               ) : filteredVehicles.length === 0 ? (
                 <div className="p-12 text-center">
-                  <Bus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles found</h3>
-                  <p className="text-gray-600">{searchTerm || statusFilter !== "all" ? "No vehicles match your current filters." : "Get started by adding your first vehicle to the fleet."}</p>
+                  <Bus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No vehicles found</h3>
+                  <p className="text-muted-foreground">{searchTerm || statusFilter !== "all" ? "No vehicles match your current filters." : "Get started by adding your first vehicle to the fleet."}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -643,7 +643,7 @@ export default function FleetManagement() {
                                 {vehicle.deviceId && (
                                   <>
                                     <span>•</span>
-                                    <span className="flex items-center gap-1 text-blue-600">
+                                    <span className="flex items-center gap-1 text-primary">
                                       <Gauge className="h-3 w-3" />
                                       {vehicle.deviceId}
                                     </span>
@@ -666,18 +666,18 @@ export default function FleetManagement() {
                           {/* Driver and Route Info */}
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-gray-500" />
+                              <User className="h-4 w-4 text-muted-foreground" />
                               <span>{vehicle.driverName || (vehicle as any).driver || "No driver assigned"}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Route className="h-4 w-4 text-gray-500" />
+                              <Route className="h-4 w-4 text-muted-foreground" />
                               <span>{vehicle.route || "No route assigned"}</span>
                             </div>
                           </div>
 
                           {/* Location */}
                           <div className="flex items-center gap-2 text-sm">
-                            <MapPin className="h-4 w-4 text-gray-500" />
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
                             <span>{vehicle.location.address}</span>
                           </div>
 

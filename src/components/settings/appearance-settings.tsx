@@ -23,7 +23,29 @@ export function AppearanceSettings() {
 
   useEffect(() => {
     setMounted(true)
+    // Apply saved color scheme on mount
+    const savedColorScheme = localStorage.getItem("safedriver-color-scheme")
+    if (savedColorScheme) {
+      setColorScheme(savedColorScheme)
+    }
   }, [])
+
+  // Apply color scheme whenever it changes
+  useEffect(() => {
+    if (!mounted) return
+
+    const root = document.documentElement
+    root.classList.remove("theme-green", "theme-purple")
+
+    if (colorScheme === "green") {
+      root.classList.add("theme-green")
+    } else if (colorScheme === "purple") {
+      root.classList.add("theme-purple")
+    }
+
+    // Save to localStorage
+    localStorage.setItem("safedriver-color-scheme", colorScheme)
+  }, [colorScheme, mounted])
 
   // Avoid hydration mismatch by rendering a skeleton or null until mounted
   if (!mounted) return null

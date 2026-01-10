@@ -11,6 +11,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { FirebaseInitializer } from "@/components/firebase-initializer"
 import { ServiceWorkerRegister } from "@/components/service-worker-register"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ColorSchemeInitializer } from "@/components/color-scheme-initializer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -60,6 +61,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <ColorSchemeInitializer />
           <div className="min-h-screen bg-background text-foreground">
             <AdminHeader />
             <div className="flex">
