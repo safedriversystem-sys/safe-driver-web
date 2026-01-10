@@ -42,6 +42,7 @@ export function GeneralSettings() {
               <SelectItem value="Europe/London">London (GMT)</SelectItem>
               <SelectItem value="Europe/Paris">Paris (CET)</SelectItem>
               <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+              <SelectItem value="Asia/Colombo">Colombo (IST)</SelectItem>
               <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
             </SelectContent>
           </Select>
@@ -62,6 +63,7 @@ export function GeneralSettings() {
               <SelectItem value="de-DE">German</SelectItem>
               <SelectItem value="ja-JP">Japanese</SelectItem>
               <SelectItem value="zh-CN">Chinese (Simplified)</SelectItem>
+              <SelectItem value="si-LK">Sinhala</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-sm text-muted-foreground">The language used throughout the system interface.</p>
