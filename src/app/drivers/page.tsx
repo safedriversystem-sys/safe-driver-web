@@ -30,8 +30,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit } from "lucide-react"
 import type { Driver } from "@/lib/driver-types"
 import { useToast } from "@/hooks/use-toast"
+import { useLanguage } from "@/components/language-provider"
 
 export default function DriversPage() {
+  const { t } = useLanguage()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [stats, setStats] = useState({
     total: 0,
@@ -471,14 +473,14 @@ export default function DriversPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Driver Management</h1>
-          <p className="text-muted-foreground mt-2">Manage driver profiles, performance, and safety records</p>
+          <h1 className="text-3xl font-bold text-foreground">{t("driver_management")}</h1>
+          <p className="text-muted-foreground mt-2">{t("driver_management_desc")}</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              Add New Driver
+              {t("add_new_driver")}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col">
@@ -582,7 +584,7 @@ export default function DriversPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Drivers</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("total_drivers")}</p>
                 <p className="text-2xl font-bold">{stats.total}</p>
               </div>
               <Users className="h-8 w-8 text-primary" />
@@ -593,7 +595,7 @@ export default function DriversPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">On Duty</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("on_duty")}</p>
                 <p className="text-2xl font-bold text-green-600">{stats.onDuty}</p>
               </div>
               <Activity className="h-8 w-8 text-green-600" />
@@ -604,7 +606,7 @@ export default function DriversPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">High Performers</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("high_performers")}</p>
                 <p className="text-2xl font-bold text-green-600">{stats.highPerformers}</p>
               </div>
               <Activity className="h-8 w-8 text-green-600" />
@@ -615,17 +617,17 @@ export default function DriversPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Need Attention</p>
+                <p className="text-sm font-medium text-muted-foreground">{t("need_attention")}</p>
                 <p className="text-2xl font-bold text-red-600">{stats.needAttention}</p>
               </div>
               <Activity className="h-8 w-8 text-red-600" />
             </div>
           </CardContent>
         </Card>
-      </div>
+      </div >
 
       {/* Filters */}
-      <Card>
+      < Card >
         <CardHeader>
           <CardTitle>Filter Drivers</CardTitle>
         </CardHeader>
@@ -635,7 +637,7 @@ export default function DriversPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name, license, or bus number..."
+                  placeholder={t("search_drivers")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -644,169 +646,170 @@ export default function DriversPage() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="on_duty">On Duty</SelectItem>
-                <SelectItem value="off_duty">Off Duty</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
+                <SelectItem value="all">{t("all_status")}</SelectItem>
+                <SelectItem value="on_duty">{t("on_duty")}</SelectItem>
+                <SelectItem value="off_duty">{t("off_duty")}</SelectItem>
+                <SelectItem value="suspended">{t("suspended")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
-      </Card>
+      </Card >
 
       {/* Drivers List */}
-      {loading && drivers.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
-            <h3 className="text-lg font-medium text-foreground mb-2">Loading drivers...</h3>
-            <p className="text-muted-foreground">Please wait while we fetch driver data.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {filteredDrivers.map((driver) => (
-            <Card
-              key={driver.id}
-              className="group hover:shadow-lg transition-all duration-300 border-l-[6px] overflow-hidden"
-              style={{
-                borderLeftColor:
-                  driver.safetyScore >= 90 ? "#22c55e" : driver.safetyScore >= 75 ? "#eab308" : "#ef4444",
-              }}
-            >
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-center">
-                  {/* Driver Profile Section */}
-                  <div className="flex-1 flex gap-5 w-full">
-                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center flex-shrink-0 border-2 border-background shadow-sm ring-1 ring-muted">
-                      <Users className="h-7 w-7 text-muted-foreground" />
-                    </div>
-
-                    <div className="space-y-1.5 flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="text-xl font-bold text-foreground leading-none truncate">
-                          {driver.name}
-                        </h3>
-                        <Badge
-                          variant={driver.status === "on_duty" ? "default" : "secondary"}
-                          className={`uppercase text-[10px] tracking-wider font-bold shadow-sm ${driver.status === "on_duty"
-                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                            : driver.status === "suspended"
-                              ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
-                            }`}
-                        >
-                          {driver.status.replace("_", " ")}
-                        </Badge>
+      {
+        loading && drivers.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+              <h3 className="text-lg font-medium text-foreground mb-2">Loading drivers...</h3>
+              <p className="text-muted-foreground">Please wait while we fetch driver data.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredDrivers.map((driver) => (
+              <Card
+                key={driver.id}
+                className="group hover:shadow-lg transition-all duration-300 border-l-[6px] overflow-hidden"
+                style={{
+                  borderLeftColor:
+                    driver.safetyScore >= 90 ? "#22c55e" : driver.safetyScore >= 75 ? "#eab308" : "#ef4444",
+                }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-center">
+                    {/* Driver Profile Section */}
+                    <div className="flex-1 flex gap-5 w-full">
+                      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center flex-shrink-0 border-2 border-background shadow-sm ring-1 ring-muted">
+                        <Users className="h-7 w-7 text-muted-foreground" />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground/80">License:</span>
-                          <span className="font-mono">{driver.licenseNumber}</span>
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <h3 className="text-xl font-bold text-foreground leading-none truncate">
+                            {driver.name}
+                          </h3>
+                          <Badge
+                            variant={driver.status === "on_duty" ? "default" : "secondary"}
+                            className={`uppercase text-[10px] tracking-wider font-bold shadow-sm ${driver.status === "on_duty"
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : driver.status === "suspended"
+                                ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              }`}
+                          >
+                            {driver.status.replace("_", " ")}
+                          </Badge>
                         </div>
-                        {(driver.busNumber || driver.route) && (
-                          <div className="flex items-center gap-2 truncate">
-                            {driver.busNumber && (
-                              <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-semibold border border-primary/20">
-                                {driver.busNumber}
-                              </span>
-                            )}
-                            {driver.route && <span className="text-xs text-muted-foreground truncate">{driver.route}</span>}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground/80">License:</span>
+                            <span className="font-mono">{driver.licenseNumber}</span>
                           </div>
-                        )}
-                        <div className="flex items-center gap-3 col-span-1 sm:col-span-2 mt-1.5 pt-1.5 border-t border-dashed border-border">
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
-                            <Phone className="h-3 w-3" /> {driver.phone}
-                          </span>
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded-full truncate max-w-[200px]">
-                            <Mail className="h-3 w-3" /> {driver.email}
-                          </span>
+                          {(driver.busNumber || driver.route) && (
+                            <div className="flex items-center gap-2 truncate">
+                              {driver.busNumber && (
+                                <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-semibold border border-primary/20">
+                                  {driver.busNumber}
+                                </span>
+                              )}
+                              {driver.route && <span className="text-xs text-muted-foreground truncate">{driver.route}</span>}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-3 col-span-1 sm:col-span-2 mt-1.5 pt-1.5 border-t border-dashed border-border">
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
+                              <Phone className="h-3 w-3" /> {driver.phone}
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded-full truncate max-w-[200px]">
+                              <Mail className="h-3 w-3" /> {driver.email}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Stats Section with vertical separator */}
-                  <div className="flex w-full lg:w-auto items-center justify-around lg:justify-center gap-8 px-6 py-3 lg:py-0 lg:border-l lg:border-r border-y lg:border-y-0 border-border bg-muted/20 lg:bg-transparent rounded-lg lg:rounded-none">
-                    <div className="text-center">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Safety</p>
-                      <div className={`text-3xl font-black tabular-nums tracking-tight ${getSafetyScoreColor(driver.safetyScore)}`}>
-                        {driver.safetyScore}
-                        <span className="text-base font-bold ml-0.5">%</span>
+                    {/* Stats Section with vertical separator */}
+                    <div className="flex w-full lg:w-auto items-center justify-around lg:justify-center gap-8 px-6 py-3 lg:py-0 lg:border-l lg:border-r border-y lg:border-y-0 border-border bg-muted/20 lg:bg-transparent rounded-lg lg:rounded-none">
+                      <div className="text-center">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Safety</p>
+                        <div className={`text-3xl font-black tabular-nums tracking-tight ${getSafetyScoreColor(driver.safetyScore)}`}>
+                          {driver.safetyScore}
+                          <span className="text-base font-bold ml-0.5">%</span>
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Alerts</p>
+                        <div className="text-3xl font-black tabular-nums tracking-tight text-foreground">
+                          {driver.alertCount}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-center">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Alerts</p>
-                      <div className="text-3xl font-black tabular-nums tracking-tight text-foreground">
-                        {driver.alertCount}
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Actions Section */}
-                  <div className="w-full lg:w-[150px] flex flex-col gap-2">
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* Actions Section */}
+                    <div className="w-full lg:w-[150px] flex flex-col gap-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setSelectedDriver(driver)}
+                          className="h-8 border border-border hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+                          title="View Details"
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1.5" /> View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditDriver(driver)}
+                          className="h-8 border border-border hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+                          title="Edit Driver"
+                        >
+                          <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleContactDriver(driver)}
+                          className="h-8 border border-border hover:border-green-500/50 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20"
+                          title="Call Driver"
+                        >
+                          <Phone className="h-3.5 w-3.5 mr-1.5" /> Call
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteClick(driver)}
+                          disabled={isDeleting}
+                          className="h-8 border border-border hover:border-destructive/50 hover:bg-destructive/5 hover:text-destructive"
+                          title="Delete Driver"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Del
+                        </Button>
+                      </div>
                       <Button
                         size="sm"
-                        variant="ghost"
-                        onClick={() => setSelectedDriver(driver)}
-                        className="h-8 border border-border hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
-                        title="View Details"
+                        onClick={() => handleToggleStatus(driver.id)}
+                        className={`w-full h-8 text-xs font-semibold shadow-sm transition-all ${driver.status === "on_duty"
+                          ? "bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 hover:border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90"
+                          }`}
                       >
-                        <Eye className="h-3.5 w-3.5 mr-1.5" /> View
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleEditDriver(driver)}
-                        className="h-8 border border-border hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
-                        title="Edit Driver"
-                      >
-                        <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit
+                        {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
                       </Button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleContactDriver(driver)}
-                        className="h-8 border border-border hover:border-green-500/50 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20"
-                        title="Call Driver"
-                      >
-                        <Phone className="h-3.5 w-3.5 mr-1.5" /> Call
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDeleteClick(driver)}
-                        disabled={isDeleting}
-                        className="h-8 border border-border hover:border-destructive/50 hover:bg-destructive/5 hover:text-destructive"
-                        title="Delete Driver"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Del
-                      </Button>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleToggleStatus(driver.id)}
-                      className={`w-full h-8 text-xs font-semibold shadow-sm transition-all ${driver.status === "on_duty"
-                        ? "bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 hover:border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90"
-                        }`}
-                    >
-                      {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
-                    </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
       }
 
       {/* Edit Driver Dialog */}

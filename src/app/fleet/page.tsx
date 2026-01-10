@@ -52,6 +52,7 @@ import {
 import type { Vehicle } from "@/lib/fleet-types"
 import { useToast } from "@/hooks/use-toast"
 import { FleetMap } from "@/components/fleet-map"
+import { useLanguage } from "@/components/language-provider"
 
 export default function FleetManagement() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -67,6 +68,7 @@ export default function FleetManagement() {
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
+  const { t } = useLanguage()
   const [newVehicle, setNewVehicle] = useState({
     busNumberPlate: "",
     documentId: "",
@@ -235,8 +237,8 @@ export default function FleetManagement() {
       }
 
       toast({
-        title: "Success",
-        description: "Vehicle added successfully.",
+        title: t("success"),
+        description: t("vehicle_added"),
       })
 
       setNewVehicle({ busNumberPlate: "", documentId: "", deviceId: "", busNumber: "", model: "", year: "", driverName: "", route: "", driver: "" })
@@ -356,8 +358,8 @@ export default function FleetManagement() {
       }
 
       toast({
-        title: "Success",
-        description: "Vehicle updated successfully.",
+        title: t("success"),
+        description: t("vehicle_updated"),
       })
 
       setShowEditVehicle(false)
@@ -396,8 +398,8 @@ export default function FleetManagement() {
       }
 
       toast({
-        title: "Success",
-        description: "Vehicle deleted successfully.",
+        title: t("success"),
+        description: t("vehicle_deleted"),
       })
 
       setDeleteDialogOpen(false)
@@ -420,21 +422,21 @@ export default function FleetManagement() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-900 mb-2">Fleet Management System</h1>
-        <p className="text-neutral-600">Comprehensive vehicle tracking and monitoring</p>
+        <h1 className="text-3xl font-bold text-neutral-900 mb-2">{t("fleet_management_system")}</h1>
+        <p className="text-neutral-600">{t("fleet_desc")}</p>
       </div>
 
       {/* Fleet Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("total_vehicles")}</CardTitle>
             <Bus className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{vehicles.length}</div>
             <p className="text-xs text-muted-foreground">
-              {vehicles.filter((v) => v.status === "active").length} active
+              {vehicles.filter((v) => v.status === "active").length} {t("active")}
             </p>
             {loading && <p className="text-xs text-gray-400 mt-1">Loading...</p>}
           </CardContent>
@@ -446,24 +448,23 @@ export default function FleetManagement() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Safety Score</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("safety_score")}</CardTitle>
             <Shield className="h-4 w-4 text-safety-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-safety-600">
               {vehicles.length > 0 ? Math.round(vehicles.reduce((acc, v) => acc + v.safetyScore, 0) / vehicles.length) : 0}%
             </div>
-            <p className="text-xs text-muted-foreground">Fleet average</p>
+            <p className="text-xs text-muted-foreground">{t("fleet_average")}</p>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="vehicles" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="vehicles">Vehicle Fleet</TabsTrigger>
-          <TabsTrigger value="tracking">Live Tracking</TabsTrigger>
-
-          <TabsTrigger value="analytics">Fleet Analytics</TabsTrigger>
+          <TabsTrigger value="vehicles">{t("vehicle_fleet")}</TabsTrigger>
+          <TabsTrigger value="tracking">{t("live_tracking")}</TabsTrigger>
+          <TabsTrigger value="analytics">{t("fleet_analytics")}</TabsTrigger>
         </TabsList>
 
         {/* Vehicle Fleet Tab */}
@@ -472,25 +473,25 @@ export default function FleetManagement() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Vehicle Fleet Overview</CardTitle>
-                  <CardDescription>Manage and monitor your entire vehicle fleet</CardDescription>
+                  <CardTitle>{t("fleet_overview")}</CardTitle>
+                  <CardDescription>{t("fleet_overview_desc")}</CardDescription>
                 </div>
                 <Dialog open={showAddVehicle} onOpenChange={setShowAddVehicle}>
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Vehicle
+                      {t("add_vehicle")}
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Add New Vehicle</DialogTitle>
-                      <DialogDescription>Enter vehicle details to add to the fleet</DialogDescription>
+                      <DialogTitle>{t("add_new_vehicle")}</DialogTitle>
+                      <DialogDescription>{t("add_vehicle_desc")}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor="busNumberPlate">
-                          Bus Number Plate <span className="text-red-500">*</span>
+                          {t("bus_number_plate")} <span className="text-red-500">*</span>
                         </Label>
                         <Input
                           id="busNumberPlate"
@@ -513,18 +514,8 @@ export default function FleetManagement() {
                         />
                         <p className="text-xs text-gray-500 mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
                       </div>
-                      {/* <div>
-                        <Label htmlFor="documentId">Document ID (Number Plate)</Label>
-                        <Input
-                          id="documentId"
-                          value={newVehicle.documentId}
-                          onChange={(e) => setNewVehicle({ ...newVehicle, documentId: e.target.value.toUpperCase() })}
-                          placeholder="e.g., ABC-1234"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Vehicle registration number / Number plate (optional)</p>
-                      </div> */}
                       <div>
-                        <Label htmlFor="deviceId">Device ID</Label>
+                        <Label htmlFor="deviceId">{t("device_id")}</Label>
                         <Input
                           id="deviceId"
                           value={newVehicle.deviceId}
@@ -534,7 +525,7 @@ export default function FleetManagement() {
                         <p className="text-xs text-gray-500 mt-1">GPS/Tracking device ID (optional)</p>
                       </div>
                       <div>
-                        <Label htmlFor="model">Vehicle Model</Label>
+                        <Label htmlFor="model">{t("vehicle_model")}</Label>
                         <Input
                           id="model"
                           value={newVehicle.model}
@@ -543,7 +534,7 @@ export default function FleetManagement() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="year">Year</Label>
+                        <Label htmlFor="year">{t("year")}</Label>
                         <Input
                           id="year"
                           type="number"
@@ -553,7 +544,7 @@ export default function FleetManagement() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="driver">Assigned Driver</Label>
+                        <Label htmlFor="driver">{t("assigned_driver")}</Label>
                         <Input
                           id="driver"
                           value={newVehicle.driverName}
@@ -562,7 +553,7 @@ export default function FleetManagement() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="route">Route</Label>
+                        <Label htmlFor="route">{t("route_label")}</Label>
                         <Input
                           id="route"
                           value={newVehicle.route}
@@ -574,10 +565,10 @@ export default function FleetManagement() {
                         {isSubmitting ? (
                           <>
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Adding...
+                            {t("loading")}
                           </>
                         ) : (
-                          "Add Vehicle"
+                          t("add_vehicle")
                         )}
                       </Button>
                     </div>
@@ -592,7 +583,7 @@ export default function FleetManagement() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
-                      placeholder="Search by number plate, device ID, driver, or route..."
+                      placeholder={t("search_fleet")}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
@@ -601,13 +592,13 @@ export default function FleetManagement() {
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Status" />
+                    <SelectValue placeholder={t("status")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="all">{t("all_status")}</SelectItem>
+                    <SelectItem value="active">{t("active")}</SelectItem>
 
-                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="inactive">{t("inactive")}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -617,14 +608,14 @@ export default function FleetManagement() {
               {loading ? (
                 <div className="p-12 text-center">
                   <Loader2 className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">Loading vehicles...</h3>
-                  <p className="text-muted-foreground">Please wait while we fetch fleet data.</p>
+                  <h3 className="text-lg font-medium text-foreground mb-2">{t("loading")}</h3>
+                  <p className="text-muted-foreground">{t("wait_fetching")}</p>
                 </div>
               ) : filteredVehicles.length === 0 ? (
                 <div className="p-12 text-center">
                   <Bus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No vehicles found</h3>
-                  <p className="text-muted-foreground">{searchTerm || statusFilter !== "all" ? "No vehicles match your current filters." : "Get started by adding your first vehicle to the fleet."}</p>
+                  <h3 className="text-lg font-medium text-foreground mb-2">{t("no_vehicles_found")}</h3>
+                  <p className="text-muted-foreground">{searchTerm || statusFilter !== "all" ? t("no_vehicles_match") : t("get_started_vehicle")}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -667,11 +658,11 @@ export default function FleetManagement() {
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="flex items-center gap-2">
                               <User className="h-4 w-4 text-muted-foreground" />
-                              <span>{vehicle.driverName || (vehicle as any).driver || "No driver assigned"}</span>
+                              <span>{vehicle.driverName || (vehicle as any).driver || t("no_driver_assigned")}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Route className="h-4 w-4 text-muted-foreground" />
-                              <span>{vehicle.route || "No route assigned"}</span>
+                              <span>{vehicle.route || t("no_route_assigned")}</span>
                             </div>
                           </div>
 
@@ -685,11 +676,11 @@ export default function FleetManagement() {
                           <div className="flex gap-2 pt-2 flex-wrap items-center">
                             <Button size="sm" variant="outline" onClick={() => setSelectedVehicle(vehicle)} className="flex-shrink-0">
                               <Eye className="h-4 w-4 mr-1" />
-                              Details
+                              {t("details")}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => handleEditVehicle(vehicle)} className="flex-shrink-0">
                               <Edit className="h-4 w-4 mr-1" />
-                              Edit
+                              {t("edit")}
                             </Button>
                             <Select
                               value={vehicle.status}
@@ -703,9 +694,9 @@ export default function FleetManagement() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="active">{t("active")}</SelectItem>
 
-                                <SelectItem value="inactive">Inactive</SelectItem>
+                                <SelectItem value="inactive">{t("inactive")}</SelectItem>
                               </SelectContent>
                             </Select>
                             <Button
@@ -716,7 +707,7 @@ export default function FleetManagement() {
                               className="bg-red-600 hover:bg-red-700 text-white flex-shrink-0"
                             >
                               <Trash2 className="h-4 w-4 mr-1" />
-                              Delete
+                              {t("delete")}
                             </Button>
                           </div>
                         </div>
@@ -733,8 +724,8 @@ export default function FleetManagement() {
         <TabsContent value="tracking" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Real-Time Vehicle Tracking</CardTitle>
-              <CardDescription>Monitor live locations and status of all vehicles</CardDescription>
+              <CardTitle>{t("real_time_tracking")}</CardTitle>
+              <CardDescription>{t("real_time_desc")}</CardDescription>
             </CardHeader>
             <CardContent>
               {/* Interactive Map */}
@@ -748,7 +739,7 @@ export default function FleetManagement() {
 
               {/* Vehicle Status List */}
               <div className="space-y-3">
-                <h4 className="font-semibold">Active Vehicles</h4>
+                <h4 className="font-semibold">{t("active_vehicles_title")}</h4>
                 {vehicles
                   .filter((v) => v.status === "active")
                   .map((vehicle) => (
@@ -762,12 +753,12 @@ export default function FleetManagement() {
                       </div>
                       <div className="flex items-center gap-4 text-sm">
                         <div className="text-center">
-                          <p className="text-gray-500">Speed</p>
+                          <p className="text-gray-500">{t("speed")}</p>
                           <p className="font-medium">{Math.round(vehicle.speed)} km/h</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-gray-500">Driver</p>
-                          <p className="font-medium">{vehicle.driverName || "No driver"}</p>
+                          <p className="text-gray-500">{t("driver")}</p>
+                          <p className="font-medium">{vehicle.driverName || t("no_driver")}</p>
                         </div>
                         <Button
                           size="sm"
@@ -775,7 +766,7 @@ export default function FleetManagement() {
                           onClick={() => setSelectedVehicle(vehicle)}
                         >
                           <Navigation className="h-4 w-4 mr-1" />
-                          Track
+                          {t("track")}
                         </Button>
                       </div>
                     </div>
@@ -792,8 +783,8 @@ export default function FleetManagement() {
           <div className="grid grid-cols-1 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Fleet Performance</CardTitle>
-                <CardDescription>Key performance indicators</CardDescription>
+                <CardTitle>{t("fleet_performance")}</CardTitle>
+                <CardDescription>{t("kpi")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
 

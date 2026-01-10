@@ -37,9 +37,12 @@ interface Notification {
   severity?: "high" | "medium" | "low"
 }
 
+import { useLanguage } from "@/components/language-provider"
+
 export function AdminHeader() {
   const router = useRouter()
   const { alerts: liveAlerts } = useLiveAlerts()
+  const { t } = useLanguage()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -406,7 +409,7 @@ export function AdminHeader() {
             <Shield className="h-7 w-7 text-primary-600" />
             <div className="hidden sm:block">
               <h1 className="text-lg md:text-xl font-bold text-foreground">SafeDriver</h1>
-              <p className="text-xs text-muted-foreground hidden md:block">Transport Safety Management</p>
+              <p className="text-xs text-muted-foreground hidden md:block">{t("transport_safety")}</p>
             </div>
           </div>
         </div>
@@ -419,7 +422,7 @@ export function AdminHeader() {
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder="Search drivers, vehicles, routes, alerts..."
+                placeholder={t("search_placeholder")}
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value)
@@ -490,7 +493,7 @@ export function AdminHeader() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80 p-0">
               <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="font-semibold text-sm">Notifications</h3>
+                <h3 className="font-semibold text-sm">{t("notifications")}</h3>
                 {unreadCount > 0 && (
                   <Button
                     variant="ghost"
@@ -590,7 +593,7 @@ export function AdminHeader() {
                   A
                 </div>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-foreground">Admin User</p>
+                  <p className="text-sm font-medium text-foreground">{t("admin_user")}</p>
                   <p className="text-xs text-muted-foreground">admin@safedriver.com</p>
                 </div>
               </Button>
