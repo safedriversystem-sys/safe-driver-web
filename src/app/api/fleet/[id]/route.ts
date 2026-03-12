@@ -37,6 +37,7 @@ const updateVehicleSchema = z.object({
   driverId: z.string().optional(),
   driverName: z.string().optional(),
   route: z.string().optional(),
+  locationDepot: z.string().optional(),
   location: z
     .object({
       lat: z.number(),

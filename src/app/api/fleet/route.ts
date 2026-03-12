@@ -36,6 +36,7 @@ const createVehicleSchema = z.object({
   driverId: z.string().optional(),
   driverName: z.string().max(100, "Driver name must be 100 characters or less").optional(),
   route: z.string().max(200, "Route must be 200 characters or less").optional(),
+  locationDepot: z.string().optional(),
   documentId: z
     .preprocess(
       (val) => (val === "" || val === null || val === undefined ? undefined : val),

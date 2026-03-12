@@ -78,7 +78,7 @@ export default function FleetManagement() {
     year: "",
     driverName: "",
     route: "",
-    driver: "",
+    locationDepot: "",
   })
 
 
@@ -166,7 +166,7 @@ export default function FleetManagement() {
       vehicle.documentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.deviceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.busNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (vehicle.driverName || vehicle.driver || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (vehicle.driverName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (vehicle.route || "").toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || vehicle.status === statusFilter
     return matchesSearch && matchesStatus
@@ -225,6 +225,7 @@ export default function FleetManagement() {
           year: parseInt(newVehicle.year),
           driverName: newVehicle.driverName?.trim() || undefined,
           route: newVehicle.route?.trim() || undefined,
+          locationDepot: newVehicle.locationDepot?.trim() || undefined,
           documentId: newVehicle.documentId?.trim() || undefined,
           deviceId: newVehicle.deviceId?.trim() || undefined,
         }),
@@ -241,7 +242,7 @@ export default function FleetManagement() {
         description: t("vehicle_added"),
       })
 
-      setNewVehicle({ busNumberPlate: "", documentId: "", deviceId: "", busNumber: "", model: "", year: "", driverName: "", route: "", driver: "" })
+      setNewVehicle({ busNumberPlate: "", documentId: "", deviceId: "", busNumber: "", model: "", year: "", driverName: "", route: "", locationDepot: "" })
       setShowAddVehicle(false)
       fetchVehicles()
     } catch (error: any) {
@@ -345,6 +346,7 @@ export default function FleetManagement() {
           year: editingVehicle.year,
           driverName: editingVehicle.driverName?.trim() || undefined,
           route: editingVehicle.route?.trim() || undefined,
+          locationDepot: editingVehicle.locationDepot?.trim() || undefined,
           documentId: editingVehicle.documentId?.trim() || undefined,
           deviceId: editingVehicle.deviceId?.trim() || undefined,
           status: editingVehicle.status,
@@ -547,6 +549,15 @@ export default function FleetManagement() {
                           placeholder="e.g., Colombo - Kandy"
                         />
                       </div>
+                      <div>
+                        <Label htmlFor="locationDepot">Location (Depot)</Label>
+                        <Input
+                          id="locationDepot"
+                          value={newVehicle.locationDepot || ""}
+                          onChange={(e) => setNewVehicle({ ...newVehicle, locationDepot: e.target.value })}
+                          placeholder="e.g., Colombo"
+                        />
+                      </div>
                       <Button onClick={addVehicle} className="w-full" disabled={isSubmitting}>
                         {isSubmitting ? (
                           <>
@@ -644,7 +655,7 @@ export default function FleetManagement() {
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="flex items-center gap-2">
                               <User className="h-4 w-4 text-muted-foreground" />
-                              <span>{vehicle.driverName || (vehicle as any).driver || t("no_driver_assigned")}</span>
+                              <span>{vehicle.driverName || t("no_driver_assigned")}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Route className="h-4 w-4 text-muted-foreground" />
@@ -655,7 +666,7 @@ export default function FleetManagement() {
                           {/* Location */}
                           <div className="flex items-center gap-2 text-sm">
                             <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span>{vehicle.location.address}</span>
+                            <span>{vehicle.locationDepot ? `${vehicle.locationDepot} Depot` : (vehicle.location?.address || "Colombo Depot")}</span>
                           </div>
 
                           {/* Action Buttons */}
@@ -943,6 +954,15 @@ export default function FleetManagement() {
                   value={editingVehicle.route || ""}
                   onChange={(e) => setEditingVehicle({ ...editingVehicle, route: e.target.value })}
                   placeholder="e.g., Colombo - Kandy"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-locationDepot">Location (Depot)</Label>
+                <Input
+                  id="edit-locationDepot"
+                  value={editingVehicle.locationDepot || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, locationDepot: e.target.value })}
+                  placeholder="e.g., Colombo Depot"
                 />
               </div>
               <div>

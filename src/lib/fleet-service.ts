@@ -132,6 +132,7 @@ export const fleetService = {
         driverId: input.driverId,
         driverName: input.driverName,
         route: input.route || "",
+        locationDepot: input.locationDepot || "Colombo",
         mileage: input.mileage ?? 0,
         speed: 0,
         batteryLevel: 100,
