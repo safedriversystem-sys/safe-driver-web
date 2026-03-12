@@ -50,6 +50,7 @@ import {
   Loader2,
 } from "lucide-react"
 import type { Vehicle } from "@/lib/fleet-types"
+import { LiveTrackingDashboard } from "@/components/live-tracking-dashboard"
 import { useToast } from "@/hooks/use-toast"
 import { FleetMap } from "@/components/fleet-map"
 import { useLanguage } from "@/components/language-provider"
@@ -718,59 +719,8 @@ export default function FleetManagement() {
         </TabsContent>
 
         {/* Live Tracking Tab */}
-        <TabsContent value="tracking" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("real_time_tracking")}</CardTitle>
-              <CardDescription>{t("real_time_desc")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Interactive Map */}
-              <div className="mb-6">
-                <FleetMap
-                  vehicles={vehicles.filter((v) => v.status === "active")}
-                  selectedVehicle={selectedVehicle}
-                  onVehicleClick={setSelectedVehicle}
-                />
-              </div>
-
-              {/* Vehicle Status List */}
-              <div className="space-y-3">
-                <h4 className="font-semibold">{t("active_vehicles_title")}</h4>
-                {vehicles
-                  .filter((v) => v.status === "active")
-                  .map((vehicle) => (
-                    <div key={vehicle.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                        <div>
-                          <p className="font-medium">{vehicle.busNumberPlate || vehicle.busNumber || "N/A"}</p>
-                          <p className="text-sm text-gray-600">{vehicle.location.address}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="text-center">
-                          <p className="text-gray-500">{t("speed")}</p>
-                          <p className="font-medium">{Math.round(vehicle.speed)} km/h</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-gray-500">{t("driver")}</p>
-                          <p className="font-medium">{vehicle.driverName || t("no_driver")}</p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedVehicle(vehicle)}
-                        >
-                          <Navigation className="h-4 w-4 mr-1" />
-                          {t("track")}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="tracking" className="mt-0">
+          <LiveTrackingDashboard vehicles={vehicles} />
         </TabsContent>
 
 

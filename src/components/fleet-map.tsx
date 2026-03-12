@@ -10,9 +10,10 @@ interface FleetMapProps {
   vehicles: Vehicle[]
   selectedVehicle?: Vehicle | null
   onVehicleClick?: (vehicle: Vehicle) => void
+  className?: string
 }
 
-export function FleetMap({ vehicles, selectedVehicle, onVehicleClick }: FleetMapProps) {
+export function FleetMap({ vehicles, selectedVehicle, onVehicleClick, className }: FleetMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [mapInstance, setMapInstance] = useState<any>(null)
@@ -98,8 +99,6 @@ export function FleetMap({ vehicles, selectedVehicle, onVehicleClick }: FleetMap
       let iconColor = "#6b7280" // inactive - gray
       if (vehicle.status === "active") {
         iconColor = "#10b981" // active - green
-      } else if (vehicle.status === "maintenance") {
-        iconColor = "#f59e0b" // maintenance - orange
       }
 
       // Create custom icon
@@ -141,7 +140,6 @@ export function FleetMap({ vehicles, selectedVehicle, onVehicleClick }: FleetMap
             <p style="margin: 4px 0;"><strong>Route:</strong> ${vehicle.route || "Not assigned"}</p>
             <p style="margin: 4px 0;"><strong>Status:</strong> ${vehicle.status}</p>
             <p style="margin: 4px 0;"><strong>Speed:</strong> ${Math.round(vehicle.speed)} km/h</p>
-            <p style="margin: 4px 0;"><strong>Fuel:</strong> ${Math.round(vehicle.fuel)}%</p>
           </div>
         `)
 
@@ -175,8 +173,8 @@ export function FleetMap({ vehicles, selectedVehicle, onVehicleClick }: FleetMap
   }, [vehicles, mapInstance, mapLoaded, selectedVehicle, onVehicleClick])
 
   return (
-    <div className="relative w-full" style={{ height: "500px" }}>
-      <div ref={mapRef} className="w-full h-full rounded-lg" style={{ zIndex: 0, minHeight: "500px" }} />
+    <div className={`relative w-full ${className}`} style={!className ? { height: "500px" } : {}}>
+      <div ref={mapRef} className="w-full h-full rounded-lg" style={{ zIndex: 0, minHeight: className ? "100%" : "500px" }} />
       {!mapLoaded && (
         <div className="absolute inset-0 bg-gray-100 rounded-lg flex items-center justify-center z-10">
           <div className="text-center">
