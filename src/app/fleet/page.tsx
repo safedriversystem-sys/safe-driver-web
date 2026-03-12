@@ -780,28 +780,6 @@ export default function FleetManagement() {
 
         {/* Fleet Analytics Tab */}
         <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("fleet_performance")}</CardTitle>
-                <CardDescription>{t("kpi")}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-
-
-                <div className="flex justify-between items-center">
-                  <span>Fleet Utilization</span>
-                  <span className="font-bold text-blue-600">87%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>On-Time Performance</span>
-                  <span className="font-bold text-green-600">94%</span>
-                </div>
-              </CardContent>
-            </Card>
-
-
-          </div>
 
           <Card>
             <CardHeader>
