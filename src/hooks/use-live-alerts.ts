@@ -34,6 +34,53 @@ export interface Alert {
   number_plate?: string
 }
 
+// Helper function to robustly parse various timestamp formats
+const parseTimestamp = (timestamp: string | number | undefined): Date | null => {
+  if (!timestamp) return null
+
+  try {
+    // 1. Handle numeric timestamps (number or string-digit)
+    if (typeof timestamp === "number" || (typeof timestamp === "string" && /^\d+$/.test(timestamp))) {
+      const num = Number(timestamp)
+      // Check if it's in seconds or milliseconds
+      const alertTimestamp = num < 10000000000 ? num * 1000 : num
+      const date = new Date(alertTimestamp)
+      return isNaN(date.getTime()) ? null : date
+    }
+
+    // 2. Handle string formats
+    if (typeof timestamp === "string") {
+      // Try direct parsing (handles ISO, common formats)
+      let date = new Date(timestamp)
+      
+      // If direct parsing fails, try cleaning it up
+      if (isNaN(date.getTime())) {
+        // Handle "YYYY-MM-DD HH:MM:SS" (common in some DBs) by adding "T"
+        const cleaned = timestamp.trim().replace(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/, "$1T$2")
+        date = new Date(cleaned)
+      }
+
+      return isNaN(date.getTime()) ? null : date
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error parsing timestamp:", timestamp, error)
+    return null
+  }
+}
+
+// Helper function to check if alert is from today
+const isToday = (timestamp: string | number | undefined): boolean => {
+  const date = parseTimestamp(timestamp)
+  if (!date) return false
+
+  const now = new Date()
+  return date.getFullYear() === now.getFullYear() &&
+         date.getMonth() === now.getMonth() &&
+         date.getDate() === now.getDate()
+}
+
 // Map Firebase alert types to UI alert types
 const mapAlertType = (type: string, tag: string): string => {
   const lowerType = type.toLowerCase()
@@ -56,6 +103,7 @@ const mapAlertType = (type: string, tag: string): string => {
   }
   return "distraction" // default
 }
+
 
 // Map alert type to severity
 const getSeverity = (type: string, tag: string): "high" | "medium" | "low" => {
@@ -93,28 +141,20 @@ interface DeviceInfo {
 }
 
 // Transform Firebase alert to UI alert format
-const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: DeviceInfo): Alert => {
+const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: DeviceInfo, id?: string): Alert => {
   const alertType = mapAlertType(alert.type, alert.tag)
   const severity = getSeverity(alert.type, alert.tag)
 
   // Extract device info from actual Firebase structure
-  // Get number_plate from alert data, device info, or vehicle_reg_no
   const number_plate = alert.number_plate || deviceInfo?.number_plate || deviceInfo?.vehicle_reg_no?.trim() || ""
-  
-  // Use number_plate as busNumber if available, otherwise use deviceInfo busNumber
-  // If number_plate exists, use it for busNumber too (to avoid duplication)
   const busNumber = number_plate || deviceInfo?.busNumber || ""
-  
-  // Use provided driver info or generate defaults
   const driverName = deviceInfo?.driverName || `Driver ${deviceId.substring(0, 8)}`
   const driverId = deviceInfo?.driverId || `DRV-${deviceId.substring(0, 8)}`
-  
-  // Use provided route/location or defaults
   const route = deviceInfo?.route || "Unknown Route"
   const location = deviceInfo?.location || (deviceInfo?.status === "online" ? "Online" : "Unknown Location")
 
-  // Generate unique ID from deviceId and timestamp
-  const alertId = `${deviceId}-${alert.time || Date.now()}`
+  // Generate unique ID - prioritize provided ID (history key)
+  const alertId = id || `${deviceId}-${alert.time || Date.now()}`
 
   return {
     id: alertId,
@@ -238,87 +278,78 @@ export function useLiveAlerts() {
           }
 
           // Transform Firebase data structure to alerts array
-          const transformedAlerts: Alert[] = []
-
-          // Iterate through each device
           const deviceIds = Object.keys(data)
           console.log(`🔍 Found ${deviceIds.length} device(s):`, deviceIds)
 
-          // Separate arrays for latest and history alerts
+          // Separate arrays for building the final list
           const historyAlertsList: Alert[] = []
+          const transformedAlerts: Alert[] = [] // Used for "latest per device" logic
 
+          // Build an exhaustive map of all alerts for today
+          const alertMap = new Map<string, Alert>()
+          
           deviceIds.forEach((deviceId) => {
             const deviceAlert: any = data[deviceId]
-            console.log(`🔍 Processing device ${deviceId}:`, deviceAlert)
-            console.log(`🔍 Device alert type:`, typeof deviceAlert)
-            console.log(`🔍 Device alert keys:`, deviceAlert ? Object.keys(deviceAlert) : "null")
-
             const deviceInfo = devices[deviceId]
 
-            // Process latest alert
-            if (deviceAlert && deviceAlert.latest) {
-              const latest = deviceAlert.latest
-              console.log(`✅ Found latest alert for ${deviceId}:`, latest)
-
-              // Validate required fields
-              if (!latest.message || !latest.tag || !latest.time || !latest.type) {
-                console.warn(`⚠️ Incomplete alert data for ${deviceId}:`, latest)
-                console.warn(`   Missing fields:`, {
-                  message: !latest.message,
-                  tag: !latest.tag,
-                  time: !latest.time,
-                  type: !latest.type,
-                })
-              } else {
-                console.log(`📱 Device info for ${deviceId}:`, deviceInfo)
-                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo)
-                console.log(`✅ Transformed alert for ${deviceId}:`, alert)
-                transformedAlerts.push(alert)
-              }
-            } else {
-              console.log(`⚠️ No latest alert for device ${deviceId}`, {
-                hasDeviceAlert: !!deviceAlert,
-                hasLatest: !!(deviceAlert && deviceAlert.latest),
-              })
-            }
-
-            // Process history alerts
+            // 1. Process history (often more complete for the whole day)
             if (deviceAlert && deviceAlert.history) {
               const history = deviceAlert.history
-              console.log(`📜 Found history for ${deviceId}:`, Object.keys(history).length, "alerts")
-              
               Object.keys(history).forEach((historyKey) => {
                 const historyAlert = history[historyKey] as FirebaseAlert
-                if (historyAlert && historyAlert.message && historyAlert.tag && historyAlert.time && historyAlert.type) {
-                  const alert = transformAlert(deviceId, historyAlert, deviceInfo)
-                  // Mark history alerts as resolved by default
-                  alert.status = "resolved"
-                  historyAlertsList.push(alert)
-                  console.log(`✅ Added history alert: ${alert.id}`)
+                if (historyAlert && historyAlert.message && historyAlert.time) {
+                  const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey)
+                  
+                  // If it's today, keep it in the primary alerts list
+                  if (isToday(alert.timestamp)) {
+                    // Force state to active for today's history items if not decided
+                    alert.status = (historyAlert as any).status || "active"
+                    alertMap.set(alert.id, alert)
+                  }
+                  
+                  // Also add to history array for the history tab
+                  const historyItem = { ...alert }
+                  historyItem.status = (historyAlert as any).status || "resolved"
+                  historyAlertsList.push(historyItem)
                 }
               })
-            } else {
-              console.log(`⚠️ No history found for device ${deviceId}`)
+            }
+
+            // 2. Process latest (ensure the very last one is included even if not in history yet)
+            if (deviceAlert && deviceAlert.latest) {
+              const latest = deviceAlert.latest
+              if (latest.message && latest.time) {
+                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo)
+                
+                // If ID is already in map (from history), latest data might be fresher
+                if (alertMap.has(alert.id)) {
+                  Object.assign(alertMap.get(alert.id)!, alert)
+                } else {
+                  // If it's today OR the latest for the device, show it
+                  if (isToday(alert.timestamp) || !transformedAlerts.some(a => a.deviceId === deviceId)) {
+                    alertMap.set(alert.id, alert)
+                  }
+                }
+              }
             }
           })
 
-          // Sort by timestamp (newest first)
-          transformedAlerts.sort((a, b) => {
-            const timeA = new Date(a.timestamp).getTime()
-            const timeB = new Date(b.timestamp).getTime()
-            return timeB - timeA
-          })
+          // Final alert list: all distinct events from today
+          const finalAlerts = Array.from(alertMap.values())
 
-          // Sort history alerts by timestamp (newest first)
-          historyAlertsList.sort((a, b) => {
-            const timeA = new Date(a.timestamp).getTime()
-            const timeB = new Date(b.timestamp).getTime()
-            return timeB - timeA
-          })
+          // Helper to get time for sorting
+          const getTime = (ts: any) => {
+            const date = parseTimestamp(ts)
+            return date ? date.getTime() : 0
+          }
 
-          console.log(`✅ Total latest alerts processed: ${transformedAlerts.length}`, transformedAlerts)
-          console.log(`✅ Total history alerts processed: ${historyAlertsList.length}`, historyAlertsList)
-          setAlerts(transformedAlerts)
+          // Sort both lists newest first
+          finalAlerts.sort((a, b) => getTime(b.timestamp) - getTime(a.timestamp))
+          historyAlertsList.sort((a, b) => getTime(b.timestamp) - getTime(a.timestamp))
+
+          console.log(`📊 Final processed: ${finalAlerts.length} active/today, ${historyAlertsList.length} history`)
+
+          setAlerts(finalAlerts)
           setHistoryAlerts(historyAlertsList)
           setIsLoading(false)
         } catch (err) {

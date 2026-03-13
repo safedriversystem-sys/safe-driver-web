@@ -40,6 +40,39 @@ export default function AlertsPage() {
     }
   }, [liveAlerts])
 
+  // Helper function to robustly parse various timestamp formats
+  const parseTimestamp = (timestamp: string | number | undefined): Date | null => {
+    if (!timestamp) return null
+    try {
+      if (typeof timestamp === "number" || (typeof timestamp === "string" && /^\d+$/.test(timestamp))) {
+        const num = Number(timestamp)
+        const alertTimestamp = num < 10000000000 ? num * 1000 : num
+        const date = new Date(alertTimestamp)
+        return isNaN(date.getTime()) ? null : date
+      }
+      if (typeof timestamp === "string") {
+        let date = new Date(timestamp)
+        if (isNaN(date.getTime())) {
+          const cleaned = timestamp.trim().replace(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/, "$1T$2")
+          date = new Date(cleaned)
+        }
+        return isNaN(date.getTime()) ? null : date
+      }
+      return null
+    } catch (error) {
+      return null
+    }
+  }
+
+  // Helper function to check if alert is from today
+  const isToday = (timestamp: string | number | undefined): boolean => {
+    const date = parseTimestamp(timestamp)
+    if (!date) return false
+    const now = new Date()
+    return date.getFullYear() === now.getFullYear() &&
+           date.getMonth() === now.getMonth() &&
+           date.getDate() === now.getDate()
+  }
 
   // Merge live alerts with status tracking
   const alerts = liveAlerts.map((alert) => ({
@@ -66,7 +99,8 @@ export default function AlertsPage() {
 
       setFilteredAlerts(uniqueAlerts)
     } else {
-      setFilteredAlerts(alerts.filter((alert) => alert.status === activeTab))
+      // For Active, Acknowledged, and Resolved tabs, show only today's alerts
+      setFilteredAlerts(alerts.filter((alert) => alert.status === activeTab && isToday(alert.timestamp)))
     }
   }, [alerts, historyAlerts, activeTab])
 
@@ -230,7 +264,12 @@ export default function AlertsPage() {
   }
 
   const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp)
+    let date: Date
+    if (/^\d+$/.test(timestamp)) {
+      date = new Date(Number(timestamp))
+    } else {
+      date = new Date(timestamp)
+    }
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffMins = Math.floor(diffMs / 60000)
@@ -321,11 +360,15 @@ export default function AlertsPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="active">{t("active")} ({alerts.filter((a) => a.status === "active").length})</TabsTrigger>
-          <TabsTrigger value="acknowledged">
-            {t("acknowledged")} ({alerts.filter((a) => a.status === "acknowledged").length})
+          <TabsTrigger value="active">
+            {t("active")} ({alerts.filter((a) => a.status === "active" && isToday(a.timestamp)).length})
           </TabsTrigger>
-          <TabsTrigger value="resolved">{t("resolved")} ({alerts.filter((a) => a.status === "resolved").length})</TabsTrigger>
+          <TabsTrigger value="acknowledged">
+            {t("acknowledged")} ({alerts.filter((a) => a.status === "acknowledged" && isToday(a.timestamp)).length})
+          </TabsTrigger>
+          <TabsTrigger value="resolved">
+            {t("resolved")} ({alerts.filter((a) => a.status === "resolved" && isToday(a.timestamp)).length})
+          </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-1">
             <History className="h-3 w-3" />
             {t("history")} ({historyAlerts.length})

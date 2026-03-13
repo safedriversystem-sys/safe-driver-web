@@ -144,38 +144,38 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
+  // Helper function to robustly parse various timestamp formats
+  const parseTimestamp = (timestamp: string | number | undefined): Date | null => {
+    if (!timestamp) return null
+    try {
+      if (typeof timestamp === "number" || (typeof timestamp === "string" && /^\d+$/.test(timestamp))) {
+        const num = Number(timestamp)
+        const alertTimestamp = num < 10000000000 ? num * 1000 : num
+        const date = new Date(alertTimestamp)
+        return isNaN(date.getTime()) ? null : date
+      }
+      if (typeof timestamp === "string") {
+        let date = new Date(timestamp)
+        if (isNaN(date.getTime())) {
+          const cleaned = timestamp.trim().replace(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/, "$1T$2")
+          date = new Date(cleaned)
+        }
+        return isNaN(date.getTime()) ? null : date
+      }
+      return null
+    } catch (error) {
+      return null
+    }
+  }
+
   // Helper function to check if alert is from today
   const isToday = (timestamp: string | number | undefined): boolean => {
-    if (!timestamp) return false
-
-    try {
-      // Get today's date at midnight for accurate comparison
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-
-      // Handle both string and number timestamps
-      let alertTimestamp: number
-      if (typeof timestamp === "string") {
-        alertTimestamp = new Date(timestamp).getTime()
-      } else if (typeof timestamp === "number") {
-        // If it's a number, check if it's in seconds or milliseconds
-        alertTimestamp = timestamp < 10000000000 ? timestamp * 1000 : timestamp
-      } else {
-        return false
-      }
-
-      // Check if timestamp is valid
-      if (isNaN(alertTimestamp)) return false
-
-      const alertDate = new Date(alertTimestamp)
-      alertDate.setHours(0, 0, 0, 0)
-
-      // Compare dates
-      return alertDate.getTime() === today.getTime()
-    } catch (error) {
-      console.error("Error parsing alert timestamp:", timestamp, error)
-      return false
-    }
+    const date = parseTimestamp(timestamp)
+    if (!date) return false
+    const now = new Date()
+    return date.getFullYear() === now.getFullYear() &&
+           date.getMonth() === now.getMonth() &&
+           date.getDate() === now.getDate()
   }
 
   // Calculate stats from real-time data
@@ -272,12 +272,20 @@ export default function HomePage() {
     }
 
     return liveAlerts
+      .filter((alert) => isToday(alert.timestamp)) // Only show today's alerts on dashboard as requested
       .sort((a, b) => {
-        const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
-        const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
-        return timeB - timeA
+        const getTime = (ts: any) => {
+          if (!ts) return 0
+          if (typeof ts === "number") return ts < 10000000000 ? ts * 1000 : ts
+          if (typeof ts === "string") {
+            if (/^\d+$/.test(ts)) return Number(ts)
+            const parsed = new Date(ts).getTime()
+            return isNaN(parsed) ? 0 : parsed
+          }
+          return 0
+        }
+        return getTime(b.timestamp) - getTime(a.timestamp)
       })
-      .slice(0, 3)
       .map((alert) => {
         const display = getAlertDisplay(alert)
         const busNumber = alert.number_plate || alert.busNumber || "Unknown"
