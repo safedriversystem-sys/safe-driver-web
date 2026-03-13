@@ -151,7 +151,7 @@ const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: Dev
   const driverName = deviceInfo?.driverName || `Driver ${deviceId.substring(0, 8)}`
   const driverId = deviceInfo?.driverId || `DRV-${deviceId.substring(0, 8)}`
   const route = deviceInfo?.route || "Unknown Route"
-  const location = deviceInfo?.location || (deviceInfo?.status === "online" ? "Online" : "Unknown Location")
+  const location = deviceInfo?.location || (deviceInfo?.status === "online" ? "Online" : "Offline")
 
   // Generate unique ID - prioritize provided ID (history key)
   const alertId = id || `${deviceId}-${alert.time || Date.now()}`
