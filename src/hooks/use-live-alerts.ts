@@ -248,12 +248,6 @@ export function useLiveAlerts() {
           const historyAlertsList: Alert[] = []
 
           deviceIds.forEach((deviceId) => {
-            // Filter to only process device 14:85:7F:BF:40:78
-            if (deviceId !== "14:85:7F:BF:40:78") {
-              console.log(`⏭️ Skipping device ${deviceId} - only processing 14:85:7F:BF:40:78`)
-              return
-            }
-
             const deviceAlert: any = data[deviceId]
             console.log(`🔍 Processing device ${deviceId}:`, deviceAlert)
             console.log(`🔍 Device alert type:`, typeof deviceAlert)

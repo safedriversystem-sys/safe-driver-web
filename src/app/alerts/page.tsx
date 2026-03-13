@@ -20,7 +20,7 @@ export default function AlertsPage() {
   // Track alert statuses (acknowledged/resolved) in local state
   const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved">>({})
   const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>([])
-  const [activeTab, setActiveTab] = useState("all")
+  const [activeTab, setActiveTab] = useState("active")
   const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(true)
   const previousAlertsRef = useRef<Alert[]>([])
 
@@ -40,39 +40,6 @@ export default function AlertsPage() {
     }
   }, [liveAlerts])
 
-  // Helper function to check if alert is from today
-  const isToday = (timestamp: string | number | undefined): boolean => {
-    if (!timestamp) return false
-
-    try {
-      // Get today's date at midnight for accurate comparison
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-
-      // Handle both string and number timestamps
-      let alertTimestamp: number
-      if (typeof timestamp === "string") {
-        alertTimestamp = new Date(timestamp).getTime()
-      } else if (typeof timestamp === "number") {
-        // If it's a number, check if it's in seconds or milliseconds
-        alertTimestamp = timestamp < 10000000000 ? timestamp * 1000 : timestamp
-      } else {
-        return false
-      }
-
-      // Check if timestamp is valid
-      if (isNaN(alertTimestamp)) return false
-
-      const alertDate = new Date(alertTimestamp)
-      alertDate.setHours(0, 0, 0, 0)
-
-      // Compare dates
-      return alertDate.getTime() === today.getTime()
-    } catch (error) {
-      console.error("Error parsing alert timestamp:", timestamp, error)
-      return false
-    }
-  }
 
   // Merge live alerts with status tracking
   const alerts = liveAlerts.map((alert) => ({
@@ -83,26 +50,21 @@ export default function AlertsPage() {
   // Filter alerts based on active tab
   useEffect(() => {
     if (activeTab === "history") {
-      // Show only today's alerts in history (combine today's live alerts and today's history alerts)
-      const todayLiveAlerts = alerts.filter((alert) => isToday(alert.timestamp))
-      const todayHistoryAlerts = historyAlerts.filter((alert) => isToday(alert.timestamp))
-
-      // Combine and remove duplicates based on alert ID
-      const combinedTodayAlerts = [...todayLiveAlerts, ...todayHistoryAlerts]
-      const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) =>
+      // Show all history alerts (combine live alerts history and history alerts)
+      // Remove duplicates based on alert ID
+      const combinedAlerts = [...alerts, ...historyAlerts]
+      const uniqueAlerts = combinedAlerts.filter((alert, index, self) =>
         index === self.findIndex((a) => a.id === alert.id)
       )
 
       // Sort by timestamp (newest first)
-      uniqueTodayAlerts.sort((a, b) => {
+      uniqueAlerts.sort((a, b) => {
         const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
         const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
         return timeB - timeA
       })
 
-      setFilteredAlerts(uniqueTodayAlerts)
-    } else if (activeTab === "all") {
-      setFilteredAlerts(alerts)
+      setFilteredAlerts(uniqueAlerts)
     } else {
       setFilteredAlerts(alerts.filter((alert) => alert.status === activeTab))
     }
@@ -358,8 +320,7 @@ export default function AlertsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="all">{t("all")} ({alerts.length})</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="active">{t("active")} ({alerts.filter((a) => a.status === "active").length})</TabsTrigger>
           <TabsTrigger value="acknowledged">
             {t("acknowledged")} ({alerts.filter((a) => a.status === "acknowledged").length})
@@ -393,7 +354,7 @@ export default function AlertsPage() {
                       <div className="flex items-center gap-3">
                         {getAlertIcon(alert.type)}
                         <div>
-                          <CardTitle className="text-lg">{getAlertDescription(alert.type) || alert.description}</CardTitle>
+                          <CardTitle className="text-lg">{alert.description || getAlertDescription(alert.type)}</CardTitle>
                           <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
                             <span>{alert.driverName}</span>
                             <span>•</span>
@@ -478,7 +439,7 @@ export default function AlertsPage() {
                       <Bell className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-lg font-medium">{t("no_alerts_found")}</h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        {activeTab === "all"
+                        {activeTab === "active"
                           ? t("no_alerts_moment")
                           : activeTab === "history"
                             ? t("no_history_found")
@@ -489,7 +450,7 @@ export default function AlertsPage() {
                           <p className="text-xs font-medium text-blue-800 mb-2">Debugging Steps:</p>
                           <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
                             <li>Open browser console (F12) and check for Firebase connection messages</li>
-                            <li>Verify data exists in Firebase Console at: <code className="bg-blue-100 px-1 rounded">/alerts/14:85:7F:BF:40:78/latest</code></li>
+                            <li>Verify data exists in Firebase Console at: <code className="bg-blue-100 px-1 rounded">/alerts/{`<DEVICE_ID>`}/latest</code></li>
                             <li>Check that the <code className="bg-blue-100 px-1 rounded">latest</code> node has: message, tag, time, type</li>
                             <li>Verify database rules allow read access to <code className="bg-blue-100 px-1 rounded">/alerts</code></li>
                           </ol>
