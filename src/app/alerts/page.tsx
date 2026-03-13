@@ -421,8 +421,8 @@ export default function AlertsPage() {
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">{alert.location}</span>
+                        <MapPin className={`h-4 w-4 ${alert.location === "Online" ? "text-green-500" : "text-gray-500"}`} />
+                        <span className={`text-sm ${alert.location === "Online" ? "text-green-600 font-medium" : ""}`}>{alert.location}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{t("route_label")}:</span>
