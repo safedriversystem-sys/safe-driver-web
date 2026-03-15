@@ -153,8 +153,11 @@ const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: Dev
   const route = deviceInfo?.route || "Unknown Route"
   const location = deviceInfo?.location || (deviceInfo?.status === "online" ? "Online" : "Offline")
 
-  // Generate unique ID - prioritize provided ID (history key)
-  const alertId = id || `${deviceId}-${alert.time || Date.now()}`
+  // Generate unique ID - prioritize provided ID (historyKey)
+  // Fallback to a composite ID that includes message content to prevent collisions 
+  // when multiple distinct alerts happen at the same timestamp.
+  const contentHash = alert.message ? alert.message.substring(0, 10).replace(/\s/g, "") : ""
+  const alertId = id || `${deviceId}-${alert.time || Date.now()}-${alert.type}-${contentHash}`
 
   return {
     id: alertId,
@@ -321,14 +324,26 @@ export function useLiveAlerts() {
               if (latest.message && latest.time) {
                 const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo)
                 
-                // If ID is already in map (from history), latest data might be fresher
+                // 1. Update Active/Today Alerts map (for the Active/Acknowledge/Resolved tabs)
                 if (alertMap.has(alert.id)) {
                   Object.assign(alertMap.get(alert.id)!, alert)
                 } else {
                   // If it's today OR the latest for the device, show it
                   if (isToday(alert.timestamp) || !transformedAlerts.some(a => a.deviceId === deviceId)) {
                     alertMap.set(alert.id, alert)
+                    transformedAlerts.push(alert)
                   }
+                }
+
+                // 2. Explicitly add Latest to History list if not already there
+                const existsInHistory = historyAlertsList.some(h => 
+                  h.id === alert.id || (h.timestamp === alert.timestamp && h.description === alert.description)
+                )
+                
+                if (!existsInHistory) {
+                  const historyItem = { ...alert }
+                  historyItem.status = (latest as any).status || "resolved"
+                  historyAlertsList.push(historyItem)
                 }
               }
             }
