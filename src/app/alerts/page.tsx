@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +19,6 @@ export default function AlertsPage() {
 
   // Track alert statuses (acknowledged/resolved) in local state
   const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved">>({})
-  const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>([])
   const [activeTab, setActiveTab] = useState("active")
   const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(true)
   const previousAlertsRef = useRef<Alert[]>([])
@@ -74,34 +73,36 @@ export default function AlertsPage() {
            date.getDate() === now.getDate()
   }
 
-  // Merge live alerts with status tracking
-  const alerts = liveAlerts.map((alert) => ({
-    ...alert,
-    status: alertStatuses[alert.id] || alert.status,
-  }))
+  // Merge live alerts with status tracking.
+  // Memoization prevents unnecessary re-renders and effect loops.
+  const alerts = useMemo(
+    () =>
+      liveAlerts.map((alert) => ({
+        ...alert,
+        status: alertStatuses[alert.id] || alert.status,
+      })),
+    [liveAlerts, alertStatuses],
+  )
 
-  // Filter alerts based on active tab
-  useEffect(() => {
+  // Filter alerts based on active tab as derived state.
+  const filteredAlerts = useMemo(() => {
     if (activeTab === "history") {
-      // Show all history alerts (combine live alerts history and history alerts)
-      // Remove duplicates based on alert ID
       const combinedAlerts = [...alerts, ...historyAlerts]
       const uniqueAlerts = combinedAlerts.filter((alert, index, self) =>
-        index === self.findIndex((a) => a.id === alert.id)
+        index === self.findIndex((a) => a.id === alert.id),
       )
 
-      // Sort by timestamp (newest first)
       uniqueAlerts.sort((a, b) => {
         const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
         const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
         return timeB - timeA
       })
 
-      setFilteredAlerts(uniqueAlerts)
-    } else {
-      // For Active, Acknowledged, and Resolved tabs, show only today's alerts
-      setFilteredAlerts(alerts.filter((alert) => alert.status === activeTab && isToday(alert.timestamp)))
+      return uniqueAlerts
     }
+
+    // For Active, Acknowledged, and Resolved tabs, show only today's alerts.
+    return alerts.filter((alert) => alert.status === activeTab && isToday(alert.timestamp))
   }, [alerts, historyAlerts, activeTab])
 
   // Detect new alerts and trigger voice/emergency notifications
