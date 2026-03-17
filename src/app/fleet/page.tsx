@@ -43,7 +43,6 @@ import {
   Gauge,
   Battery,
 
-  Shield,
 
 
   FileText,
@@ -786,12 +785,6 @@ export default function FleetManagement() {
                 <div className="text-center p-3 border rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">{Math.round(selectedVehicle.speed)}</div>
                   <div className="text-sm text-gray-600">Speed (km/h)</div>
-                </div>
-
-
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">{selectedVehicle.safetyScore}%</div>
-                  <div className="text-sm text-gray-600">Safety Score</div>
                 </div>
               </div>
 

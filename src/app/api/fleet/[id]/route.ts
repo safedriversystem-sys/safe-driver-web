@@ -51,7 +51,6 @@ const updateVehicleSchema = z.object({
   speed: z.number().min(0).optional(),
 
   batteryLevel: z.number().min(0).max(100).optional(),
-  safetyScore: z.number().min(0).max(100).optional(),
   alerts: z.number().min(0).optional(),
 })
 

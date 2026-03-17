@@ -3,7 +3,6 @@ import "jspdf-autotable"
 import { format } from "date-fns"
 import {
   generateAlertDistributionChart,
-  generateSafetyScoreChart,
   generateAlertTrendChart,
   generateRouteSafetyRadarChart,
   generateComplianceChart,
@@ -128,7 +127,6 @@ const addExecutiveSummary = (doc: jsPDF, summary: any, yPos: number) => {
   const summaryItems = [
     { label: "Total Alerts", value: summary.totalAlerts?.toString() || "0", color: [220, 38, 38] },
     { label: "Active Drivers", value: summary.activeDrivers?.toString() || "0", color: [37, 99, 235] },
-    { label: "Safety Score", value: `${summary.safetyScore || 0}%`, color: [22, 163, 74] },
     { label: "System Uptime", value: `${summary.systemUptime || 0}%`, color: [22, 163, 74] },
   ]
 
@@ -226,7 +224,7 @@ const addDailySummaryContent = async (doc: jsPDF, data: any, yPos: number) => {
   // Driver Performance Table
   yPos = addSectionTitle(doc, "Driver Performance Summary", yPos)
 
-  const driverHeaders = ["Driver Name", "License", "Bus", "Route", "Safety Score", "Alerts"]
+  const driverHeaders = ["Driver Name", "License", "Bus", "Route", "Alerts"]
   const driverData =
     data.drivers
       ?.slice(0, 5)
@@ -235,7 +233,6 @@ const addDailySummaryContent = async (doc: jsPDF, data: any, yPos: number) => {
         driver.license,
         driver.bus,
         driver.route,
-        `${driver.score}%`,
         driver.alerts.toString(),
       ]) || []
 
@@ -253,32 +250,16 @@ const addDailySummaryContent = async (doc: jsPDF, data: any, yPos: number) => {
 }
 
 const addDriverPerformanceContent = async (doc: jsPDF, data: any, yPos: number) => {
-  // Add safety score chart
-  yPos = await addSectionTitle(doc, "Driver Safety Scores", yPos)
-
-  try {
-    // Generate safety score chart
-    const safetyChartImage = await generateSafetyScoreChart(data.drivers)
-
-    // Add chart to PDF
-    doc.addImage(safetyChartImage, "PNG", 20, yPos, 170, 100)
-    yPos += 110
-  } catch (error) {
-    console.error("Error adding safety score chart:", error)
-    yPos += 10
-  }
-
   // Driver performance table
   yPos = addSectionTitle(doc, "Detailed Driver Performance", yPos)
 
-  const headers = ["Driver Name", "License", "Bus", "Route", "Safety Score", "Total Alerts", "Status"]
+  const headers = ["Driver Name", "License", "Bus", "Route", "Total Alerts", "Status"]
   const tableData =
     data.drivers?.map((driver: any) => [
       driver.name,
       driver.license,
       driver.bus,
       driver.route,
-      `${driver.score}%`,
       driver.alerts.toString(),
       driver.status,
     ]) || []
@@ -292,9 +273,8 @@ const addDriverPerformanceContent = async (doc: jsPDF, data: any, yPos: number) 
     styles: { fontSize: 9 },
     margin: { left: 20, right: 20 },
     columnStyles: {
-      4: { halign: "center" }, // Safety Score
-      5: { halign: "center" }, // Total Alerts
-      6: { halign: "center" }, // Status
+      4: { halign: "center" }, // Total Alerts
+      5: { halign: "center" }, // Status
     },
   })
 
@@ -320,13 +300,12 @@ const addFleetAnalyticsContent = async (doc: jsPDF, data: any, yPos: number) => 
   // Fleet analytics table
   yPos = addSectionTitle(doc, "Fleet Analytics Overview", yPos)
 
-  const headers = ["Route", "Buses", "Drivers", "Safety Score", "Distance", "Risk Areas"]
+  const headers = ["Route", "Buses", "Drivers", "Distance", "Risk Areas"]
   const tableData =
     data.routes?.map((route: any) => [
       route.name,
       route.buses.toString(),
       route.drivers.toString(),
-      `${route.score}%`,
       route.distance,
       route.riskAreas,
     ]) || []
@@ -363,13 +342,12 @@ const addRouteSafetyContent = async (doc: jsPDF, data: any, yPos: number) => {
   // Route safety table
   yPos = addSectionTitle(doc, "Route Safety Details", yPos)
 
-  const headers = ["Route Name", "Total Buses", "Active Drivers", "Safety Score", "High Risk Areas"]
+  const headers = ["Route Name", "Total Buses", "Active Drivers", "High Risk Areas"]
   const tableData =
     data.routes?.map((route: any) => [
       route.name,
       route.buses.toString(),
       route.drivers.toString(),
-      `${route.score}%`,
       route.riskAreas,
     ]) || []
 
@@ -514,12 +492,12 @@ const addRecommendations = (doc: jsPDF, yPos: number) => {
   yPos = addSectionTitle(doc, "Recommendations", yPos)
 
   const recommendations = [
-    "Implement additional drowsiness awareness training for drivers with scores below 80%",
+    "Implement additional drowsiness awareness training for drivers with high alert counts",
     "Consider additional rest stops on high-risk routes at identified danger areas",
     "Deploy additional monitoring units on buses with frequent safety alerts",
     "Update phone usage policies and enforcement procedures for better compliance",
     "Schedule regular safety briefings and performance review sessions",
-    "Implement route optimization based on safety score analysis",
+    "Implement route optimization based on incident distribution analysis",
   ]
 
   doc.setFontSize(10)

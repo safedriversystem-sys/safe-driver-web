@@ -40,9 +40,6 @@ export default function DriversPage() {
     onDuty: 0,
     offDuty: 0,
     suspended: 0,
-    highPerformers: 0,
-    needAttention: 0,
-    averageSafetyScore: 0,
   })
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -74,12 +71,6 @@ export default function DriversPage() {
       onDuty: driversData.filter((d) => d.status === "on_duty").length,
       offDuty: driversData.filter((d) => d.status === "off_duty").length,
       suspended: driversData.filter((d) => d.status === "suspended").length,
-      highPerformers: driversData.filter((d) => d.safetyScore >= 90).length,
-      needAttention: driversData.filter((d) => d.safetyScore < 80).length,
-      averageSafetyScore:
-        driversData.length > 0
-          ? Math.round(driversData.reduce((sum, d) => sum + d.safetyScore, 0) / driversData.length)
-          : 0,
     }
   }
 
@@ -181,11 +172,6 @@ export default function DriversPage() {
     }
   }
 
-  const getSafetyScoreColor = (score: number) => {
-    if (score >= 90) return "text-green-600"
-    if (score >= 75) return "text-yellow-600"
-    return "text-red-600"
-  }
 
   const handleAddDriver = async () => {
     if (!newDriver.name || !newDriver.licenseNumber || !newDriver.phone || !newDriver.email) {
@@ -400,7 +386,6 @@ export default function DriversPage() {
           address: editingDriver.address || "",
           experience: editingDriver.experience || "",
           status: editingDriver.status,
-          safetyScore: editingDriver.safetyScore,
         }),
       })
 
@@ -602,28 +587,6 @@ export default function DriversPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("high_performers")}</p>
-                <p className="text-2xl font-bold text-green-600">{stats.highPerformers}</p>
-              </div>
-              <Activity className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("need_attention")}</p>
-                <p className="text-2xl font-bold text-red-600">{stats.needAttention}</p>
-              </div>
-              <Activity className="h-8 w-8 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
       </div >
 
       {/* Filters */}
@@ -674,11 +637,7 @@ export default function DriversPage() {
             {filteredDrivers.map((driver) => (
               <Card
                 key={driver.id}
-                className="group hover:shadow-lg transition-all duration-300 border-l-[6px] overflow-hidden"
-                style={{
-                  borderLeftColor:
-                    driver.safetyScore >= 90 ? "#22c55e" : driver.safetyScore >= 75 ? "#eab308" : "#ef4444",
-                }}
+                className="group hover:shadow-lg transition-all duration-300 border-l-[6px] overflow-hidden border-l-primary/10"
               >
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row gap-6 items-center lg:items-center">
@@ -735,13 +694,6 @@ export default function DriversPage() {
 
                     {/* Stats Section with vertical separator */}
                     <div className="flex w-full lg:w-auto items-center justify-around lg:justify-center gap-8 px-6 py-3 lg:py-0 lg:border-l lg:border-r border-y lg:border-y-0 border-border bg-muted/20 lg:bg-transparent rounded-lg lg:rounded-none">
-                      <div className="text-center">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Safety</p>
-                        <div className={`text-3xl font-black tabular-nums tracking-tight ${getSafetyScoreColor(driver.safetyScore)}`}>
-                          {driver.safetyScore}
-                          <span className="text-base font-bold ml-0.5">%</span>
-                        </div>
-                      </div>
                       <div className="text-center">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Alerts</p>
                         <div className="text-3xl font-black tabular-nums tracking-tight text-foreground">
@@ -916,17 +868,6 @@ export default function DriversPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="edit-safety-score">Safety Score (0-100)</Label>
-                  <Input
-                    id="edit-safety-score"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={editingDriver.safetyScore}
-                    onChange={(e) => setEditingDriver({ ...editingDriver, safetyScore: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
                 <div className="flex gap-2">
                   <Button onClick={handleUpdateDriver} className="flex-1" disabled={isSubmitting}>
                     {isSubmitting ? (
@@ -1012,14 +953,6 @@ export default function DriversPage() {
                 </TabsContent>
                 <TabsContent value="performance" className="space-y-4">
                   <div className="grid grid-cols-3 gap-4">
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-sm text-gray-600">Safety Score</p>
-                        <p className={`text-3xl font-bold ${getSafetyScoreColor(selectedDriver.safetyScore)}`}>
-                          {selectedDriver.safetyScore}%
-                        </p>
-                      </CardContent>
-                    </Card>
                     <Card>
                       <CardContent className="p-4 text-center">
                         <p className="text-sm text-gray-600">Total Alerts</p>

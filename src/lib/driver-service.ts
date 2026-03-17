@@ -32,15 +32,6 @@ export const driverService = {
         constraints.push(firestoreService.where("status", "==", filters.status))
       }
       
-      // Apply safety score filters server-side if provided
-      if (filters?.minSafetyScore !== undefined) {
-        constraints.push(firestoreService.where("safetyScore", ">=", filters.minSafetyScore))
-      }
-      
-      if (filters?.maxSafetyScore !== undefined) {
-        constraints.push(firestoreService.where("safetyScore", "<=", filters.maxSafetyScore))
-      }
-      
       // Order by createdAt first (required before limit in Firestore)
       constraints.push(firestoreService.orderByField("createdAt", "desc"))
 
@@ -118,7 +109,6 @@ export const driverService = {
         route: input.route || "",
         status: "off_duty",
         alertCount: 0,
-        safetyScore: 100,
         joinDate: now.split("T")[0],
         experience: input.experience || "",
         address: input.address || "",
@@ -204,11 +194,6 @@ export const driverService = {
     return driverService.updateDriver(id, { status })
   },
 
-  // Update driver safety score
-  updateSafetyScore: async (id: string, safetyScore: number): Promise<Driver> => {
-    return driverService.updateDriver(id, { safetyScore })
-  },
-
   // Increment alert count
   incrementAlertCount: async (id: string): Promise<Driver> => {
     try {
@@ -238,9 +223,6 @@ export const driverService = {
     onDuty: number
     offDuty: number
     suspended: number
-    highPerformers: number
-    needAttention: number
-    averageSafetyScore: number
   }> => {
     try {
       const drivers = await driverService.getAllDrivers()
@@ -250,12 +232,6 @@ export const driverService = {
         onDuty: drivers.filter((d) => d.status === "on_duty").length,
         offDuty: drivers.filter((d) => d.status === "off_duty").length,
         suspended: drivers.filter((d) => d.status === "suspended").length,
-        highPerformers: drivers.filter((d) => d.safetyScore >= 90).length,
-        needAttention: drivers.filter((d) => d.safetyScore < 80).length,
-        averageSafetyScore:
-          drivers.length > 0
-            ? Math.round(drivers.reduce((sum, d) => sum + d.safetyScore, 0) / drivers.length)
-            : 0,
       }
 
       return stats

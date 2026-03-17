@@ -199,13 +199,6 @@ export default function HomePage() {
     const totalVehicles = fleetVehicles.length || 0
     const activeVehicles = fleetVehicles.filter((v) => v.status === "active").length || 0
 
-    // Calculate safety score based on alerts (fewer alerts = higher score)
-    const totalAlerts = liveAlerts.length
-    const highSeverityAlerts = liveAlerts.filter((a) => a.severity === "high").length
-    const safetyScore = totalAlerts > 0
-      ? Math.max(0, Math.min(100, 100 - (highSeverityAlerts * 10) - (totalAlerts * 2)))
-      : 100
-
     return {
       totalVehicles,
       activeVehicles,
@@ -214,7 +207,6 @@ export default function HomePage() {
       alertsToday: todayAlerts,
       todayActiveAlerts,
       todayResolvedAlerts,
-      safetyScore: Math.round(safetyScore),
       complianceRate: 96, // This would need to come from another data source
     }
   }, [liveAlerts, historyAlerts, driverStats, fleetVehicles])
@@ -350,16 +342,6 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("safety_score")}</CardTitle>
-            <Shield className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{fleetStats.safetyScore}%</div>
-            <Progress value={fleetStats.safetyScore} className="mt-2" />
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

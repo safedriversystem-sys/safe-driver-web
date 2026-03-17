@@ -25,7 +25,6 @@ export interface Vehicle {
   speed: number
 
   batteryLevel: number
-  safetyScore: number
   alerts: number
   createdAt?: string
   updatedAt?: string
@@ -66,7 +65,6 @@ export interface UpdateVehicleInput {
   speed?: number
 
   batteryLevel?: number
-  safetyScore?: number
   alerts?: number
 }
 

@@ -136,7 +136,6 @@ export const fleetService = {
         mileage: input.mileage ?? 0,
         speed: 0,
         batteryLevel: 100,
-        safetyScore: 100,
         alerts: 0,
         createdAt: now,
         updatedAt: now,

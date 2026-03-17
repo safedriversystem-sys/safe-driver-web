@@ -21,7 +21,6 @@ const updateDriverSchema = z.object({
   address: z.string().optional(),
   experience: z.string().optional(),
   alertCount: z.number().min(0).optional(),
-  safetyScore: z.number().min(0).max(100).optional(),
   lastAlert: z.string().optional(),
 })
 
