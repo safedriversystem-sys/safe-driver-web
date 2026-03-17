@@ -31,10 +31,33 @@ import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit 
 import type { Driver } from "@/lib/driver-types"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/components/language-provider"
+import { useLiveAlerts, isToday } from "@/hooks/use-live-alerts"
+import { useMemo } from "react"
 
 export default function DriversPage() {
   const { t } = useLanguage()
   const [drivers, setDrivers] = useState<Driver[]>([])
+  
+  // Real-time alerts integration
+  const { alerts: liveAlerts } = useLiveAlerts()
+  
+  // Calculate real-time alert counts for each driver
+  const driversWithAlertCounts = useMemo(() => {
+    // Get unique today's alerts
+    const todayAlerts = liveAlerts.filter(alert => isToday(alert.timestamp))
+    
+    return drivers.map(driver => {
+      // Find alerts for this driver's assigned bus
+      if (!driver.busNumber) return { ...driver, alertCount: 0 }
+      
+      const count = todayAlerts.filter(alert => 
+        (alert.number_plate === driver.busNumber || alert.busNumber === driver.busNumber)
+      ).length
+      
+      return { ...driver, alertCount: count }
+    })
+  }, [drivers, liveAlerts])
+
   const [stats, setStats] = useState({
     total: 0,
     onDuty: 0,
@@ -634,7 +657,7 @@ export default function DriversPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {filteredDrivers.map((driver) => (
+            {driversWithAlertCounts.map((driver) => (
               <Card
                 key={driver.id}
                 className="group hover:shadow-lg transition-all duration-300 border-l-[6px] overflow-hidden border-l-primary/10"
