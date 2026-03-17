@@ -35,7 +35,7 @@ export interface Alert {
 }
 
 // Helper function to robustly parse various timestamp formats
-const parseTimestamp = (timestamp: string | number | undefined): Date | null => {
+export const parseTimestamp = (timestamp: string | number | undefined): Date | null => {
   if (!timestamp) return null
 
   try {
@@ -71,7 +71,7 @@ const parseTimestamp = (timestamp: string | number | undefined): Date | null => 
 }
 
 // Helper function to check if alert is from today
-const isToday = (timestamp: string | number | undefined): boolean => {
+export const isToday = (timestamp: string | number | undefined): boolean => {
   const date = parseTimestamp(timestamp)
   if (!date) return false
 

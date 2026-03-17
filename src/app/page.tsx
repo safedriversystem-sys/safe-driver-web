@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Car, Users, AlertTriangle, CheckCircle, Activity, Shield, Bell, TrendingUp, MapPin, Clock, MessageSquare, Star } from "lucide-react"
 import Link from "next/link"
-import { useLiveAlerts } from "@/hooks/use-live-alerts"
+import { useLiveAlerts, isToday, parseTimestamp } from "@/hooks/use-live-alerts"
 import { useLanguage } from "@/components/language-provider"
 
 // Helper function to format relative time
@@ -144,39 +144,6 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
-  // Helper function to robustly parse various timestamp formats
-  const parseTimestamp = (timestamp: string | number | undefined): Date | null => {
-    if (!timestamp) return null
-    try {
-      if (typeof timestamp === "number" || (typeof timestamp === "string" && /^\d+$/.test(timestamp))) {
-        const num = Number(timestamp)
-        const alertTimestamp = num < 10000000000 ? num * 1000 : num
-        const date = new Date(alertTimestamp)
-        return isNaN(date.getTime()) ? null : date
-      }
-      if (typeof timestamp === "string") {
-        let date = new Date(timestamp)
-        if (isNaN(date.getTime())) {
-          const cleaned = timestamp.trim().replace(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/, "$1T$2")
-          date = new Date(cleaned)
-        }
-        return isNaN(date.getTime()) ? null : date
-      }
-      return null
-    } catch (error) {
-      return null
-    }
-  }
-
-  // Helper function to check if alert is from today
-  const isToday = (timestamp: string | number | undefined): boolean => {
-    const date = parseTimestamp(timestamp)
-    if (!date) return false
-    const now = new Date()
-    return date.getFullYear() === now.getFullYear() &&
-           date.getMonth() === now.getMonth() &&
-           date.getDate() === now.getDate()
-  }
 
   // Calculate stats from real-time data
   const fleetStats = useMemo(() => {
