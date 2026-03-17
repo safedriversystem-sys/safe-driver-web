@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { realtimeDbService } from "@/lib/firebase/realtime-db"
 import { initializeFirebase } from "@/lib/firebase/config"
 import { DataSnapshot } from "firebase/database"
+import { subscribeToVehicles, type Vehicle } from "@/lib/firebase/vehicles"
 
 export interface FirebaseAlert {
   message: string
@@ -141,16 +142,24 @@ interface DeviceInfo {
 }
 
 // Transform Firebase alert to UI alert format
-const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: DeviceInfo, id?: string): Alert => {
+const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: DeviceInfo, id?: string, firestoreVehicles: Vehicle[] = []): Alert => {
   const alertType = mapAlertType(alert.type, alert.tag)
   const severity = getSeverity(alert.type, alert.tag)
 
-  // Extract device info from actual Firebase structure
-  const number_plate = alert.number_plate || deviceInfo?.number_plate || deviceInfo?.vehicle_reg_no?.trim() || ""
-  const busNumber = number_plate || deviceInfo?.busNumber || ""
-  const driverName = deviceInfo?.driverName || `Driver ${deviceId.substring(0, 8)}`
+  // 1. First, try to find matching vehicle in Firestore data for more accurate info
+  // Match by deviceId (if it's a GUID/MAC) or number plate
+  const matchedVehicle = firestoreVehicles.find(v => 
+    (v.deviceId && v.deviceId.toLowerCase() === deviceId.toLowerCase()) || 
+    (v.documentId && v.documentId.toLowerCase() === (alert.number_plate || "").toLowerCase()) ||
+    (v.id && v.id.toLowerCase() === (alert.number_plate || "").toLowerCase())
+  )
+
+  // Extract device info from actual Firebase structure or Firestore fallback
+  const number_plate = alert.number_plate || deviceInfo?.number_plate || deviceInfo?.vehicle_reg_no?.trim() || matchedVehicle?.documentId || ""
+  const busNumber = number_plate || deviceInfo?.busNumber || matchedVehicle?.busNumber || ""
+  const driverName = deviceInfo?.driverName || matchedVehicle?.driver || `Driver ${deviceId.substring(0, 8)}`
   const driverId = deviceInfo?.driverId || `DRV-${deviceId.substring(0, 8)}`
-  const route = deviceInfo?.route || "Unknown Route"
+  const route = deviceInfo?.route || matchedVehicle?.route || "Unknown Route"
   const location = deviceInfo?.location || (deviceInfo?.status === "online" ? "Online" : "Offline")
 
   // Generate unique ID - prioritize provided ID (historyKey)
@@ -183,6 +192,20 @@ export function useLiveAlerts() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [devices, setDevices] = useState<Record<string, DeviceInfo>>({})
+  const [firestoreVehicles, setFirestoreVehicles] = useState<Vehicle[]>([])
+
+  // Subscribe to Firestore vehicles for enriched data (routes, driver names)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    console.log("🚛 Subscribing to Firestore vehicles...")
+    const unsubscribe = subscribeToVehicles((vehiclesList) => {
+      console.log(`🚛 Firestore vehicles updated: ${vehiclesList.length} vehicles`)
+      setFirestoreVehicles(vehiclesList)
+    })
+
+    return () => unsubscribe()
+  }, [])
 
   // Initialize Firebase and listen to devices for device information
   useEffect(() => {
@@ -301,7 +324,7 @@ export function useLiveAlerts() {
               Object.keys(history).forEach((historyKey) => {
                 const historyAlert = history[historyKey] as FirebaseAlert
                 if (historyAlert && historyAlert.message && historyAlert.time) {
-                  const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey)
+                  const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey, firestoreVehicles)
                   
                   // If it's today, keep it in the primary alerts list
                   if (isToday(alert.timestamp)) {
@@ -322,7 +345,7 @@ export function useLiveAlerts() {
             if (deviceAlert && deviceAlert.latest) {
               const latest = deviceAlert.latest
               if (latest.message && latest.time) {
-                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo)
+                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, undefined, firestoreVehicles)
                 
                 // 1. Update Active/Today Alerts map (for the Active/Acknowledge/Resolved tabs)
                 if (alertMap.has(alert.id)) {
@@ -383,7 +406,7 @@ export function useLiveAlerts() {
       setError(err instanceof Error ? err : new Error("Failed to set up alerts listener"))
       setIsLoading(false)
     }
-  }, [devices]) // Re-run when devices data changes
+  }, [devices, firestoreVehicles]) // Re-run when devices or firestoreVehicles data changes
 
   return { alerts, historyAlerts, isLoading, error }
 }
