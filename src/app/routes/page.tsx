@@ -130,7 +130,7 @@ export default function RouteMonitoring() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.active}</div>
-            <p className="text-xs text-muted-foreground">{t("routes_total_context").replace("{{total}}", String(stats.total))}</p>
+            <p className="text-xs text-muted-foreground">{t("routes_total_context", { total: stats.total })}</p>
           </CardContent>
         </Card>
 

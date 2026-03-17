@@ -330,9 +330,9 @@ export default function AlertsPage() {
           {!error && !isLoadingAlerts && (
             <div>
               <p className="text-sm text-muted-foreground">
-                {t("realtime_alerts")} • {alerts.length} {t("alerts_found")}
+                {t("realtime_alerts")} • {t(filteredAlerts.length === 1 ? "alert_found" : "alerts_found", { count: filteredAlerts.length })}
               </p>
-              {alerts.length === 0 && (
+              {filteredAlerts.length === 0 && (
                 <p className="text-xs text-orange-600 mt-1">
                   ⚠️ {t("no_alerts_warning")}
                 </p>
@@ -487,7 +487,7 @@ export default function AlertsPage() {
                           ? t("no_alerts_moment")
                           : activeTab === "history"
                             ? t("no_history_found")
-                            : t("no_status_alerts").replace("{{status}}", activeTab)}
+                            : t("no_status_alerts", { status: activeTab })}
                       </p>
                       {!error && (
                         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-left">

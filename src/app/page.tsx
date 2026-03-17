@@ -337,7 +337,7 @@ export default function HomePage() {
               {isLoadingDriverStats ? "..." : fleetStats.driversOnDuty}
             </div>
             <p className="text-xs text-muted-foreground">
-              {t("drivers_total_context").replace("{{total}}", String(isLoadingDriverStats ? "..." : fleetStats.totalDrivers))}
+              {t("drivers_total_context", { total: isLoadingDriverStats ? "..." : fleetStats.totalDrivers })}
             </p>
           </CardContent>
         </Card>
