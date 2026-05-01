@@ -619,8 +619,8 @@ export default function RouteMonitoring() {
                       className="rounded-2xl border-neutral-200 h-14 px-8 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all font-black text-sm uppercase tracking-wider"
                       onClick={() => setSelectedRoute(route)}
                     >
-                      <Eye className="h-5 w-5 mr-3" />
-                      {t("view_details")}
+                      <MapPin className="h-5 w-5 mr-3" />
+                      View Map
                     </Button>
 
                     <Button variant="ghost" className="rounded-2xl h-14 px-6 text-neutral-500 font-black text-sm uppercase tracking-wider hover:text-blue-600 hover:bg-blue-50"
@@ -684,78 +684,18 @@ export default function RouteMonitoring() {
                   </Button>
                 </div>
 
-                {/* Route Progress */}
-                <div className="mb-12 bg-neutral-50 p-8 rounded-[2rem] border border-neutral-100 shadow-inner">
-                  <h3 className="text-xl font-black mb-8 flex items-center gap-3">
-                    <Activity className="h-6 w-6 text-blue-500" />
-                    {t("current_progress")}
-                  </h3>
-                  <div className="relative space-y-8 pl-4">
-                    <div className="absolute left-[21px] top-2 bottom-2 w-1.5 bg-neutral-200 rounded-full" />
-                    {selectedRoute.stops.map((stop: RouteStop, index: number) => (
-                      <div key={index} className="flex items-center gap-6 relative group">
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          whileInView={{ scale: 1 }}
-                          transition={{ delay: index * 0.1 }}
-                          className={`w-4 h-4 rounded-full border-4 border-white shadow-md z-10 ring-4 ${stop.status === "completed"
-                            ? "bg-emerald-500 ring-emerald-50"
-                            : stop.status === "current"
-                              ? "bg-blue-500 ring-blue-50"
-                              : "bg-neutral-300 ring-neutral-50"
-                            }`}
-                        ></motion.div>
-                        <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-neutral-100 group-hover:border-blue-200 transition-colors">
-                          <div className="flex justify-between items-center">
-                            <span className={`text-lg font-black ${stop.status === "current" ? "text-blue-600" : "text-neutral-700"}`}>
-                              {stop.name}
-                            </span>
-                            <div className="flex items-center gap-3">
-                              {stop.status === "completed" && <CheckCircle className="h-5 w-5 text-emerald-500" />}
-                              {stop.status === "current" && <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 2 }}><Activity className="h-5 w-5 text-blue-500" /></motion.div>}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Route Statistics Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[
-                    { label: t("distance_km"), value: selectedRoute.distance, color: "text-blue-600", bg: "bg-blue-50" },
-                    { label: t("est_time_min"), value: selectedRoute.estimatedTime, color: "text-indigo-600", bg: "bg-indigo-50" },
-                    { label: t("active_vehicles_label"), value: selectedRoute.activeVehicles, color: "text-emerald-600", bg: "bg-emerald-50" },
-                  ].map((item, idx) => (
-                    <div key={idx} className={`${item.bg} p-6 rounded-[1.5rem] border border-white shadow-sm text-center`}>
-                      <div className={`text-4xl font-black ${item.color} mb-1 tabular-nums`}>{item.value}</div>
-                      <div className="text-xs font-black text-neutral-400 uppercase tracking-widest leading-tight">{item.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Assigned Buses */}
-                <div className="mt-8 bg-neutral-50 p-8 rounded-[2rem] border border-neutral-100 shadow-inner">
-                  <h3 className="text-xl font-black mb-6 flex items-center gap-3">
-                    <Bus className="h-6 w-6 text-emerald-500" />
-                    Assigned Buses
-                  </h3>
-                  {selectedRoute.vehicles && selectedRoute.vehicles.length > 0 ? (
-                    <div className="flex flex-wrap gap-4">
-                      {selectedRoute.vehicles.map((vehicleId: string, idx: number) => (
-                        <div key={idx} className="flex items-center gap-3 bg-white px-6 py-4 rounded-2xl border border-neutral-200 shadow-sm transition-transform hover:-translate-y-1">
-                          <Bus className="h-5 w-5 text-neutral-400" />
-                          <span className="font-black text-lg text-neutral-800">{vehicleId}</span>
-                          <Badge className="ml-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-full">On Route</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 text-neutral-400 font-bold">
-                      No buses currently assigned to this route.
-                    </div>
-                  )}
+                {/* Embedded Route Map */}
+                <div className="w-full h-[500px] rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100 mt-6 relative shadow-inner">
+                  {/* Google Maps iFrame */}
+                  <iframe 
+                    width="100%" 
+                    height="100%" 
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    allowFullScreen 
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={`https://maps.google.com/maps?saddr=${encodeURIComponent(selectedRoute.startPoint)}&daddr=${encodeURIComponent(selectedRoute.endPoint)}&output=embed`}
+                  ></iframe>
                 </div>
               </div>
               <div className="p-8 bg-neutral-50 border-t border-neutral-100 flex gap-4">
