@@ -22,6 +22,7 @@ export default function AlertsPage() {
   const [activeTab, setActiveTab] = useState("active")
   const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(true)
   const previousAlertsRef = useRef<Alert[]>([])
+  const isInitialLoadRef = useRef(true)
 
   // Debug: Log alerts when they change
   useEffect(() => {
@@ -82,6 +83,12 @@ export default function AlertsPage() {
 
     // Update previous alerts ref
     previousAlertsRef.current = liveAlerts
+
+    // Skip triggering actions for the initial historical data load
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false
+      return
+    }
 
     // Process new alerts
     newAlerts.forEach((alert) => {
