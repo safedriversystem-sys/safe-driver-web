@@ -532,26 +532,68 @@ export default function RouteMonitoring() {
                     </div>
                   </div>
 
-                  {/* Performance Metrics Section */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-xs font-black uppercase tracking-widest text-neutral-500">
-                        <span>On-Time Performance</span>
-                        <span className={getPerformanceColor(route.onTimePerformance)}>{Math.round(route.onTimePerformance)}%</span>
+                  {/* Assigned Buses Section */}
+                  <div className="mt-2 bg-neutral-50 p-4 sm:p-6 rounded-[1.5rem] border border-neutral-100 shadow-inner">
+                    <h3 className="text-lg font-black mb-4 flex items-center gap-3">
+                      <Bus className="h-5 w-5 text-emerald-500" />
+                      Assigned Buses
+                    </h3>
+                    {route.vehicles && route.vehicles.length > 0 ? (
+                      <div className="flex flex-wrap gap-3">
+                        {route.vehicles.map((vehicleId: string, idx: number) => (
+                          <Dialog key={idx}>
+                            <DialogTrigger asChild>
+                              <button className="flex items-center gap-2 bg-white px-4 py-3 rounded-2xl border border-neutral-200 shadow-sm transition-transform hover:-translate-y-1 hover:border-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                                <Bus className="h-4 w-4 text-neutral-400" />
+                                <span className="font-black text-sm text-neutral-800">{vehicleId}</span>
+                                <Badge className="ml-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] pointer-events-none">On Route</Badge>
+                              </button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md rounded-[2rem] border-none shadow-2xl">
+                              <DialogHeader>
+                                <DialogTitle className="flex items-center gap-3 text-2xl font-black">
+                                  <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl">
+                                    <Bus className="h-6 w-6" />
+                                  </div>
+                                  Bus {vehicleId}
+                                </DialogTitle>
+                                <DialogDescription className="font-medium text-neutral-500">
+                                  Live tracking and metrics for this bus on {route.name}.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="grid grid-cols-2 gap-4 py-4">
+                                <div className="bg-blue-50 p-5 rounded-[1.5rem] border border-blue-100">
+                                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Avg Speed</p>
+                                  <p className="text-3xl font-black text-blue-700 tabular-nums">{Math.round(route.averageSpeed)} <span className="text-sm font-bold text-blue-500">km/h</span></p>
+                                </div>
+                                <div className="bg-emerald-50 p-5 rounded-[1.5rem] border border-emerald-100">
+                                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Status</p>
+                                  <p className="text-2xl font-black text-emerald-700 mt-1">Active</p>
+                                </div>
+                                <div className="col-span-2 bg-neutral-50 p-5 rounded-[1.5rem] border border-neutral-100">
+                                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">Current Location</p>
+                                  <div className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm">
+                                    <div className="p-2 bg-rose-50 text-rose-500 rounded-lg">
+                                      <MapPin className="h-5 w-5" />
+                                    </div>
+                                    <span className="font-bold text-neutral-700">En route to next stop</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="pt-2">
+                                <Button className="w-full h-12 rounded-2xl bg-neutral-900 text-white font-bold hover:bg-neutral-800">
+                                  View Full Tracking
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        ))}
                       </div>
-                      <Progress value={route.onTimePerformance} className="h-3 bg-neutral-100 rounded-full" indicatorClassName={route.onTimePerformance >= 90 ? "bg-emerald-500" : "bg-amber-500"} />
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-xs font-black uppercase tracking-widest text-neutral-500">
-                        <span>Passenger Load</span>
-                        <span className={getLoadColor(route.passengerLoad)}>{Math.round(route.passengerLoad)}%</span>
+                    ) : (
+                      <div className="text-center py-4 text-neutral-400 font-bold text-sm">
+                        No buses currently assigned.
                       </div>
-                      <Progress value={route.passengerLoad} className="h-3 bg-neutral-100 rounded-full" indicatorClassName={route.passengerLoad >= 90 ? "bg-rose-500" : "bg-emerald-500"} />
-                    </div>
-                    <div className="flex flex-col justify-end">
-                       <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Avg Speed</p>
-                       <div className="text-3xl font-black text-blue-600 leading-none tabular-nums tracking-tighter">{Math.round(route.averageSpeed)} <span className="text-sm font-bold text-neutral-400 tracking-normal">km/h</span></div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Action Buttons */}
@@ -718,7 +760,6 @@ export default function RouteMonitoring() {
                               {stop.name}
                             </span>
                             <div className="flex items-center gap-3">
-                              <span className="text-sm font-bold text-neutral-400 tabular-nums">{stop.time}</span>
                               {stop.status === "completed" && <CheckCircle className="h-5 w-5 text-emerald-500" />}
                               {stop.status === "current" && <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 2 }}><Activity className="h-5 w-5 text-blue-500" /></motion.div>}
                             </div>
