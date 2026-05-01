@@ -505,14 +505,7 @@ export default function RouteMonitoring() {
                           {t(route.status as any)}
                         </Badge>
                       </div>
-                      <CardDescription className="text-lg font-bold flex items-center gap-2 flex-wrap">
-                        <span className="text-neutral-400 font-medium">From</span>
-                        <span className="text-neutral-800 bg-neutral-100 px-3 py-1 rounded-lg">{route.startPoint}</span>
-                        <span className="text-neutral-400 font-medium">to</span>
-                        <span className="text-neutral-800 bg-neutral-100 px-3 py-1 rounded-lg">
-                          {route.endPoint}
-                        </span>
-                      </CardDescription>
+
                     </div>
                     <Button variant="outline" size="icon" className="rounded-2xl hover:bg-blue-50 hover:text-blue-600 border-neutral-200 shadow-sm h-12 w-12 shrink-0">
                       <Maximize2 className="h-6 w-6" />
@@ -675,9 +668,7 @@ export default function RouteMonitoring() {
                       <h2 className="text-4xl font-black tracking-tight text-neutral-900">{selectedRoute.name}{selectedRoute.busNumber ? ` - ${selectedRoute.busNumber}` : ""}</h2>
                       <Badge className="bg-emerald-500 text-white font-black px-4 py-1.5 uppercase tracking-widest text-[11px] rounded-full">Active</Badge>
                     </div>
-                    <p className="text-xl font-bold text-neutral-400">
-                      {selectedRoute.startPoint} <span className="mx-2 text-neutral-200">→</span> {selectedRoute.endPoint}
-                    </p>
+
                   </div>
                   <Button variant="ghost" size="icon" className="rounded-2xl h-14 w-14 hover:bg-neutral-100" onClick={() => setSelectedRoute(null)}>
                     <span className="text-2xl font-black text-neutral-400 hover:text-neutral-900">✕</span>
