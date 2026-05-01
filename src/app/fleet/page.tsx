@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
+import type { Route } from "@/lib/route-types"
 
 import {
   Bus,
@@ -67,6 +68,7 @@ export default function FleetManagement() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [routes, setRoutes] = useState<Route[]>([])
   const { toast } = useToast()
   const { t } = useLanguage()
   const [newVehicle, setNewVehicle] = useState({
@@ -78,6 +80,7 @@ export default function FleetManagement() {
     year: "",
     driverName: "",
     route: "",
+    routeId: "",
     locationDepot: "",
   })
 
@@ -132,7 +135,19 @@ export default function FleetManagement() {
 
   useEffect(() => {
     fetchVehicles()
+    fetchRoutes()
   }, [])
+
+  const fetchRoutes = async () => {
+    try {
+      const response = await fetch("/api/routes")
+      if (!response.ok) throw new Error("Failed to fetch routes")
+      const data = await response.json()
+      setRoutes(data)
+    } catch (error) {
+      console.error("Error fetching routes:", error)
+    }
+  }
 
   // Refetch when filters change
   useEffect(() => {
@@ -225,6 +240,7 @@ export default function FleetManagement() {
           year: parseInt(newVehicle.year),
           driverName: newVehicle.driverName?.trim() || undefined,
           route: newVehicle.route?.trim() || undefined,
+          routeId: newVehicle.routeId?.trim() || undefined,
           locationDepot: newVehicle.locationDepot?.trim() || undefined,
           documentId: newVehicle.documentId?.trim() || undefined,
           deviceId: newVehicle.deviceId?.trim() || undefined,
@@ -242,7 +258,7 @@ export default function FleetManagement() {
         description: t("vehicle_added"),
       })
 
-      setNewVehicle({ busNumberPlate: "", documentId: "", deviceId: "", busNumber: "", model: "", year: "", driverName: "", route: "", locationDepot: "" })
+      setNewVehicle({ busNumberPlate: "", documentId: "", deviceId: "", busNumber: "", model: "", year: "", driverName: "", route: "", routeId: "", locationDepot: "" })
       setShowAddVehicle(false)
       fetchVehicles()
     } catch (error: any) {
@@ -346,6 +362,7 @@ export default function FleetManagement() {
           year: editingVehicle.year,
           driverName: editingVehicle.driverName?.trim() || undefined,
           route: editingVehicle.route?.trim() || undefined,
+          routeId: editingVehicle.routeId?.trim() || undefined,
           locationDepot: editingVehicle.locationDepot?.trim() || undefined,
           documentId: editingVehicle.documentId?.trim() || undefined,
           deviceId: editingVehicle.deviceId?.trim() || undefined,
@@ -542,12 +559,29 @@ export default function FleetManagement() {
                       </div>
                       <div>
                         <Label htmlFor="route">{t("route_label")}</Label>
-                        <Input
-                          id="route"
-                          value={newVehicle.route}
-                          onChange={(e) => setNewVehicle({ ...newVehicle, route: e.target.value })}
-                          placeholder="e.g., Colombo - Kandy"
-                        />
+                        <Select
+                          value={newVehicle.routeId}
+                          onValueChange={(value) => {
+                            const selectedRoute = routes.find((r) => r.id === value)
+                            setNewVehicle({
+                              ...newVehicle,
+                              routeId: value,
+                              route: selectedRoute ? selectedRoute.name : "",
+                            })
+                          }}
+                        >
+                          <SelectTrigger id="route">
+                            <SelectValue placeholder="Select a route" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {routes.map((route) => (
+                              <SelectItem key={route.id} value={route.id}>
+                                {route.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label htmlFor="locationDepot">Location (Depot)</Label>
@@ -892,12 +926,29 @@ export default function FleetManagement() {
               </div>
               <div>
                 <Label htmlFor="edit-route">Route</Label>
-                <Input
-                  id="edit-route"
-                  value={editingVehicle.route || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, route: e.target.value })}
-                  placeholder="e.g., Colombo - Kandy"
-                />
+                <Select
+                  value={editingVehicle.routeId}
+                  onValueChange={(value) => {
+                    const selectedRoute = routes.find((r) => r.id === value)
+                    setEditingVehicle({
+                      ...editingVehicle,
+                      routeId: value,
+                      route: selectedRoute ? selectedRoute.name : "",
+                    })
+                  }}
+                >
+                  <SelectTrigger id="edit-route">
+                    <SelectValue placeholder="Select a route" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {routes.map((route) => (
+                      <SelectItem key={route.id} value={route.id}>
+                        {route.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="edit-locationDepot">Location (Depot)</Label>

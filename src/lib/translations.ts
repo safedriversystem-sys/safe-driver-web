@@ -4,7 +4,7 @@ export const translations = {
     "en-US": {
         // Navigation
         "dashboard": "Dashboard",
-        "drivers": "Drivers",
+        "drivers": "Driver Management",
         "fleet": "Fleet Management",
         "routes": "Route Monitoring",
         "schedules": "Schedules",
@@ -54,6 +54,7 @@ export const translations = {
         "currently_operating": "Currently operating",
         "on_time_performance": "On-Time Performance",
         "avg_across_routes": "Average across all routes",
+        "safety_incidents": "Safety Incidents",
         "this_week": "This week",
         "search_routes": "Search routes...",
         "all_routes": "All Routes",
@@ -364,7 +365,7 @@ export const translations = {
     "si-LK": {
         // Navigation
         "dashboard": "මුල් පිටුව",
-        "drivers": "රියදුරන්",
+        "drivers": "රියදුරු කළමනාකරණය",
         "fleet": "වාහන ඇණිය කළමනාකරණය",
         "routes": "ගමන් මාර්ග නිරීක්ෂණය",
         "schedules": "කාලසටහන්",
@@ -420,6 +421,7 @@ export const translations = {
         "currently_operating": "දැනට ධාවනය වන",
         "on_time_performance": "වේලාවට වැඩ කිරීම",
         "avg_across_routes": "සියලුම ගමන් මාර්ගවල සාමාන්‍යය",
+        "safety_incidents": "ආරක්ෂක සිදුවීම්",
         "this_week": "මෙම සතියේ",
         "search_routes": "ගමන් මාර්ග සොයන්න...",
         "all_routes": "සියලුම ගමන් මාර්ග",
@@ -723,7 +725,7 @@ export const translations = {
     "ta-LK": {
         // Navigation
         "dashboard": "முகப்பு",
-        "drivers": "ஓட்டுநர்கள்",
+        "drivers": "ஓட்டுநர் மேலாண்மை",
         "fleet": "வாகன மேலாண்மை",
         "routes": "வழி கண்காணிப்பு",
         "schedules": "அட்டவணைகள்",
@@ -779,6 +781,7 @@ export const translations = {
         "currently_operating": "தற்போது இயங்குகிறது",
         "on_time_performance": "சரியான நேர செயல்திறன்",
         "avg_across_routes": "அனைத்து வழிகளிலும் சராசரி",
+        "safety_incidents": "பாதுகாப்புச் சம்பவங்கள்",
         "this_week": "இந்த வாரம்",
         "search_routes": "வழிகளைத் தேடு...",
         "all_routes": "அனைத்து வழிகள்",

@@ -19,6 +19,7 @@ export interface Vehicle {
   driverId?: string
   driverName?: string
   route?: string
+  routeId?: string
   locationDepot?: string
 
   mileage: number
@@ -40,6 +41,7 @@ export interface CreateVehicleInput {
   driverId?: string
   driverName?: string
   route?: string
+  routeId?: string
   location?: VehicleLocation
   locationDepot?: string
 
@@ -58,6 +60,7 @@ export interface UpdateVehicleInput {
   driverId?: string
   driverName?: string
   route?: string
+  routeId?: string
   location?: VehicleLocation
   locationDepot?: string
 
