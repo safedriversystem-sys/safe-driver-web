@@ -12,6 +12,7 @@ const routeStopSchema = z.object({
 
 const createRouteSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  busNumber: z.string().optional(),
   startPoint: z.string().min(1, "Start point is required"),
   endPoint: z.string().min(1, "End point is required"),
   distance: z.number().min(0, "Distance must be positive"),

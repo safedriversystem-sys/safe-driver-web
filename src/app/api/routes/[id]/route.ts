@@ -13,6 +13,7 @@ const routeStopSchema = z.object({
 
 const updateRouteSchema = z.object({
   name: z.string().min(1).optional(),
+  busNumber: z.string().optional(),
   startPoint: z.string().min(1).optional(),
   endPoint: z.string().min(1).optional(),
   distance: z.number().min(0).optional(),
@@ -20,10 +21,6 @@ const updateRouteSchema = z.object({
   status: z.enum(["active", "inactive", "maintenance"]).optional(),
   activeVehicles: z.number().min(0).optional(),
   totalStops: z.number().min(0).optional(),
-  onTimePerformance: z.number().min(0).max(100).optional(),
-  averageSpeed: z.number().min(0).optional(),
-  passengerLoad: z.number().min(0).max(100).optional(),
-  safetyIncidents: z.number().min(0).optional(),
   vehicles: z.array(z.string()).optional(),
   stops: z.array(routeStopSchema).optional(),
 })

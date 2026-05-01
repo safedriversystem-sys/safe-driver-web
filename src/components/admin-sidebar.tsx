@@ -25,7 +25,7 @@ const navigation = [
   { id: "fleet", href: "/fleet", icon: Bus },
   { id: "routes", href: "/routes", icon: MapPin },
   { id: "reports", href: "/reports", icon: FileText },
-  { id: "analytics", href: "/analytics", icon: BarChart3 },
+
   { id: "compliance", href: "/compliance", icon: Shield },
   { id: "settings", href: "/settings", icon: Settings },
 ]

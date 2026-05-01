@@ -51,8 +51,6 @@ export default function RouteMonitoring() {
     inactive: 0,
     maintenance: 0,
     totalVehicles: 0,
-    averageOnTimePerformance: 0,
-    totalSafetyIncidents: 0,
   })
   const [loading, setLoading] = useState(true)
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null)
@@ -67,6 +65,7 @@ export default function RouteMonitoring() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [newRoute, setNewRoute] = useState({
     name: "",
+    busNumber: "",
     startPoint: "",
     endPoint: "",
     distance: "",
@@ -132,7 +131,9 @@ export default function RouteMonitoring() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, statusFilter])
 
-  const handleAddRoute = async () => {
+  const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
+
+  const handleSaveRoute = async () => {
     // validate
     if (!newRoute.name || !newRoute.startPoint || !newRoute.endPoint || !newRoute.distance || !newRoute.estimatedTime) {
       toast({ title: "Error", description: "Please fill all required fields", variant: "destructive" });
@@ -140,9 +141,9 @@ export default function RouteMonitoring() {
     }
     
     // validate stops
-    const validStops = newRoute.stops.filter(s => s.name && s.time);
+    const validStops = newRoute.stops.filter(s => s.name);
     if (validStops.length < 2) {
-      toast({ title: "Error", description: "At least 2 stops with name and time are required", variant: "destructive" });
+      toast({ title: "Error", description: "At least 2 stops with a name are required", variant: "destructive" });
       return;
     }
 
@@ -150,6 +151,7 @@ export default function RouteMonitoring() {
       setIsSubmitting(true);
       const payload = {
         name: newRoute.name,
+        busNumber: newRoute.busNumber,
         startPoint: newRoute.startPoint,
         endPoint: newRoute.endPoint,
         distance: Number(newRoute.distance),
@@ -157,19 +159,23 @@ export default function RouteMonitoring() {
         stops: validStops.map((s, i) => ({ ...s, order: i }))
       };
 
-      const response = await fetch("/api/routes", {
-        method: "POST",
+      const url = editingRouteId ? `/api/routes/${editingRouteId}` : "/api/routes";
+      const method = editingRouteId ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error || "Failed to create route");
+        throw new Error(err.error || `Failed to ${editingRouteId ? "update" : "create"} route`);
       }
 
-      toast({ title: "Success", description: "Route created successfully!" });
+      toast({ title: "Success", description: `Route ${editingRouteId ? "updated" : "created"} successfully!` });
       setShowAddRoute(false);
+      setEditingRouteId(null);
       setNewRoute({
         name: "",
         startPoint: "",
@@ -182,10 +188,27 @@ export default function RouteMonitoring() {
         ]
       });
       fetchRoutes();
+      if (selectedRoute && editingRouteId === selectedRoute.id) {
+         setSelectedRoute(null);
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  const handleDeleteRoute = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this route?")) return;
+    try {
+      const response = await fetch(`/api/routes/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete route");
+      toast({ title: "Success", description: "Route deleted successfully!" });
+      fetchRoutes();
+      if (selectedRoute?.id === id) setSelectedRoute(null);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   }
 
@@ -236,23 +259,42 @@ export default function RouteMonitoring() {
           <p className="text-neutral-500 text-lg">{t("route_monitoring_desc")}</p>
         </div>
         <div className="flex gap-2 bg-white p-1 rounded-xl shadow-sm border border-neutral-200">
-          <Dialog open={showAddRoute} onOpenChange={setShowAddRoute}>
+          <Dialog open={showAddRoute} onOpenChange={(open) => {
+            setShowAddRoute(open);
+            if (!open) {
+              setEditingRouteId(null);
+              setNewRoute({
+                name: "", busNumber: "", startPoint: "", endPoint: "", distance: "", estimatedTime: "",
+                stops: [{ name: "", time: "", order: 0 }, { name: "", time: "", order: 1 }]
+              });
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button className="rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white" size="sm">
+              <Button className="rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white" size="sm" onClick={() => {
+                setEditingRouteId(null);
+                setNewRoute({
+                  name: "", busNumber: "", startPoint: "", endPoint: "", distance: "", estimatedTime: "",
+                  stops: [{ name: "", time: "", order: 0 }, { name: "", time: "", order: 1 }]
+                });
+              }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Route
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add New Bus Route</DialogTitle>
-                <DialogDescription>Create a new route that will be available dynamically in the fleet management system.</DialogDescription>
+                <DialogTitle>{editingRouteId ? "Edit Bus Route" : "Add New Bus Route"}</DialogTitle>
+                <DialogDescription>{editingRouteId ? "Update route details." : "Create a new route that will be available dynamically in the fleet management system."}</DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Route Name <span className="text-red-500">*</span></Label>
                     <Input placeholder="e.g., Express Route 1" value={newRoute.name} onChange={e => setNewRoute({...newRoute, name: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Bus Number (Route No)</Label>
+                    <Input placeholder="e.g., 240" value={newRoute.busNumber} onChange={e => setNewRoute({...newRoute, busNumber: e.target.value})} />
                   </div>
                   <div className="space-y-2">
                     <Label>Start Point <span className="text-red-500">*</span></Label>
@@ -290,14 +332,6 @@ export default function RouteMonitoring() {
                             setNewRoute({...newRoute, stops: newStops});
                           }} />
                         </div>
-                        <div className="space-y-1 w-32">
-                          <Label className="text-xs">Arrival Time</Label>
-                          <Input placeholder="08:00 AM" value={stop.time} onChange={e => {
-                            const newStops = [...newRoute.stops];
-                            newStops[index].time = e.target.value;
-                            setNewRoute({...newRoute, stops: newStops});
-                          }} />
-                        </div>
                         {newRoute.stops.length > 2 && (
                           <Button variant="ghost" size="icon" className="text-red-500 hover:bg-red-50 hover:text-red-600 mb-0.5" onClick={() => {
                             const newStops = newRoute.stops.filter((_, i) => i !== index);
@@ -311,8 +345,8 @@ export default function RouteMonitoring() {
                   </div>
                 </div>
 
-                <Button onClick={handleAddRoute} className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
-                  {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</> : "Create Route"}
+                <Button onClick={handleSaveRoute} className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
+                  {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</> : (editingRouteId ? "Update Route" : "Create Route")}
                 </Button>
               </div>
             </DialogContent>
@@ -343,7 +377,7 @@ export default function RouteMonitoring() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-8"
       >
         {[
           {
@@ -361,22 +395,6 @@ export default function RouteMonitoring() {
             icon: Bus,
             color: "text-indigo-600",
             bg: "bg-indigo-50",
-          },
-          {
-            title: t("on_time_performance"),
-            value: `${stats.averageOnTimePerformance}%`,
-            context: t("avg_across_routes"),
-            icon: Clock,
-            color: "text-emerald-600",
-            bg: "bg-emerald-50",
-          },
-          {
-            title: t("safety_incidents"),
-            value: stats.totalSafetyIncidents,
-            context: t("this_week"),
-            icon: AlertTriangle,
-            color: "text-rose-600",
-            bg: "bg-rose-50",
           },
         ].map((stat, idx) => (
           <motion.div key={idx} variants={itemVariants}>
@@ -478,7 +496,7 @@ export default function RouteMonitoring() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-3 flex-wrap">
                         <CardTitle className="text-3xl font-black text-neutral-900 group-hover:text-blue-600 transition-colors tracking-tight">
-                          {route.name}
+                          {route.name}{route.busNumber ? ` - ${route.busNumber}` : ""}
                         </CardTitle>
                         <Badge
                           variant={route.status === "active" ? "success" : "secondary"}
@@ -491,7 +509,9 @@ export default function RouteMonitoring() {
                         <span className="text-neutral-400 font-medium">From</span>
                         <span className="text-neutral-800 bg-neutral-100 px-3 py-1 rounded-lg">{route.startPoint}</span>
                         <span className="text-neutral-400 font-medium">to</span>
-                        <span className="text-neutral-800 bg-neutral-100 px-3 py-1 rounded-lg">{route.endPoint}</span>
+                        <span className="text-neutral-800 bg-neutral-100 px-3 py-1 rounded-lg">
+                          {route.endPoint}
+                        </span>
                       </CardDescription>
                     </div>
                     <Button variant="outline" size="icon" className="rounded-2xl hover:bg-blue-50 hover:text-blue-600 border-neutral-200 shadow-sm h-12 w-12 shrink-0">
@@ -562,11 +582,7 @@ export default function RouteMonitoring() {
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="grid grid-cols-2 gap-4 py-4">
-                                <div className="bg-blue-50 p-5 rounded-[1.5rem] border border-blue-100">
-                                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Avg Speed</p>
-                                  <p className="text-3xl font-black text-blue-700 tabular-nums">{Math.round(route.averageSpeed)} <span className="text-sm font-bold text-blue-500">km/h</span></p>
-                                </div>
-                                <div className="bg-emerald-50 p-5 rounded-[1.5rem] border border-emerald-100">
+                                <div className="col-span-2 bg-emerald-50 p-5 rounded-[1.5rem] border border-emerald-100">
                                   <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Status</p>
                                   <p className="text-2xl font-black text-emerald-700 mt-1">Active</p>
                                 </div>
@@ -606,13 +622,26 @@ export default function RouteMonitoring() {
                       <Eye className="h-5 w-5 mr-3" />
                       {t("view_details")}
                     </Button>
-                    <Button className="rounded-2xl bg-neutral-900 h-14 px-8 hover:bg-blue-600 transition-all font-black text-sm uppercase tracking-wider text-white shadow-xl shadow-neutral-200 grow">
-                      <Navigation className="h-5 w-5 mr-3 animate-pulse" />
-                      {t("track_live")}
+
+                    <Button variant="ghost" className="rounded-2xl h-14 px-6 text-neutral-500 font-black text-sm uppercase tracking-wider hover:text-blue-600 hover:bg-blue-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingRouteId(route.id);
+                        setNewRoute({
+                          name: route.name, busNumber: route.busNumber || "", startPoint: route.startPoint, endPoint: route.endPoint,
+                          distance: route.distance.toString(), estimatedTime: route.estimatedTime.toString(),
+                          stops: route.stops && route.stops.length > 0 ? route.stops.map((s: any) => ({ ...s, time: s.time || "" })) : [{ name: "", time: "", order: 0 }, { name: "", time: "", order: 1 }]
+                        });
+                        setShowAddRoute(true);
+                      }}
+                    >
+                      Edit
                     </Button>
-                    <Button variant="ghost" className="rounded-2xl h-14 px-6 text-neutral-500 font-black text-sm uppercase tracking-wider hover:text-blue-600 hover:bg-blue-50">
-                      <Activity className="h-5 w-5 mr-3" />
-                      Analytics
+                    <Button variant="ghost" className="rounded-2xl h-14 px-6 text-rose-500 font-black text-sm uppercase tracking-wider hover:text-rose-600 hover:bg-rose-50"
+                      onClick={(e) => handleDeleteRoute(route.id, e)}
+                    >
+                      <Trash2 className="h-5 w-5 mr-3" />
+                      Delete
                     </Button>
                   </div>
                 </CardContent>
@@ -622,47 +651,7 @@ export default function RouteMonitoring() {
         </motion.div>
       )}
 
-      {/* Route Performance Analytics */}
-      <motion.div 
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="grid grid-cols-1 gap-8 mb-12"
-      >
-        <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden bg-white">
-          <CardHeader className="pb-2 pt-8 px-8">
-            <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
-                <TrendingUp className="h-6 w-6" />
-              </div>
-              <CardTitle className="text-2xl font-black tracking-tight">{t("performance_trends")}</CardTitle>
-            </div>
-            <CardDescription className="text-base font-bold text-neutral-400 ml-12">{t("performance_weekly")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 p-8">
-            {routes.length > 0 ? routes.map((route) => (
-              <div key={route.id} className="flex justify-between items-center p-4 rounded-2xl hover:bg-neutral-50 transition-colors border border-transparent hover:border-neutral-100">
-                <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${route.onTimePerformance >= 90 ? "bg-emerald-500" : "bg-rose-500"}`} />
-                  <span className="font-bold text-neutral-700">{route.name}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  {route.onTimePerformance >= 90 ? (
-                    <TrendingUp className="h-5 w-5 text-emerald-500" />
-                  ) : (
-                    <TrendingDown className="h-5 w-5 text-rose-500" />
-                  )}
-                  <span className={`text-lg font-black tabular-nums ${getPerformanceColor(route.onTimePerformance)}`}>
-                    {Math.round(route.onTimePerformance)}%
-                  </span>
-                </div>
-              </div>
-            )) : (
-              <div className="text-center py-10 text-neutral-400 font-bold italic">No data available</div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+
 
       {/* Route Details Modal */}
       <AnimatePresence>
@@ -683,7 +672,7 @@ export default function RouteMonitoring() {
                 <div className="flex justify-between items-start mb-10">
                   <div className="space-y-2">
                     <div className="flex items-center gap-4">
-                      <h2 className="text-4xl font-black tracking-tight text-neutral-900">{selectedRoute.name}</h2>
+                      <h2 className="text-4xl font-black tracking-tight text-neutral-900">{selectedRoute.name}{selectedRoute.busNumber ? ` - ${selectedRoute.busNumber}` : ""}</h2>
                       <Badge className="bg-emerald-500 text-white font-black px-4 py-1.5 uppercase tracking-widest text-[11px] rounded-full">Active</Badge>
                     </div>
                     <p className="text-xl font-bold text-neutral-400">
@@ -733,12 +722,11 @@ export default function RouteMonitoring() {
                 </div>
 
                 {/* Route Statistics Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
                     { label: t("distance_km"), value: selectedRoute.distance, color: "text-blue-600", bg: "bg-blue-50" },
                     { label: t("est_time_min"), value: selectedRoute.estimatedTime, color: "text-indigo-600", bg: "bg-indigo-50" },
                     { label: t("active_vehicles_label"), value: selectedRoute.activeVehicles, color: "text-emerald-600", bg: "bg-emerald-50" },
-                    { label: t("avg_speed"), value: Math.round(selectedRoute.averageSpeed), color: "text-orange-600", bg: "bg-orange-50" },
                   ].map((item, idx) => (
                     <div key={idx} className={`${item.bg} p-6 rounded-[1.5rem] border border-white shadow-sm text-center`}>
                       <div className={`text-4xl font-black ${item.color} mb-1 tabular-nums`}>{item.value}</div>
@@ -771,11 +759,10 @@ export default function RouteMonitoring() {
                 </div>
               </div>
               <div className="p-8 bg-neutral-50 border-t border-neutral-100 flex gap-4">
-                 <Button className="rounded-2xl bg-neutral-900 h-14 px-10 font-black text-white hover:bg-blue-600 transition-all shadow-xl shadow-neutral-200 grow uppercase tracking-wider">
-                    Track Live on Map
-                 </Button>
-                 <Button variant="outline" className="rounded-2xl border-neutral-200 h-14 px-10 font-black hover:bg-neutral-100 transition-all uppercase tracking-wider">
-                    Full Analytics
+
+                 <Button variant="outline" className="rounded-2xl border-rose-200 text-rose-500 h-14 px-10 font-black hover:bg-rose-50 hover:text-rose-600 transition-all uppercase tracking-wider" onClick={() => handleDeleteRoute(selectedRoute.id)}>
+                    <Trash2 className="h-5 w-5 mr-3 inline-block" />
+                    Delete Route
                  </Button>
               </div>
             </motion.div>

@@ -85,10 +85,6 @@ export const routeService = {
         activeVehicles: input.vehicles?.length || 0,
         totalStops: stops.length,
         status: "active",
-        onTimePerformance: 100,
-        averageSpeed: 0,
-        passengerLoad: 0,
-        safetyIncidents: 0,
         vehicles: input.vehicles || [],
         stops,
         createdAt: now,
@@ -152,18 +148,6 @@ export const routeService = {
     return routeService.updateRoute(id, { status })
   },
 
-  // Update route performance metrics
-  updatePerformanceMetrics: async (
-    id: string,
-    metrics: {
-      onTimePerformance?: number
-      averageSpeed?: number
-      passengerLoad?: number
-      safetyIncidents?: number
-    },
-  ): Promise<Route> => {
-    return routeService.updateRoute(id, metrics)
-  },
 
   // Add vehicle to route
   addVehicle: async (id: string, vehicleId: string): Promise<Route> => {
@@ -212,8 +196,6 @@ export const routeService = {
     inactive: number
     maintenance: number
     totalVehicles: number
-    averageOnTimePerformance: number
-    totalSafetyIncidents: number
   }> => {
     try {
       const routes = await routeService.getAllRoutes()
@@ -224,11 +206,6 @@ export const routeService = {
         inactive: routes.filter((r) => r.status === "inactive").length,
         maintenance: routes.filter((r) => r.status === "maintenance").length,
         totalVehicles: routes.reduce((sum, r) => sum + r.activeVehicles, 0),
-        averageOnTimePerformance:
-          routes.length > 0
-            ? Math.round(routes.reduce((sum, r) => sum + r.onTimePerformance, 0) / routes.length)
-            : 0,
-        totalSafetyIncidents: routes.reduce((sum, r) => sum + r.safetyIncidents, 0),
       }
 
       return stats

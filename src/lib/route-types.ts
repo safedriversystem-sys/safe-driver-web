@@ -14,6 +14,7 @@ export interface RouteStop {
 export interface Route {
   id: string
   name: string
+  busNumber?: string
   startPoint: string
   endPoint: string
   distance: number // in kilometers
@@ -21,10 +22,6 @@ export interface Route {
   activeVehicles: number
   totalStops: number
   status: RouteStatus
-  onTimePerformance: number // percentage
-  averageSpeed: number // km/h
-  passengerLoad: number // percentage
-  safetyIncidents: number
   vehicles: string[] // array of vehicle IDs
   stops: RouteStop[]
   createdAt?: string
@@ -33,6 +30,7 @@ export interface Route {
 
 export interface CreateRouteInput {
   name: string
+  busNumber?: string
   startPoint: string
   endPoint: string
   distance: number
@@ -43,6 +41,7 @@ export interface CreateRouteInput {
 
 export interface UpdateRouteInput {
   name?: string
+  busNumber?: string
   startPoint?: string
   endPoint?: string
   distance?: number
@@ -50,10 +49,6 @@ export interface UpdateRouteInput {
   status?: RouteStatus
   activeVehicles?: number
   totalStops?: number
-  onTimePerformance?: number
-  averageSpeed?: number
-  passengerLoad?: number
-  safetyIncidents?: number
   vehicles?: string[]
   stops?: RouteStop[]
 }
