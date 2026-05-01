@@ -627,7 +627,7 @@ export default function RouteMonitoring() {
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12"
+        className="grid grid-cols-1 gap-8 mb-12"
       >
         <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden bg-white">
           <CardHeader className="pb-2 pt-8 px-8">
@@ -655,44 +655,6 @@ export default function RouteMonitoring() {
                   <span className={`text-lg font-black tabular-nums ${getPerformanceColor(route.onTimePerformance)}`}>
                     {Math.round(route.onTimePerformance)}%
                   </span>
-                </div>
-              </div>
-            )) : (
-              <div className="text-center py-10 text-neutral-400 font-bold italic">No data available</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden bg-white">
-          <CardHeader className="pb-2 pt-8 px-8">
-            <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
-                <Users className="h-6 w-6" />
-              </div>
-              <CardTitle className="text-2xl font-black tracking-tight">{t("passenger_load")}</CardTitle>
-            </div>
-            <CardDescription className="text-base font-bold text-neutral-400 ml-12">{t("capacity_utilization")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8 p-8">
-            {routes.length > 0 ? routes.map((route) => (
-              <div key={route.id} className="space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-black text-neutral-700 uppercase tracking-tighter">{route.name}</span>
-                  <span className={`font-black tabular-nums text-lg ${getLoadColor(route.passengerLoad)}`}>
-                    {Math.round(route.passengerLoad)}%
-                  </span>
-                </div>
-                <div className="w-full bg-neutral-100 rounded-full h-4 p-1 shadow-inner">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${route.passengerLoad}%` }}
-                    className={`h-full rounded-full shadow-sm ${route.passengerLoad >= 90
-                      ? "bg-gradient-to-r from-rose-500 to-rose-400"
-                      : route.passengerLoad >= 70
-                        ? "bg-gradient-to-r from-amber-500 to-amber-400"
-                        : "bg-gradient-to-r from-emerald-500 to-emerald-400"
-                      }`}
-                  ></motion.div>
                 </div>
               </div>
             )) : (
