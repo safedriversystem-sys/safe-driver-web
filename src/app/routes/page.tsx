@@ -37,6 +37,7 @@ import {
   Trash2,
 } from "lucide-react"
 import type { Route, RouteStop, HazardZone } from "@/lib/route-types"
+import type { Vehicle } from "@/lib/fleet-types"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/components/language-provider"
 import { motion, AnimatePresence } from "framer-motion"
@@ -45,6 +46,7 @@ import { Progress } from "@/components/ui/progress"
 
 export default function RouteMonitoring() {
   const [routes, setRoutes] = useState<Route[]>([])
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -60,6 +62,7 @@ export default function RouteMonitoring() {
   const { t } = useLanguage()
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid")
   const [focusedHazard, setFocusedHazard] = useState<HazardZone | null>(null)
+  const [modalMapMode, setModalMapMode] = useState<"2d" | "3d">("2d")
   
   // Add Route state
   const [showAddRoute, setShowAddRoute] = useState(false)
@@ -118,9 +121,22 @@ export default function RouteMonitoring() {
     }
   }
 
+  // Fetch vehicles
+  const fetchVehicles = async () => {
+    try {
+      const response = await fetch("/api/fleet")
+      if (!response.ok) throw new Error("Failed to fetch vehicles")
+      const data = await response.json()
+      setVehicles(data)
+    } catch (error) {
+      console.error("Error fetching vehicles:", error)
+    }
+  }
+
   useEffect(() => {
     fetchRoutes()
     fetchStats()
+    fetchVehicles()
   }, [])
 
   // Refetch when filters change
@@ -162,7 +178,8 @@ export default function RouteMonitoring() {
         hazardZones: ((newRoute as any).hazardZones || []).map((hz: any) => ({
           ...hz,
           latitude: Number(hz.latitude),
-          longitude: Number(hz.longitude)
+          longitude: Number(hz.longitude),
+          radius: Number(hz.radius || 200)
         }))
       };
 
@@ -371,7 +388,7 @@ export default function RouteMonitoring() {
                       className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                       onClick={() => setNewRoute({
                         ...newRoute, 
-                        hazardZones: [...(newRoute as any).hazardZones, { name: "", location: "", latitude: 0, longitude: 0 }]
+                        hazardZones: [...(newRoute as any).hazardZones, { name: "", location: "", latitude: 0, longitude: 0, type: "school", radius: 200 }]
                       })}
                     >
                       <Plus className="h-4 w-4 mr-2" /> Add Hazard
@@ -447,6 +464,39 @@ export default function RouteMonitoring() {
                                 onChange={e => {
                                   const newHZs = [...(newRoute as any).hazardZones];
                                   newHZs[index].longitude = e.target.value;
+                                  setNewRoute({...newRoute, hazardZones: newHZs});
+                                }} 
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] uppercase font-bold text-neutral-400">Type</Label>
+                              <Select value={hz.type} onValueChange={val => {
+                                  const newHZs = [...(newRoute as any).hazardZones];
+                                  newHZs[index].type = val;
+                                  setNewRoute({...newRoute, hazardZones: newHZs});
+                              }}>
+                                <SelectTrigger className="h-9 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="school">School Zone</SelectItem>
+                                  <SelectItem value="accident">Accident Zone</SelectItem>
+                                  <SelectItem value="speed">Speed Zone</SelectItem>
+                                  <SelectItem value="restricted">Restricted</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] uppercase font-bold text-neutral-400">Radius (meters)</Label>
+                              <Input 
+                                type="number" 
+                                placeholder="200" 
+                                value={hz.radius} 
+                                className="h-9 text-sm"
+                                onChange={e => {
+                                  const newHZs = [...(newRoute as any).hazardZones];
+                                  newHZs[index].radius = e.target.value;
                                   setNewRoute({...newRoute, hazardZones: newHZs});
                                 }} 
                               />
@@ -537,9 +587,9 @@ export default function RouteMonitoring() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="mb-8 h-[600px] relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white ring-1 ring-neutral-200"
+            className="mb-8 h-[600px] relative rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white ring-1 ring-neutral-200"
           >
-            <ThreeDMap />
+            <ThreeDMap routes={routes} vehicles={vehicles} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -813,20 +863,43 @@ export default function RouteMonitoring() {
 
                 {/* Embedded Route Map */}
                 <div className="w-full h-[500px] rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100 mt-6 relative shadow-inner">
-                  {/* Google Maps iFrame */}
-                  <iframe 
-                    width="100%" 
-                    height="100%" 
-                    style={{ border: 0 }}
-                    loading="lazy"
-                    allowFullScreen 
-                    key={focusedHazard ? focusedHazard.name : "full-route"}
-                    referrerPolicy="no-referrer-when-downgrade"
-                    src={focusedHazard 
-                      ? `https://maps.google.com/maps?q=${focusedHazard.latitude},${focusedHazard.longitude}&z=17&output=embed`
-                      : `https://maps.google.com/maps?saddr=${encodeURIComponent(selectedRoute.startPoint)}&daddr=${encodeURIComponent(selectedRoute.endPoint)}&output=embed`
-                    }
-                  ></iframe>
+                  <div className="absolute top-4 right-4 z-10 flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant={modalMapMode === "2d" ? "default" : "secondary"}
+                      className="rounded-xl font-bold"
+                      onClick={() => setModalMapMode("2d")}
+                    >
+                      2D View
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant={modalMapMode === "3d" ? "default" : "secondary"}
+                      className="rounded-xl font-bold"
+                      onClick={() => setModalMapMode("3d")}
+                    >
+                      3D View
+                    </Button>
+                  </div>
+
+                  {modalMapMode === "2d" ? (
+                    /* Google Maps iFrame */
+                    <iframe 
+                      width="100%" 
+                      height="100%" 
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen 
+                      key={focusedHazard ? focusedHazard.name : "full-route"}
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={focusedHazard 
+                        ? `https://maps.google.com/maps?q=${focusedHazard.latitude},${focusedHazard.longitude}&z=17&output=embed`
+                        : `https://maps.google.com/maps?saddr=${encodeURIComponent(selectedRoute.startPoint)}&daddr=${encodeURIComponent(selectedRoute.endPoint)}&output=embed`
+                      }
+                    ></iframe>
+                  ) : (
+                    <ThreeDMap routes={[selectedRoute]} vehicles={vehicles.filter(v => v.routeId === selectedRoute.id)} />
+                  )}
                 </div>
 
                 {/* Hazard Zones Table */}

@@ -11,12 +11,16 @@ export interface RouteStop {
   order: number
 }
 
+export type HazardType = "school" | "accident" | "restricted" | "speed" | "other"
+
 export interface HazardZone {
   id?: string
   name: string
   location: string
   latitude: number
   longitude: number
+  type: HazardType
+  radius: number // in meters
 }
 
 export interface Route {
