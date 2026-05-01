@@ -10,6 +10,14 @@ const routeStopSchema = z.object({
   longitude: z.number().optional(),
 })
 
+const hazardZoneSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  location: z.string().min(1),
+  latitude: z.number(),
+  longitude: z.number(),
+})
+
 const createRouteSchema = z.object({
   name: z.string().min(1, "Name is required"),
   busNumber: z.string().optional(),
@@ -19,6 +27,7 @@ const createRouteSchema = z.object({
   estimatedTime: z.number().min(0, "Estimated time must be positive"),
   stops: z.array(routeStopSchema).min(2, "At least 2 stops are required"),
   vehicles: z.array(z.string()).optional(),
+  hazardZones: z.array(hazardZoneSchema).optional(),
 })
 
 // GET /api/routes - Get all routes with optional filters

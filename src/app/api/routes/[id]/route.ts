@@ -11,6 +11,14 @@ const routeStopSchema = z.object({
   longitude: z.number().optional(),
 })
 
+const hazardZoneSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  location: z.string().min(1),
+  latitude: z.number(),
+  longitude: z.number(),
+})
+
 const updateRouteSchema = z.object({
   name: z.string().min(1).optional(),
   busNumber: z.string().optional(),
@@ -23,6 +31,7 @@ const updateRouteSchema = z.object({
   totalStops: z.number().min(0).optional(),
   vehicles: z.array(z.string()).optional(),
   stops: z.array(routeStopSchema).optional(),
+  hazardZones: z.array(hazardZoneSchema).optional(),
 })
 
 // GET /api/routes/[id] - Get a single route

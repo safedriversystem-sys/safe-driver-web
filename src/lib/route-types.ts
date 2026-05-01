@@ -11,6 +11,14 @@ export interface RouteStop {
   order: number
 }
 
+export interface HazardZone {
+  id?: string
+  name: string
+  location: string
+  latitude: number
+  longitude: number
+}
+
 export interface Route {
   id: string
   name: string
@@ -24,6 +32,7 @@ export interface Route {
   status: RouteStatus
   vehicles: string[] // array of vehicle IDs
   stops: RouteStop[]
+  hazardZones?: HazardZone[]
   createdAt?: string
   updatedAt?: string
 }
@@ -37,6 +46,7 @@ export interface CreateRouteInput {
   estimatedTime: number
   stops: Omit<RouteStop, "status">[]
   vehicles?: string[]
+  hazardZones?: HazardZone[]
 }
 
 export interface UpdateRouteInput {
@@ -51,6 +61,7 @@ export interface UpdateRouteInput {
   totalStops?: number
   vehicles?: string[]
   stops?: RouteStop[]
+  hazardZones?: HazardZone[]
 }
 
 export interface RouteFilters {

@@ -78,6 +78,7 @@ export const routeService = {
       const route: Route = {
         id,
         name: input.name,
+        busNumber: input.busNumber,
         startPoint: input.startPoint,
         endPoint: input.endPoint,
         distance: input.distance,
@@ -87,6 +88,7 @@ export const routeService = {
         status: "active",
         vehicles: input.vehicles || [],
         stops,
+        hazardZones: input.hazardZones || [],
         createdAt: now,
         updatedAt: now,
       }
