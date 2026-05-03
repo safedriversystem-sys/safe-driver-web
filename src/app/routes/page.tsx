@@ -43,6 +43,7 @@ import { useLanguage } from "@/components/language-provider"
 import { motion, AnimatePresence } from "framer-motion"
 import { ThreeDMap } from "@/components/3d-map"
 import { Progress } from "@/components/ui/progress"
+import { TransitSearchPanel } from "@/components/transit-search-panel"
 
 export default function RouteMonitoring() {
   const [routes, setRoutes] = useState<Route[]>([])
@@ -60,7 +61,7 @@ export default function RouteMonitoring() {
   const [statusFilter, setStatusFilter] = useState("all")
   const { toast } = useToast()
   const { t } = useLanguage()
-  const [viewMode, setViewMode] = useState<"grid" | "map">("grid")
+  const [viewMode, setViewMode] = useState<"grid" | "map" | "transit">("grid")
   const [focusedHazard, setFocusedHazard] = useState<HazardZone | null>(null)
   const [modalMapMode, setModalMapMode] = useState<"2d" | "3d">("2d")
   
@@ -80,6 +81,64 @@ export default function RouteMonitoring() {
     ],
     hazardZones: [] as HazardZone[]
   })
+  const [isGathering, setIsGathering] = useState(false)
+
+  const handleAutoGather = async () => {
+    if (!newRoute.startPoint || !newRoute.endPoint) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both Start and End points to auto-gather route data.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsGathering(true)
+      const response = await fetch("/api/maps/transit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin: newRoute.startPoint,
+          destination: newRoute.endPoint,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to fetch route data")
+      
+      const data = await response.json()
+      
+      setNewRoute({
+        ...newRoute,
+        busNumber: data.busLine || newRoute.busNumber,
+        distance: data.distance.toFixed(1),
+        estimatedTime: data.duration.toString(),
+        stops: data.stops.map((stop: any) => ({
+          name: stop.name,
+          time: "", // We don't get specific arrival times per stop easily from directions API without more complex parsing
+          order: stop.order,
+          latitude: stop.lat,
+          longitude: stop.lng,
+          type: stop.type,
+          details: stop.details
+        })),
+      })
+
+      toast({
+        title: "Data Gathered",
+        description: `Successfully detected bus route ${data.busLine ? `(${data.busLine})` : ""}: ${data.distance.toFixed(1)}km, ~${data.duration} mins.`,
+      })
+    } catch (error) {
+      console.error("Error gathering route data:", error)
+      toast({
+        title: "Gathering Failed",
+        description: "Could not auto-detect route. Please fill details manually.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGathering(false)
+    }
+  }
 
   // Fetch routes
   const fetchRoutes = async () => {
@@ -288,11 +347,11 @@ export default function RouteMonitoring() {
             setShowAddRoute(open);
             if (!open) {
               setEditingRouteId(null);
-              setNewRoute({
-                name: "", busNumber: "", startPoint: "", endPoint: "", distance: "", estimatedTime: "",
-                stops: [{ name: "", time: "", order: 0 }, { name: "", time: "", order: 1 }],
-                hazardZones: [] as HazardZone[]
-              });
+                setNewRoute({
+                  name: "", busNumber: "", startPoint: "", endPoint: "", distance: "", estimatedTime: "",
+                  stops: [],
+                  hazardZones: [] as HazardZone[]
+                });
             }
           }}>
             <DialogTrigger asChild>
@@ -331,46 +390,75 @@ export default function RouteMonitoring() {
                     <Label>End Point <span className="text-red-500">*</span></Label>
                     <Input placeholder="e.g., North Terminal" value={newRoute.endPoint} onChange={e => setNewRoute({...newRoute, endPoint: e.target.value})} />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Distance (km) <span className="text-red-500">*</span></Label>
-                    <Input type="number" placeholder="e.g., 25.5" value={newRoute.distance} onChange={e => setNewRoute({...newRoute, distance: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Estimated Time (mins) <span className="text-red-500">*</span></Label>
-                    <Input type="number" placeholder="e.g., 45" value={newRoute.estimatedTime} onChange={e => setNewRoute({...newRoute, estimatedTime: e.target.value})} />
+                  
+                  <div className="col-span-2 space-y-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full bg-blue-600 text-white hover:bg-blue-700 font-bold h-14 rounded-2xl shadow-lg border-none"
+                      onClick={handleAutoGather}
+                      disabled={isGathering}
+                    >
+                      {isGathering ? (
+                        <><Loader2 className="h-5 w-5 mr-3 animate-spin" /> Fetching Bus Route...</>
+                      ) : (
+                        <><Bus className="h-5 w-5 mr-3" /> Auto-Gather Bus Route Details</>
+                      )}
+                    </Button>
+
+                    <AnimatePresence>
+                      {newRoute.distance && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="bg-emerald-50 border border-emerald-100 p-6 rounded-3xl space-y-4"
+                        >
+                          <div className="flex items-center justify-between">
+                            <Badge className="bg-emerald-500 text-white border-none px-3 py-1 text-[10px] uppercase font-black tracking-widest">
+                              Bus Route Verified
+                            </Badge>
+                            <span className="text-[10px] font-bold text-emerald-600 uppercase">Google Maps Data</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
+                              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Distance</p>
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 text-emerald-500" />
+                                <span className="text-xl font-black text-neutral-900">{newRoute.distance} km</span>
+                              </div>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
+                              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Travel Time</p>
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-emerald-500" />
+                                <span className="text-xl font-black text-neutral-900">{newRoute.estimatedTime} mins</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Detected Bus Stops ({newRoute.stops.length})</p>
+                            <div className="flex flex-col gap-2">
+                              {newRoute.stops.map((stop: any, i: number) => (
+                                <div key={i} className="flex items-start gap-3 bg-white border border-emerald-50 p-3 rounded-xl shadow-sm">
+                                  <div className={`p-1.5 rounded-full mt-0.5 flex-shrink-0 ${stop.type === 'departure' || stop.type === 'arrival' ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-600'}`}>
+                                    {stop.type === 'intermediate' ? <Bus className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-sm text-neutral-800">{stop.name}</p>
+                                    {stop.details && <p className="text-xs text-neutral-500">{stop.details}</p>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-base font-bold">Route Stops</Label>
-                    <Button variant="outline" size="sm" onClick={() => setNewRoute({...newRoute, stops: [...newRoute.stops, { name: "", time: "", order: newRoute.stops.length }]})}>
-                      <Plus className="h-4 w-4 mr-2" /> Add Stop
-                    </Button>
-                  </div>
-                  <div className="space-y-3 bg-neutral-50 p-4 rounded-xl border border-neutral-100">
-                    {newRoute.stops.map((stop, index) => (
-                      <div key={index} className="flex gap-3 items-end">
-                        <div className="space-y-1 flex-1">
-                          <Label className="text-xs">Stop Name</Label>
-                          <Input placeholder="e.g., Main Street" value={stop.name} onChange={e => {
-                            const newStops = [...newRoute.stops];
-                            newStops[index].name = e.target.value;
-                            setNewRoute({...newRoute, stops: newStops});
-                          }} />
-                        </div>
-                        {newRoute.stops.length > 2 && (
-                          <Button variant="ghost" size="icon" className="text-red-500 hover:bg-red-50 hover:text-red-600 mb-0.5" onClick={() => {
-                            const newStops = newRoute.stops.filter((_, i) => i !== index);
-                            setNewRoute({...newRoute, stops: newStops});
-                          }}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
                 {/* Hazard Zones Section */}
                 <div className="space-y-4 pt-4 border-t border-neutral-100">
@@ -515,6 +603,15 @@ export default function RouteMonitoring() {
             </DialogContent>
           </Dialog>
           <Button
+            variant={viewMode === "transit" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("transit")}
+            className="rounded-lg font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100"
+          >
+            <MapPin className="h-4 w-4 mr-2" />
+            Google Transit Routing
+          </Button>
+          <Button
             variant={viewMode === "grid" ? "default" : "ghost"}
             size="sm"
             onClick={() => setViewMode("grid")}
@@ -534,6 +631,12 @@ export default function RouteMonitoring() {
           </Button>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+         {viewMode === "transit" && (
+            <TransitSearchPanel onClose={() => setViewMode("grid")} />
+         )}
+      </AnimatePresence>
 
       {/* Route Statistics */}
       <motion.div
