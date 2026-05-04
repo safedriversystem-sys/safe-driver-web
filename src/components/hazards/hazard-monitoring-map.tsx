@@ -360,28 +360,6 @@ export function HazardMonitoringMap() {
           </CardContent>
         </Card>
 
-        <Card className="bg-neutral-900 text-white shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-sm font-black flex items-center gap-2 text-primary-400">
-              <Navigation className="h-4 w-4" /> AUTO-ASSOCIATION
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-xs text-neutral-400 leading-relaxed">
-              SafeDriver AI monitors all marked hazards. When a new hazard is saved, the system performs a proximity check against 
-              <span className="text-white font-bold"> {routes.length} active routes</span>.
-            </p>
-            <div className="p-3 rounded-lg bg-neutral-800 border border-neutral-700 space-y-2">
-              <div className="flex justify-between items-center text-[10px] uppercase font-bold text-neutral-500">
-                <span>Algorithm</span>
-                <span className="text-green-500">Active</span>
-              </div>
-              <p className="text-[11px] font-medium italic text-neutral-300">
-                "Haversine Spherical Distance"
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Full-width Active Zones Row */}
