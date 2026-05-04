@@ -41,8 +41,36 @@ export function TransitSearchPanel({ onClose, onSelect, initialOrigin = "Matara"
   const [routes, setRoutes] = useState<TransitRouteResult[]>([])
   const [selectedRoute, setSelectedRoute] = useState<TransitRouteResult | null>(null)
   
-  const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null)
+   const [directionsResponse, setDirectionsResponse] = useState<google.maps.DirectionsResult | null>(null)
   const [map, setMap] = useState<google.maps.Map | null>(null)
+
+  // Polyline decoder helper
+  const decodePolyline = (encoded: string) => {
+    if (!encoded) return [];
+    let points = [];
+    let index = 0, len = encoded.length;
+    let lat = 0, lng = 0;
+    while (index < len) {
+      let b, shift = 0, result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+      shift = 0; result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+      points.push({ lat: lat / 1E5, lng: lng / 1E5 });
+    }
+    return points;
+  }
 
   const { toast } = useToast()
 
@@ -102,22 +130,23 @@ export function TransitSearchPanel({ onClose, onSelect, initialOrigin = "Matara"
         travelMode: window.google.maps.TravelMode.TRANSIT,
         transitOptions: {
             modes: [window.google.maps.TransitMode.BUS]
-        },
-        provideRouteAlternatives: true
+        }
       }, (result, status) => {
         if (status === window.google.maps.DirectionsStatus.OK && result) {
-            let routeIndex = 0;
-            if (routeToRender && routeToRender.duration) {
-                const matchIndex = result.routes.findIndex(r => {
-                    const dur = r.legs[0]?.duration?.value;
-                    return dur && Math.abs(dur/60 - routeToRender.duration) < 10;
-                });
-                if (matchIndex !== -1) routeIndex = matchIndex;
-            }
-            
-            setDirectionsResponse({ ...result, routes: [result.routes[routeIndex] || result.routes[0]] });
+            setDirectionsResponse(result);
         } else {
-            console.error("Directions query failed", status);
+            console.warn("Transit directions failed, trying driving mode for map display...");
+            directionsService.route({
+                origin: origin,
+                destination: destination,
+                travelMode: window.google.maps.TravelMode.DRIVING,
+            }, (drivingResult, drivingStatus) => {
+                if (drivingStatus === window.google.maps.DirectionsStatus.OK && drivingResult) {
+                    setDirectionsResponse(drivingResult);
+                } else {
+                    console.error("All map directions failed", drivingStatus);
+                }
+            });
         }
       });
   }
@@ -398,7 +427,9 @@ export function TransitSearchPanel({ onClose, onSelect, initialOrigin = "Matara"
               {/* Fallback route line if directions fail */}
               {!directionsResponse && selectedRoute && (
                 <Polyline
-                  path={selectedRoute.stops.map(stop => ({ lat: stop.lat, lng: stop.lng }))}
+                  path={selectedRoute.polyline 
+                    ? decodePolyline(selectedRoute.polyline)
+                    : selectedRoute.stops.map(stop => ({ lat: stop.lat, lng: stop.lng }))}
                   options={{
                     strokeColor: "#4285F4",
                     strokeOpacity: 0.6,

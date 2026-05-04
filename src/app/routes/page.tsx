@@ -58,6 +58,36 @@ import { TransitSearchPanel } from "@/components/transit-search-panel"
 export default function RouteMonitoring() {
   const [routes, setRoutes] = useState<Route[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [isGatheringComplete, setIsGatheringComplete] = useState(false)
+
+  // Polyline decoder helper
+  const decodePolyline = (encoded: string) => {
+    if (!encoded) return [];
+    let points = [];
+    let index = 0, len = encoded.length;
+    let lat = 0, lng = 0;
+    while (index < len) {
+      let b, shift = 0, result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+      shift = 0; result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+      points.push({ lat: lat / 1E5, lng: lng / 1E5 });
+    }
+    return points;
+  }
+
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -119,23 +149,25 @@ export default function RouteMonitoring() {
       
       setNewRoute({
         ...newRoute,
-        busNumber: data.busLine || newRoute.busNumber,
-        distance: data.distance.toFixed(1),
-        estimatedTime: data.duration.toString(),
-        stops: data.stops.map((stop: any) => ({
+        busNumber: newRoute.busNumber || data.busLine || "",
+        distance: data.distance > 0 ? data.distance.toFixed(1) : newRoute.distance,
+        estimatedTime: data.duration > 0 ? data.duration.toString() : newRoute.estimatedTime,
+        polyline: data.polyline || newRoute.polyline,
+        stops: data.stops.length > 0 ? data.stops.map((stop: any) => ({
           name: stop.name,
-          time: "", // We don't get specific arrival times per stop easily from directions API without more complex parsing
+          time: "", 
           order: stop.order,
           latitude: stop.lat,
           longitude: stop.lng,
           type: stop.type,
           details: stop.details
-        })),
+        })) : newRoute.stops,
       })
 
+      setIsGatheringComplete(true)
       toast({
         title: "Data Gathered",
-        description: `Successfully detected bus route ${data.busLine ? `(${data.busLine})` : ""}: ${data.distance.toFixed(1)}km, ~${data.duration} mins.`,
+        description: `Successfully detected route ${data.distance > 0 ? `(${data.distance.toFixed(1)}km)` : "(Manual entry required)"}`,
       })
     } catch (error) {
       console.error("Error gathering route data:", error)
@@ -243,7 +275,7 @@ export default function RouteMonitoring() {
         distance: Number(newRoute.distance),
         estimatedTime: Number(newRoute.estimatedTime),
         stops: validStops.map((s, i) => ({ ...s, order: i })),
-        stops: validStops.map((s, i) => ({ ...s, order: i }))
+        polyline: newRoute.polyline
       };
 
       const url = editingRouteId ? `/api/routes/${editingRouteId}` : "/api/routes";
@@ -265,6 +297,7 @@ export default function RouteMonitoring() {
       setEditingRouteId(null);
       setNewRoute({
         name: "",
+        busNumber: "",
         startPoint: "",
         endPoint: "",
         distance: "",
@@ -414,7 +447,7 @@ export default function RouteMonitoring() {
                     </Button>
 
                     <AnimatePresence>
-                      {newRoute.distance && (
+                      {isGatheringComplete && (
                         <motion.div 
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
@@ -427,22 +460,29 @@ export default function RouteMonitoring() {
                             <span className="text-[10px] font-bold text-emerald-600 uppercase">Google Maps Data</span>
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
-                              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Distance</p>
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-emerald-500" />
-                                <span className="text-xl font-black text-neutral-900">{newRoute.distance} km</span>
-                              </div>
-                            </div>
-                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
-                              <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Travel Time</p>
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-emerald-500" />
-                                <span className="text-xl font-black text-neutral-900">{newRoute.estimatedTime} mins</span>
-                              </div>
-                            </div>
-                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
+                               <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Route No</p>
+                               <div className="flex items-center gap-2">
+                                 <Bus className="h-4 w-4 text-emerald-500" />
+                                 <span className="text-xl font-black text-neutral-900">{newRoute.busNumber || "N/A"}</span>
+                               </div>
+                             </div>
+                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
+                               <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Distance</p>
+                               <div className="flex items-center gap-2">
+                                 <MapPin className="h-4 w-4 text-emerald-500" />
+                                 <span className="text-xl font-black text-neutral-900">{newRoute.distance} km</span>
+                               </div>
+                             </div>
+                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
+                               <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Travel Time</p>
+                               <div className="flex items-center gap-2">
+                                 <Clock className="h-4 w-4 text-emerald-500" />
+                                 <span className="text-xl font-black text-neutral-900">{newRoute.estimatedTime} mins</span>
+                               </div>
+                             </div>
+                           </div>
 
                           <div className="space-y-3">
                             <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Detected Bus Stops ({newRoute.stops.length})</p>

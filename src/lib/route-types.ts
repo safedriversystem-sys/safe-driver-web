@@ -38,6 +38,7 @@ export interface Route {
   vehicles: string[] // array of vehicle IDs
   stops: RouteStop[]
   hazardZones?: HazardZone[]
+  polyline?: string
   createdAt?: string
   updatedAt?: string
 }
