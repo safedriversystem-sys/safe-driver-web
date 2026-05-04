@@ -12,7 +12,7 @@ export default function HazardsPage() {
     <div className="flex flex-col h-full bg-neutral-50/50 min-h-screen">
       <AdminHeader />
       
-      <main className="flex-1 p-6 md:p-8 pt-24 ml-64">
+      <div className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="space-y-2">
@@ -30,11 +30,11 @@ export default function HazardsPage() {
               </p>
             </div>
             
-            <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border">
-              <div className="flex flex-col items-end px-3">
-                <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest leading-none mb-1">Status</span>
-                <span className="text-sm font-bold text-green-600 flex items-center gap-1">
-                  <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
+            <div className="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm border shrink-0">
+              <div className="flex flex-col items-end px-1">
+                <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest leading-none mb-1.5">Status</span>
+                <span className="text-sm font-bold text-green-600 flex items-center gap-2 whitespace-nowrap">
+                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
                   LIVE MONITORING
                 </span>
               </div>
@@ -82,7 +82,7 @@ export default function HazardsPage() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }

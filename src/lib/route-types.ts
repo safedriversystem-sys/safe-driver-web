@@ -20,6 +20,7 @@ export interface HazardZone {
   latitude: number
   longitude: number
   type: HazardType
+  customType?: string
   radius: number // in meters
 }
 

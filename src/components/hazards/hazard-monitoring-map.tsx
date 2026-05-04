@@ -43,6 +43,7 @@ export function HazardMonitoringMap() {
     type: "other" as HazardType,
     radius: 500,
     location: "",
+    customType: "",
   })
 
   const { toast } = useToast()
@@ -77,6 +78,7 @@ export function HazardMonitoringMap() {
         type: "other",
         radius: 500,
         location: "Detected Location",
+        customType: "",
       })
     }
   }, [])
@@ -93,6 +95,7 @@ export function HazardMonitoringMap() {
         latitude: newHazardPos.lat,
         longitude: newHazardPos.lng,
         location: hazardDetails.location,
+        customType: hazardDetails.type === "other" ? hazardDetails.customType : undefined,
       })
       toast({ title: "Success", description: "Hazard zone saved and associated with routes." })
       setNewHazardPos(null)
@@ -258,36 +261,7 @@ export function HazardMonitoringMap() {
                   </ul>
                 </div>
                 
-                <div className="space-y-3 mt-6">
-                  <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Active Zones ({hazards.length})</h4>
-                  <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2">
-                    {hazards.map((h) => (
-                      <div 
-                        key={h.id} 
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border hover:bg-muted transition-colors cursor-pointer"
-                        onClick={() => {
-                          setSelectedHazard(h)
-                          if (map) map.panTo({ lat: h.latitude, lng: h.longitude })
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`p-1.5 rounded-full ${h.type === 'accident' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
-                            <AlertTriangle className="h-3.5 w-3.5" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold truncate max-w-[120px]">{h.name}</p>
-                            <p className="text-[10px] text-muted-foreground capitalize">{h.type}</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="text-[10px]">{h.radius}m</Badge>
-                      </div>
-                    ))}
-                    {hazards.length === 0 && (
-                      <p className="text-xs text-center text-muted-foreground py-8">No hazard zones defined yet.</p>
-                    )}
-                  </div>
                 </div>
-              </div>
             ) : (
               <div className="space-y-4 animate-in slide-in-from-right-4">
                 <div className="space-y-2">
@@ -318,6 +292,21 @@ export function HazardMonitoringMap() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {hazardDetails.type === "other" && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <label className="text-xs font-bold text-rose-500 uppercase flex items-center gap-2">
+                      <AlertTriangle className="h-3 w-3" />
+                      Specify Other Danger
+                    </label>
+                    <Input
+                      value={hazardDetails.customType}
+                      onChange={(e) => setHazardDetails({ ...hazardDetails, customType: e.target.value })}
+                      placeholder="e.g. Construction, Flooding, etc."
+                      className="h-9 border-rose-100 focus:border-rose-300 focus:ring-rose-200"
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-muted-foreground uppercase">Radius (meters)</label>
@@ -390,6 +379,66 @@ export function HazardMonitoringMap() {
               <p className="text-[11px] font-medium italic text-neutral-300">
                 "Haversine Spherical Distance"
               </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Full-width Active Zones Row */}
+      <div className="lg:col-span-4 mt-2">
+        <Card className="border-none shadow-sm bg-white overflow-hidden rounded-[2rem]">
+          <CardHeader className="px-8 pt-8 pb-4">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-xl font-black text-neutral-900 tracking-tight flex items-center gap-3">
+                <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                Active Safety Zones ({hazards.length})
+              </CardTitle>
+              <Badge variant="outline" className="rounded-full px-4 py-1.5 font-bold border-neutral-200">
+                Network Status: Operational
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="px-8 pb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {hazards.map((h) => (
+                <div 
+                  key={h.id} 
+                  className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50/50 border border-neutral-100 hover:bg-neutral-50 hover:border-amber-200 hover:shadow-md transition-all cursor-pointer group"
+                  onClick={() => {
+                    setSelectedHazard(h)
+                    if (map) map.panTo({ lat: h.latitude, lng: h.longitude })
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-xl shadow-sm transition-transform group-hover:scale-110 ${h.type === 'accident' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600'}`}>
+                      <AlertTriangle className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-neutral-800">{h.name}</p>
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-0.5">
+                        {h.type === "other" && h.customType ? h.customType : h.type}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <Badge variant="secondary" className="bg-white border-neutral-200 text-[10px] font-black rounded-lg">
+                      {h.radius}m
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+              {hazards.length === 0 && (
+                <div className="col-span-full py-12 text-center bg-neutral-50 rounded-[2rem] border border-dashed border-neutral-200">
+                  <div className="p-4 bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <MapPin className="h-8 w-8 text-neutral-200" />
+                  </div>
+                  <p className="text-neutral-400 font-bold">No safety zones have been marked yet.</p>
+                  <p className="text-xs text-neutral-300 mt-1">Click on the map above to start marking hazards.</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
