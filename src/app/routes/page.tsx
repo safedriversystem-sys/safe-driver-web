@@ -14,6 +14,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import {
   MapPin,
@@ -80,6 +90,7 @@ export default function RouteMonitoring() {
   })
   const [isGathering, setIsGathering] = useState(false)
   const [showTransitSearch, setShowTransitSearch] = useState(false)
+  const [routeToDelete, setRouteToDelete] = useState<string | null>(null)
 
   const handleAutoGather = async () => {
     if (!newRoute.startPoint || !newRoute.endPoint) {
@@ -276,15 +287,21 @@ export default function RouteMonitoring() {
 
   const handleDeleteRoute = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this route?")) return;
+    setRouteToDelete(id);
+  }
+
+  const confirmDelete = async () => {
+    if (!routeToDelete) return;
     try {
-      const response = await fetch(`/api/routes/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/routes/${routeToDelete}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete route");
       toast({ title: "Success", description: "Route deleted successfully!" });
       fetchRoutes();
-      if (selectedRoute?.id === id) setSelectedRoute(null);
+      if (selectedRoute?.id === routeToDelete) setSelectedRoute(null);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setRouteToDelete(null);
     }
   }
 
@@ -382,29 +399,19 @@ export default function RouteMonitoring() {
                   </div>
                   
                   <div className="col-span-2 space-y-4">
-                    <div className="flex gap-3">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="flex-1 bg-blue-600 text-white hover:bg-blue-700 font-bold h-14 rounded-2xl shadow-lg border-none"
-                        onClick={handleAutoGather}
-                        disabled={isGathering}
-                      >
-                        {isGathering ? (
-                          <><Loader2 className="h-5 w-5 mr-3 animate-spin" /> Fetching...</>
-                        ) : (
-                          <><Bus className="h-5 w-5 mr-3" /> Quick Gather</>
-                        )}
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 font-bold h-14 rounded-2xl shadow-lg border-none"
-                        onClick={() => setShowTransitSearch(true)}
-                      >
-                        <Navigation className="h-5 w-5 mr-3" /> Smart Routing
-                      </Button>
-                    </div>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full bg-blue-600 text-white hover:bg-blue-700 font-bold h-14 rounded-2xl shadow-lg border-none"
+                      onClick={handleAutoGather}
+                      disabled={isGathering}
+                    >
+                      {isGathering ? (
+                        <><Loader2 className="h-5 w-5 mr-3 animate-spin" /> Fetching Bus Route...</>
+                      ) : (
+                        <><Bus className="h-5 w-5 mr-3" /> Auto-Gather Bus Route Details</>
+                      )}
+                    </Button>
 
                     <AnimatePresence>
                       {newRoute.distance && (
@@ -476,15 +483,6 @@ export default function RouteMonitoring() {
             <BarChart3 className="h-4 w-4 mr-2" />
             Grid View
           </Button>
-          <Button
-            variant={viewMode === "map" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("map")}
-            className="rounded-lg font-bold"
-          >
-            <MapIcon className="h-4 w-4 mr-2" />
-            Live Map
-          </Button>
         </div>
       </motion.div>
 
@@ -533,20 +531,6 @@ export default function RouteMonitoring() {
           </motion.div>
         ))}
       </motion.div>
-
-      <AnimatePresence mode="wait">
-        {viewMode === "map" && (
-          <motion.div
-            key="map-view"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="mb-8 h-[600px] relative rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white ring-1 ring-neutral-200"
-          >
-            <ThreeDMap routes={routes} vehicles={vehicles} />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Filters Section */}
       <motion.div
@@ -840,6 +824,33 @@ export default function RouteMonitoring() {
           }}
         />
       )}
+
+      <AlertDialog open={!!routeToDelete} onOpenChange={(open) => !open && setRouteToDelete(null)}>
+        <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-8">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-black text-neutral-900 flex items-center gap-3">
+              <div className="p-2 bg-rose-50 text-rose-500 rounded-xl">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              Delete Route?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-neutral-500 text-base font-medium pt-2">
+              Are you sure you want to delete this route? This action cannot be undone and will remove all associated transit data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="pt-6 gap-3">
+            <AlertDialogCancel className="rounded-xl font-bold h-12 px-6 border-neutral-200 text-neutral-600 hover:bg-neutral-50">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="rounded-xl font-bold h-12 px-8 bg-rose-500 hover:bg-rose-600 text-white shadow-lg shadow-rose-200"
+            >
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
