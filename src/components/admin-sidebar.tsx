@@ -27,6 +27,7 @@ const navigation = [
   { id: "reports", href: "/reports", icon: FileText },
 
   { id: "compliance", href: "/compliance", icon: Shield },
+  { id: "hazards", href: "/hazards", icon: AlertTriangle },
   { id: "settings", href: "/settings", icon: Settings },
 ]
 

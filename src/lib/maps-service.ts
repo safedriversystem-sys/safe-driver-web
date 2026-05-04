@@ -43,7 +43,9 @@ export const mapsService = {
       const data = await response.json();
 
       if (data.status !== "OK") {
-        throw new Error(data.error_message || `Google Maps API error: ${data.status}`);
+        const errorMessage = data.error_message || `Google Maps API error: ${data.status}`;
+        console.error("Google Maps API Error:", data);
+        throw new Error(errorMessage);
       }
 
       const parsedRoutes: TransitRouteResult[] = data.routes.map((route: any, index: number) => {
@@ -118,7 +120,7 @@ export const mapsService = {
         ...primaryRoute,
         routes: parsedRoutes
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching transit directions:", error);
       throw error;
     }
@@ -137,20 +139,23 @@ function mockTransitData(origin: string, destination: string): TransitResponse {
 
       if ((o.includes("matara") && d.includes("colombo")) || (o.includes("colombo") && d.includes("matara"))) {
         const route1: TransitRouteResult = {
-          id: "r1", distance: 157, duration: 176, busLine: "EX1-18", departureTime: "12:00 PM", arrivalTime: "02:56 PM",
+          id: "r1", distance: 157, duration: 176, busLine: "EX1-18", departureTime: "12:00 PM", arrivalTime: "2:56 PM",
           stops: [
-            { name: "Matara Bus Station", lat: 5.9496, lng: 80.5469, order: 0, type: 'departure' },
-            { name: "Expressway (E01)", details: "Via EX1-18 (Colombo-Matara Expressway-SLTB)", lat: 6.4383, lng: 80.2040, order: 1, type: 'intermediate' },
-            { name: "Makumbura Multimodal Center", lat: 6.8415, lng: 79.9575, order: 2, type: 'arrival' },
-            { name: "Colombo Fort Bus Station", lat: 6.9333, lng: 79.8497, order: 3, type: 'arrival' }
+            { name: "Matara Bus Stand", lat: 5.9496, lng: 80.5469, order: 0, type: 'departure' },
+            { name: "Godagama Interchange", details: "Enter Southern Expressway", lat: 5.9865, lng: 80.5284, order: 1, type: 'intermediate' },
+            { name: "Galle Interchange", details: "Expressway Waypoint", lat: 6.0734, lng: 80.2450, order: 2, type: 'intermediate' },
+            { name: "Dodangoda Interchange", details: "Expressway Waypoint", lat: 6.5894, lng: 80.0345, order: 3, type: 'intermediate' },
+            { name: "Makumbura Multimodal Center", lat: 6.8415, lng: 79.9575, order: 4, type: 'arrival' },
+            { name: "Colombo Fort Bus Station", lat: 6.9333, lng: 79.8497, order: 5, type: 'arrival' }
           ]
         };
         const route2: TransitRouteResult = {
-          id: "r2", distance: 158, duration: 185, busLine: "EX1/3/1932", departureTime: "12:15 PM", arrivalTime: "03:20 PM",
+          id: "r2", distance: 158, duration: 185, busLine: "EX1/3/1932", departureTime: "12:15 PM", arrivalTime: "3:20 PM",
           stops: [
-            { name: "Matara Bus Station", lat: 5.9496, lng: 80.5469, order: 0, type: 'departure' },
-            { name: "Expressway (E01)", details: "Via EX1/3/1932", lat: 6.4383, lng: 80.2040, order: 1, type: 'intermediate' },
-            { name: "Colombo Fort Bus Station", lat: 6.9333, lng: 79.8497, order: 2, type: 'arrival' }
+            { name: "Matara Bus Stand", lat: 5.9496, lng: 80.5469, order: 0, type: 'departure' },
+            { name: "Welipenna Service Area", details: "Expressway Waypoint", lat: 6.4383, lng: 80.1240, order: 1, type: 'intermediate' },
+            { name: "Kottawa Interchange", lat: 6.8415, lng: 79.9575, order: 2, type: 'arrival' },
+            { name: "Colombo Fort", lat: 6.9333, lng: 79.8497, order: 3, type: 'arrival' }
           ]
         };
         resolve({
