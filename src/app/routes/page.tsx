@@ -62,8 +62,6 @@ export default function RouteMonitoring() {
   const { toast } = useToast()
   const { t } = useLanguage()
   const [viewMode, setViewMode] = useState<"grid" | "map" | "transit">("grid")
-  const [focusedHazard, setFocusedHazard] = useState<HazardZone | null>(null)
-  const [modalMapMode, setModalMapMode] = useState<"2d" | "3d">("2d")
   
   // Add Route state
   const [showAddRoute, setShowAddRoute] = useState(false)
@@ -78,10 +76,10 @@ export default function RouteMonitoring() {
     stops: [
       { name: "", time: "", order: 0 },
       { name: "", time: "", order: 1 }
-    ],
-    hazardZones: [] as HazardZone[]
+    ]
   })
   const [isGathering, setIsGathering] = useState(false)
+  const [showTransitSearch, setShowTransitSearch] = useState(false)
 
   const handleAutoGather = async () => {
     if (!newRoute.startPoint || !newRoute.endPoint) {
@@ -234,12 +232,7 @@ export default function RouteMonitoring() {
         distance: Number(newRoute.distance),
         estimatedTime: Number(newRoute.estimatedTime),
         stops: validStops.map((s, i) => ({ ...s, order: i })),
-        hazardZones: ((newRoute as any).hazardZones || []).map((hz: any) => ({
-          ...hz,
-          latitude: Number(hz.latitude),
-          longitude: Number(hz.longitude),
-          radius: Number(hz.radius || 200)
-        }))
+        stops: validStops.map((s, i) => ({ ...s, order: i }))
       };
 
       const url = editingRouteId ? `/api/routes/${editingRouteId}` : "/api/routes";
@@ -268,8 +261,7 @@ export default function RouteMonitoring() {
         stops: [
           { name: "", time: "", order: 0 },
           { name: "", time: "", order: 1 }
-        ],
-        hazardZones: [] as HazardZone[]
+        ]
       });
       fetchRoutes();
       if (selectedRoute && editingRouteId === selectedRoute.id) {
@@ -349,8 +341,7 @@ export default function RouteMonitoring() {
               setEditingRouteId(null);
                 setNewRoute({
                   name: "", busNumber: "", startPoint: "", endPoint: "", distance: "", estimatedTime: "",
-                  stops: [],
-                  hazardZones: [] as HazardZone[]
+                  stops: []
                 });
             }
           }}>
@@ -359,8 +350,7 @@ export default function RouteMonitoring() {
                 setEditingRouteId(null);
                 setNewRoute({
                   name: "", busNumber: "", startPoint: "", endPoint: "", distance: "", estimatedTime: "",
-                  stops: [{ name: "", time: "", order: 0 }, { name: "", time: "", order: 1 }],
-                  hazardZones: [] as HazardZone[]
+                  stops: [{ name: "", time: "", order: 0 }, { name: "", time: "", order: 1 }]
                 });
               }}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -392,19 +382,29 @@ export default function RouteMonitoring() {
                   </div>
                   
                   <div className="col-span-2 space-y-4">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="w-full bg-blue-600 text-white hover:bg-blue-700 font-bold h-14 rounded-2xl shadow-lg border-none"
-                      onClick={handleAutoGather}
-                      disabled={isGathering}
-                    >
-                      {isGathering ? (
-                        <><Loader2 className="h-5 w-5 mr-3 animate-spin" /> Fetching Bus Route...</>
-                      ) : (
-                        <><Bus className="h-5 w-5 mr-3" /> Auto-Gather Bus Route Details</>
-                      )}
-                    </Button>
+                    <div className="flex gap-3">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="flex-1 bg-blue-600 text-white hover:bg-blue-700 font-bold h-14 rounded-2xl shadow-lg border-none"
+                        onClick={handleAutoGather}
+                        disabled={isGathering}
+                      >
+                        {isGathering ? (
+                          <><Loader2 className="h-5 w-5 mr-3 animate-spin" /> Fetching...</>
+                        ) : (
+                          <><Bus className="h-5 w-5 mr-3" /> Quick Gather</>
+                        )}
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 font-bold h-14 rounded-2xl shadow-lg border-none"
+                        onClick={() => setShowTransitSearch(true)}
+                      >
+                        <Navigation className="h-5 w-5 mr-3" /> Smart Routing
+                      </Button>
+                    </div>
 
                     <AnimatePresence>
                       {newRoute.distance && (
@@ -460,141 +460,6 @@ export default function RouteMonitoring() {
                 </div>
 
 
-                {/* Hazard Zones Section */}
-                <div className="space-y-4 pt-4 border-t border-neutral-100">
-                  <div className="flex justify-between items-center">
-                    <div className="space-y-1">
-                      <Label className="text-base font-bold flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-rose-500" />
-                        Hazard Zones <span className="text-neutral-400 font-normal text-xs ml-1">(Optional)</span>
-                      </Label>
-                      <p className="text-xs text-neutral-400">Add schools or dangerous areas along the route.</p>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                      onClick={() => setNewRoute({
-                        ...newRoute, 
-                        hazardZones: [...(newRoute as any).hazardZones, { name: "", location: "", latitude: 0, longitude: 0, type: "school", radius: 200 }]
-                      })}
-                    >
-                      <Plus className="h-4 w-4 mr-2" /> Add Hazard
-                    </Button>
-                  </div>
-                  
-                  {((newRoute as any).hazardZones || []).length > 0 && (
-                    <div className="space-y-4 bg-rose-50/30 p-4 rounded-xl border border-rose-100">
-                      {((newRoute as any).hazardZones).map((hz: any, index: number) => (
-                        <div key={index} className="space-y-3 p-4 bg-white rounded-xl border border-rose-100 shadow-sm relative">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="absolute top-2 right-2 h-8 w-8 text-neutral-400 hover:text-rose-500 rounded-full"
-                            onClick={() => {
-                              const newHZs = (newRoute as any).hazardZones.filter((_: any, i: number) => i !== index);
-                              setNewRoute({...newRoute, hazardZones: newHZs});
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-[10px] uppercase font-bold text-neutral-400">School / Zone Name</Label>
-                              <Input 
-                                placeholder="e.g., Lyceum International" 
-                                value={hz.name} 
-                                className="h-9 text-sm"
-                                onChange={e => {
-                                  const newHZs = [...(newRoute as any).hazardZones];
-                                  newHZs[index].name = e.target.value;
-                                  setNewRoute({...newRoute, hazardZones: newHZs});
-                                }} 
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[10px] uppercase font-bold text-neutral-400">Area / Location</Label>
-                              <Input 
-                                placeholder="e.g., Wattala" 
-                                value={hz.location} 
-                                className="h-9 text-sm"
-                                onChange={e => {
-                                  const newHZs = [...(newRoute as any).hazardZones];
-                                  newHZs[index].location = e.target.value;
-                                  setNewRoute({...newRoute, hazardZones: newHZs});
-                                }} 
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[10px] uppercase font-bold text-neutral-400">Latitude</Label>
-                              <Input 
-                                type="number" 
-                                step="any"
-                                placeholder="6.9853" 
-                                value={hz.latitude} 
-                                className="h-9 text-sm font-mono"
-                                onChange={e => {
-                                  const newHZs = [...(newRoute as any).hazardZones];
-                                  newHZs[index].latitude = e.target.value;
-                                  setNewRoute({...newRoute, hazardZones: newHZs});
-                                }} 
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[10px] uppercase font-bold text-neutral-400">Longitude</Label>
-                              <Input 
-                                type="number" 
-                                step="any"
-                                placeholder="79.8865" 
-                                value={hz.longitude} 
-                                className="h-9 text-sm font-mono"
-                                onChange={e => {
-                                  const newHZs = [...(newRoute as any).hazardZones];
-                                  newHZs[index].longitude = e.target.value;
-                                  setNewRoute({...newRoute, hazardZones: newHZs});
-                                }} 
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[10px] uppercase font-bold text-neutral-400">Type</Label>
-                              <Select value={hz.type} onValueChange={val => {
-                                  const newHZs = [...(newRoute as any).hazardZones];
-                                  newHZs[index].type = val;
-                                  setNewRoute({...newRoute, hazardZones: newHZs});
-                              }}>
-                                <SelectTrigger className="h-9 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="school">School Zone</SelectItem>
-                                  <SelectItem value="accident">Accident Zone</SelectItem>
-                                  <SelectItem value="speed">Speed Zone</SelectItem>
-                                  <SelectItem value="restricted">Restricted</SelectItem>
-                                  <SelectItem value="other">Other</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[10px] uppercase font-bold text-neutral-400">Radius (meters)</Label>
-                              <Input 
-                                type="number" 
-                                placeholder="200" 
-                                value={hz.radius} 
-                                className="h-9 text-sm"
-                                onChange={e => {
-                                  const newHZs = [...(newRoute as any).hazardZones];
-                                  newHZs[index].radius = e.target.value;
-                                  setNewRoute({...newRoute, hazardZones: newHZs});
-                                }} 
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
                 <Button onClick={handleSaveRoute} className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
                   {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</> : (editingRouteId ? "Update Route" : "Create Route")}
@@ -602,15 +467,6 @@ export default function RouteMonitoring() {
               </div>
             </DialogContent>
           </Dialog>
-          <Button
-            variant={viewMode === "transit" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("transit")}
-            className="rounded-lg font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100"
-          >
-            <MapPin className="h-4 w-4 mr-2" />
-            Google Transit Routing
-          </Button>
           <Button
             variant={viewMode === "grid" ? "default" : "ghost"}
             size="sm"
@@ -632,11 +488,6 @@ export default function RouteMonitoring() {
         </div>
       </motion.div>
 
-      <AnimatePresence>
-         {viewMode === "transit" && (
-            <TransitSearchPanel onClose={() => setViewMode("grid")} />
-         )}
-      </AnimatePresence>
 
       {/* Route Statistics */}
       <motion.div
@@ -780,7 +631,7 @@ export default function RouteMonitoring() {
                 </CardHeader>
                 <CardContent className="space-y-8 pb-10 px-8">
                   {/* Route Info Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-6 bg-neutral-50/80 p-6 rounded-[1.5rem] border border-neutral-100">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-neutral-50/80 p-6 rounded-[1.5rem] border border-neutral-100">
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Distance</p>
                       <div className="flex items-center gap-1.5 font-black text-neutral-900 text-lg">
@@ -807,13 +658,6 @@ export default function RouteMonitoring() {
                       <div className="flex items-center gap-1.5 font-black text-neutral-900 text-lg">
                         <Users className="h-4 w-4 text-amber-500" />
                         <span>{route.totalStops}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Hazards</p>
-                      <div className="flex items-center gap-1.5 font-black text-neutral-900 text-lg">
-                        <AlertTriangle className="h-4 w-4 text-rose-500" />
-                        <span>{route.hazardZones?.length || 0}</span>
                       </div>
                     </div>
                   </div>
@@ -896,8 +740,7 @@ export default function RouteMonitoring() {
                         setNewRoute({
                           name: route.name, busNumber: route.busNumber || "", startPoint: route.startPoint, endPoint: route.endPoint,
                           distance: route.distance.toString(), estimatedTime: route.estimatedTime.toString(),
-                          stops: route.stops && route.stops.length > 0 ? route.stops.map((s: any) => ({ ...s, time: s.time || "" })) : [{ name: "", time: "", order: 0 }, { name: "", time: "", order: 1 }],
-                          hazardZones: route.hazardZones || []
+                          stops: route.stops && route.stops.length > 0 ? route.stops.map((s: any) => ({ ...s, time: s.time || "" })) : [{ name: "", time: "", order: 0 }, { name: "", time: "", order: 1 }]
                         });
                         setShowAddRoute(true);
                       }}
@@ -942,110 +785,24 @@ export default function RouteMonitoring() {
                       <h2 className="text-4xl font-black tracking-tight text-neutral-900">{selectedRoute.name}{selectedRoute.busNumber ? ` - ${selectedRoute.busNumber}` : ""}</h2>
                       <Badge className="bg-emerald-500 text-white font-black px-4 py-1.5 uppercase tracking-widest text-[11px] rounded-full">Active</Badge>
                     </div>
-                    {focusedHazard && (
-                      <div className="flex items-center gap-2 mt-4 animate-in fade-in slide-in-from-left-4 duration-300">
-                        <Badge className="bg-rose-100 text-rose-600 border-rose-200 px-4 py-1.5 rounded-full font-bold flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4" />
-                          Viewing: {focusedHazard.name}
-                        </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-neutral-400 hover:text-neutral-900 font-bold"
-                          onClick={() => setFocusedHazard(null)}
-                        >
-                          Show Full Route
-                        </Button>
-                      </div>
-                    )}
                   </div>
-                  <Button variant="ghost" size="icon" className="rounded-2xl h-14 w-14 hover:bg-neutral-100" onClick={() => { setSelectedRoute(null); setFocusedHazard(null); }}>
+                  <Button variant="ghost" size="icon" className="rounded-2xl h-14 w-14 hover:bg-neutral-100" onClick={() => { setSelectedRoute(null); }}>
                     <span className="text-2xl font-black text-neutral-400 hover:text-neutral-900">✕</span>
                   </Button>
                 </div>
 
                 {/* Embedded Route Map */}
                 <div className="w-full h-[500px] rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100 mt-6 relative shadow-inner">
-                  <div className="absolute top-4 right-4 z-10 flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant={modalMapMode === "2d" ? "default" : "secondary"}
-                      className="rounded-xl font-bold"
-                      onClick={() => setModalMapMode("2d")}
-                    >
-                      2D View
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant={modalMapMode === "3d" ? "default" : "secondary"}
-                      className="rounded-xl font-bold"
-                      onClick={() => setModalMapMode("3d")}
-                    >
-                      3D View
-                    </Button>
-                  </div>
-
-                  {modalMapMode === "2d" ? (
-                    /* Google Maps iFrame */
-                    <iframe 
-                      width="100%" 
-                      height="100%" 
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      allowFullScreen 
-                      key={focusedHazard ? focusedHazard.name : "full-route"}
-                      referrerPolicy="no-referrer-when-downgrade"
-                      src={focusedHazard 
-                        ? `https://maps.google.com/maps?q=${focusedHazard.latitude},${focusedHazard.longitude}&z=17&output=embed`
-                        : `https://maps.google.com/maps?saddr=${encodeURIComponent(selectedRoute.startPoint)}&daddr=${encodeURIComponent(selectedRoute.endPoint)}&output=embed`
-                      }
-                    ></iframe>
-                  ) : (
-                    <ThreeDMap routes={[selectedRoute]} vehicles={vehicles.filter(v => v.routeId === selectedRoute.id)} />
-                  )}
+                  <iframe 
+                    width="100%" 
+                    height="100%" 
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    allowFullScreen 
+                    src={`https://maps.google.com/maps?saddr=${encodeURIComponent(selectedRoute.startPoint)}&daddr=${encodeURIComponent(selectedRoute.endPoint)}&dirflg=r&output=embed`}
+                  ></iframe>
                 </div>
 
-                {/* Hazard Zones Table */}
-                {selectedRoute.hazardZones && selectedRoute.hazardZones.length > 0 && (
-                  <div className="mt-8">
-                    <h3 className="text-xl font-black mb-6 flex items-center gap-3">
-                      <AlertTriangle className="h-6 w-6 text-rose-500" />
-                      Hazard Zones Along the Route
-                    </h3>
-                    <div className="bg-white border border-neutral-200 rounded-[2rem] overflow-hidden shadow-sm">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-neutral-50 border-b border-neutral-200">
-                            <th className="py-4 px-6 text-xs font-black text-neutral-400 uppercase tracking-widest">School Name</th>
-                            <th className="py-4 px-6 text-xs font-black text-neutral-400 uppercase tracking-widest">Location (Area)</th>
-                            <th className="py-4 px-6 text-xs font-black text-neutral-400 uppercase tracking-widest hidden sm:table-cell">Coordinates (Lat, Lon)</th>
-                            <th className="py-4 px-6 text-xs font-black text-neutral-400 uppercase tracking-widest text-right">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedRoute.hazardZones.map((zone, idx) => (
-                            <tr key={idx} className={`border-b border-neutral-100 last:border-0 transition-colors ${focusedHazard?.name === zone.name ? "bg-rose-50" : "hover:bg-neutral-50/50"}`}>
-                              <td className="py-4 px-6 font-bold text-neutral-900">{zone.name}</td>
-                              <td className="py-4 px-6 font-medium text-neutral-500">{zone.location}</td>
-                              <td className="py-4 px-6 font-medium text-neutral-500 font-mono text-sm hidden sm:table-cell">{zone.latitude}, {zone.longitude}</td>
-                              <td className="py-4 px-6 text-right">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className={`rounded-xl font-bold h-9 px-4 ${focusedHazard?.name === zone.name ? "bg-rose-500 text-white border-rose-500" : "text-neutral-600"}`}
-                                  onClick={() => setFocusedHazard(zone)}
-                                >
-                                  <MapIcon className="h-4 w-4 mr-2" />
-                                  View on Map
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
               </div>
               <div className="p-8 bg-neutral-50 border-t border-neutral-100 flex gap-4">
 
@@ -1058,6 +815,31 @@ export default function RouteMonitoring() {
           </motion.div>
         )}
       </AnimatePresence>
+      {showTransitSearch && (
+        <TransitSearchPanel 
+          onClose={() => setShowTransitSearch(false)} 
+          initialOrigin={newRoute.startPoint}
+          initialDestination={newRoute.endPoint}
+          onSelect={(route) => {
+            setNewRoute({
+              ...newRoute,
+              busNumber: route.busLine || newRoute.busNumber,
+              distance: route.distance.toFixed(1),
+              estimatedTime: route.duration.toString(),
+              stops: route.stops.map((stop: any) => ({
+                name: stop.name,
+                time: "", 
+                order: stop.order,
+                latitude: stop.lat,
+                longitude: stop.lng,
+                type: stop.type,
+                details: stop.details
+              })),
+            });
+            setShowTransitSearch(false);
+          }}
+        />
+      )}
     </div>
   )
 }

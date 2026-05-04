@@ -24,16 +24,19 @@ const center = {
 
 interface TransitSearchPanelProps {
   onClose: () => void;
+  onSelect?: (route: TransitRouteResult) => void;
+  initialOrigin?: string;
+  initialDestination?: string;
 }
 
-export function TransitSearchPanel({ onClose }: TransitSearchPanelProps) {
+export function TransitSearchPanel({ onClose, onSelect, initialOrigin = "Matara", initialDestination = "Colombo" }: TransitSearchPanelProps) {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   })
 
-  const [origin, setOrigin] = useState("Matara")
-  const [destination, setDestination] = useState("Colombo")
+  const [origin, setOrigin] = useState(initialOrigin)
+  const [destination, setDestination] = useState(initialDestination)
   const [loading, setLoading] = useState(false)
   const [routes, setRoutes] = useState<TransitRouteResult[]>([])
   const [selectedRoute, setSelectedRoute] = useState<TransitRouteResult | null>(null)
@@ -286,6 +289,18 @@ export function TransitSearchPanel({ onClose }: TransitSearchPanelProps) {
                             Back
                           </Button>
                         </div>
+
+                        {onSelect && (
+                          <Button 
+                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl h-9"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSelect(route);
+                            }}
+                          >
+                            Use This Route
+                          </Button>
+                        )}
                         <div className="relative pl-5 space-y-5 before:absolute before:inset-y-3 before:left-[9px] before:w-0.5 before:bg-blue-100">
                           {route.stops.map((stop, idx) => (
                             <div key={idx} className="relative min-w-0">
