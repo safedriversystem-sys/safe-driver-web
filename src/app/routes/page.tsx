@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Circle } from "@react-google-maps/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -54,6 +55,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { ThreeDMap } from "@/components/3d-map"
 import { Progress } from "@/components/ui/progress"
 import { TransitSearchPanel } from "@/components/transit-search-panel"
+import { hazardService } from "@/lib/hazard-service"
 
 export default function RouteMonitoring() {
   const [routes, setRoutes] = useState<Route[]>([])
@@ -97,6 +99,78 @@ export default function RouteMonitoring() {
   })
   const [loading, setLoading] = useState(true)
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null)
+  const [modalTab, setModalTab] = useState<"map" | "hazards">("map")
+  const [selectedHazardInfo, setSelectedHazardInfo] = useState<HazardZone | null>(null)
+  const [routeHazards, setRouteHazards] = useState<HazardZone[]>([])
+  const [hazardsLoading, setHazardsLoading] = useState(false)
+
+  const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+  const { isLoaded: isMapLoaded } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  })
+
+  const [mapRef, setMapRef] = useState<google.maps.Map | null>(null)
+
+  // Fetch ALL hazards (no proximity filter — user placed them, they're all relevant)
+  useEffect(() => {
+    if (modalTab !== "hazards" || !selectedRoute) return
+    const fetchHazards = async () => {
+      setHazardsLoading(true)
+      setSelectedHazardInfo(null)
+      setMapRef(null)
+      try {
+        const all = await hazardService.getAllHazards()
+        setRouteHazards(all)
+      } catch {
+        setRouteHazards([])
+      } finally {
+        setHazardsLoading(false)
+      }
+    }
+    fetchHazards()
+  }, [modalTab, selectedRoute])
+
+  // Fit map bounds to show all hazards + route stop coords when map loads
+  const onHazardMapLoad = (map: google.maps.Map) => {
+    setMapRef(map)
+    if (!selectedRoute) return
+    const bounds = new window.google.maps.LatLngBounds()
+    let hasPoints = false
+
+    // Add all hazard positions
+    routeHazards.forEach(h => {
+      bounds.extend({ lat: h.latitude, lng: h.longitude })
+      hasPoints = true
+    })
+
+    // Add route stop positions
+    selectedRoute.stops.forEach(s => {
+      if (s.latitude && s.longitude) {
+        bounds.extend({ lat: s.latitude, lng: s.longitude })
+        hasPoints = true
+      }
+    })
+
+    if (hasPoints) {
+      map.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 })
+    } else {
+      // Fall back to Sri Lanka center
+      map.setCenter({ lat: 7.8731, lng: 80.7718 })
+      map.setZoom(8)
+    }
+  }
+
+  // Recenter map when a hazard card is clicked
+  const panToHazard = (h: HazardZone) => {
+    setSelectedHazardInfo(h)
+    if (mapRef) {
+      mapRef.panTo({ lat: h.latitude, lng: h.longitude })
+      mapRef.setZoom(14)
+    }
+  }
+
+  const hazardMapCenter = { lat: 7.8731, lng: 80.7718 }
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const { toast } = useToast()
@@ -803,37 +877,207 @@ export default function RouteMonitoring() {
               className="bg-white rounded-[2.5rem] max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
             >
               <div className="p-10 overflow-y-auto">
-                <div className="flex justify-between items-start mb-10">
+                {/* Header */}
+                <div className="flex justify-between items-start mb-6">
                   <div className="space-y-2">
                     <div className="flex items-center gap-4">
                       <h2 className="text-4xl font-black tracking-tight text-neutral-900">{selectedRoute.name}{selectedRoute.busNumber ? ` - ${selectedRoute.busNumber}` : ""}</h2>
                       <Badge className="bg-emerald-500 text-white font-black px-4 py-1.5 uppercase tracking-widest text-[11px] rounded-full">Active</Badge>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="rounded-2xl h-14 w-14 hover:bg-neutral-100" onClick={() => { setSelectedRoute(null); }}>
+                  <Button variant="ghost" size="icon" className="rounded-2xl h-14 w-14 hover:bg-neutral-100" onClick={() => { setSelectedRoute(null); setModalTab("map"); setSelectedHazardInfo(null); }}>
                     <span className="text-2xl font-black text-neutral-400 hover:text-neutral-900">✕</span>
                   </Button>
                 </div>
 
-                {/* Embedded Route Map */}
-                <div className="w-full h-[500px] rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100 mt-6 relative shadow-inner">
-                  <iframe 
-                    width="100%" 
-                    height="100%" 
-                    style={{ border: 0 }}
-                    loading="lazy"
-                    allowFullScreen 
-                    src={`https://maps.google.com/maps?saddr=${encodeURIComponent(selectedRoute.startPoint)}&daddr=${encodeURIComponent(selectedRoute.endPoint)}&dirflg=r&output=embed`}
-                  ></iframe>
+                {/* Tabs */}
+                <div className="flex gap-2 bg-neutral-100 p-1 rounded-2xl mb-6 w-fit">
+                  <button
+                    onClick={() => setModalTab("map")}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all ${
+                      modalTab === "map"
+                        ? "bg-white text-blue-600 shadow-sm"
+                        : "text-neutral-500 hover:text-neutral-800"
+                    }`}
+                  >
+                    <MapIcon className="h-4 w-4" />
+                    Live Map
+                  </button>
+                  <button
+                    onClick={() => { setModalTab("hazards"); setSelectedHazardInfo(null); }}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all ${
+                      modalTab === "hazards"
+                        ? "bg-white text-amber-600 shadow-sm"
+                        : "text-neutral-500 hover:text-neutral-800"
+                    }`}
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    Hazard Zones
+                    {routeHazards.length > 0 && (
+                      <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                        {routeHazards.length}
+                      </span>
+                    )}
+                  </button>
                 </div>
 
-              </div>
-              <div className="p-8 bg-neutral-50 border-t border-neutral-100 flex gap-4">
+                {/* Live Map Tab */}
+                {modalTab === "map" && (
+                  <div className="w-full h-[500px] rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100 relative shadow-inner">
+                    <iframe 
+                      width="100%" 
+                      height="100%" 
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen 
+                      src={`https://maps.google.com/maps?saddr=${encodeURIComponent(selectedRoute.startPoint)}&daddr=${encodeURIComponent(selectedRoute.endPoint)}&dirflg=r&output=embed`}
+                    ></iframe>
+                  </div>
+                )}
 
-                 <Button variant="outline" className="rounded-2xl border-rose-200 text-rose-500 h-14 px-10 font-black hover:bg-rose-50 hover:text-rose-600 transition-all uppercase tracking-wider" onClick={() => handleDeleteRoute(selectedRoute.id)}>
-                    <Trash2 className="h-5 w-5 mr-3 inline-block" />
-                    Delete Route
-                 </Button>
+                {/* Hazard Zones Tab */}
+                {modalTab === "hazards" && (
+                  <div className="space-y-4">
+                    {/* Hazard map */}
+                    <div className="w-full h-[400px] rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100 shadow-inner relative">
+                      {!isMapLoaded || hazardsLoading ? (
+                        <div className="h-full flex flex-col items-center justify-center gap-3">
+                          <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+                          <p className="text-sm font-bold text-neutral-400">Loading hazard data...</p>
+                        </div>
+                      ) : routeHazards.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center gap-3 bg-amber-50">
+                          <div className="p-5 bg-white rounded-full shadow-sm">
+                            <AlertTriangle className="h-12 w-12 text-amber-200" />
+                          </div>
+                          <p className="font-black text-neutral-600 text-lg">No Hazard Zones Yet</p>
+                          <p className="text-sm text-neutral-400 font-medium">Go to Hazard Monitoring to mark hazards on the map.</p>
+                        </div>
+                      ) : (
+                        <GoogleMap
+                          mapContainerStyle={{ width: "100%", height: "100%" }}
+                          center={hazardMapCenter}
+                          zoom={8}
+                          onLoad={onHazardMapLoad}
+                          options={{
+                            disableDefaultUI: false,
+                            zoomControl: true,
+                            mapTypeControl: true,
+                            mapTypeControlOptions: {
+                              style: 2, // DROPDOWN_MENU
+                              position: 3, // TOP_RIGHT
+                            },
+                            streetViewControl: false,
+                            fullscreenControl: true,
+                            gestureHandling: "cooperative",
+                            styles: [
+                              { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
+                              { featureType: "transit", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+                            ],
+                          }}
+                        >
+                          {routeHazards.map((hazard, i) => (
+                            <div key={hazard.id ?? i}>
+                              <Marker
+                                position={{ lat: hazard.latitude, lng: hazard.longitude }}
+                                title={hazard.name}
+                                icon={{
+                                  url: hazard.type === "accident"
+                                    ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                                    : hazard.type === "school"
+                                    ? "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
+                                    : hazard.type === "speed"
+                                    ? "https://maps.google.com/mapfiles/ms/icons/orange-dot.png"
+                                    : "https://maps.google.com/mapfiles/ms/icons/orange-dot.png",
+                                  scaledSize: new window.google.maps.Size(40, 40),
+                                }}
+                                onClick={() => panToHazard(hazard)}
+                                animation={selectedHazardInfo?.id === hazard.id ? window.google.maps.Animation.BOUNCE : undefined}
+                              />
+                              <Circle
+                                center={{ lat: hazard.latitude, lng: hazard.longitude }}
+                                radius={hazard.radius}
+                                options={{
+                                  fillColor: hazard.type === "accident" ? "#ef4444"
+                                    : hazard.type === "school" ? "#eab308"
+                                    : "#f59e0b",
+                                  fillOpacity: 0.15,
+                                  strokeColor: hazard.type === "accident" ? "#dc2626"
+                                    : hazard.type === "school" ? "#ca8a04"
+                                    : "#d97706",
+                                  strokeWeight: 2.5,
+                                  strokeOpacity: 0.9,
+                                }}
+                              />
+                            </div>
+                          ))}
+                          {selectedHazardInfo && (
+                            <InfoWindow
+                              position={{ lat: selectedHazardInfo.latitude, lng: selectedHazardInfo.longitude }}
+                              onCloseClick={() => setSelectedHazardInfo(null)}
+                              options={{ pixelOffset: new window.google.maps.Size(0, -40) }}
+                            >
+                              <div style={{ padding: "8px", minWidth: "180px", fontFamily: "system-ui" }}>
+                                <p style={{ fontWeight: 900, fontSize: "14px", marginBottom: "4px", color: "#111" }}>{selectedHazardInfo.name}</p>
+                                <p style={{ fontSize: "11px", color: "#666", textTransform: "capitalize", marginBottom: "6px" }}>
+                                  {selectedHazardInfo.type === "other" && selectedHazardInfo.customType
+                                    ? selectedHazardInfo.customType
+                                    : selectedHazardInfo.type}
+                                </p>
+                                {selectedHazardInfo.location && (
+                                  <p style={{ fontSize: "11px", color: "#888", marginBottom: "6px" }}>📍 {selectedHazardInfo.location}</p>
+                                )}
+                                <div style={{ display: "inline-block", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "9999px" }}>
+                                  {selectedHazardInfo.radius}m radius
+                                </div>
+                              </div>
+                            </InfoWindow>
+                          )}
+                        </GoogleMap>
+                      )}
+                    </div>
+
+                    {/* Hazard zone list */}
+                    {routeHazards.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {routeHazards.map((h, i) => (
+                          <button
+                            key={h.id ?? i}
+                            onClick={() => panToHazard(h)}
+                            className={`flex items-center gap-4 p-4 rounded-2xl border transition-all text-left group ${
+                              selectedHazardInfo?.id === h.id
+                                ? "bg-amber-50 border-amber-300 shadow-md"
+                                : "bg-neutral-50 border-neutral-100 hover:border-amber-200 hover:bg-amber-50/50 hover:shadow-md"
+                            }`}
+                          >
+                            <div className={`p-2.5 rounded-xl flex-shrink-0 group-hover:scale-110 transition-transform ${
+                              h.type === "accident" ? "bg-red-50 text-red-500" : "bg-amber-50 text-amber-500"
+                            }`}>
+                              <AlertTriangle className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-black text-sm text-neutral-800 truncate">{h.name}</p>
+                              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-0.5">
+                                {h.type === "other" && h.customType ? h.customType : h.type} · {h.radius}m
+                              </p>
+                            </div>
+                            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                              h.type === "accident" ? "bg-red-400" : "bg-amber-400"
+                            }`} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-8 bg-neutral-50 border-t border-neutral-100 flex gap-4">
+                <Button variant="outline" className="rounded-2xl border-rose-200 text-rose-500 h-14 px-10 font-black hover:bg-rose-50 hover:text-rose-600 transition-all uppercase tracking-wider" onClick={() => handleDeleteRoute(selectedRoute.id)}>
+                  <Trash2 className="h-5 w-5 mr-3 inline-block" />
+                  Delete Route
+                </Button>
               </div>
             </motion.div>
           </motion.div>

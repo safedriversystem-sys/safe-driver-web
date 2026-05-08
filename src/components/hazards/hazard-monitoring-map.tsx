@@ -91,7 +91,9 @@ export function HazardMonitoringMap() {
         latitude: newHazardPos.lat,
         longitude: newHazardPos.lng,
         location: hazardDetails.location,
-        customType: hazardDetails.type === "other" ? hazardDetails.customType : undefined,
+        ...(hazardDetails.type === "other" && hazardDetails.customType
+          ? { customType: hazardDetails.customType }
+          : {}),
       })
       toast({ title: "Success", description: "Hazard zone saved and associated with routes." })
       setNewHazardPos(null)

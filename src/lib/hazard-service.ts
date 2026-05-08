@@ -36,9 +36,14 @@ export const hazardService = {
   // Save a new hazard and associate with routes
   saveHazard: async (hazard: Omit<HazardZone, "id">): Promise<string> => {
     try {
+      // Strip undefined values — Firestore does not accept undefined fields
+      const cleanHazard = Object.fromEntries(
+        Object.entries(hazard).filter(([, v]) => v !== undefined)
+      ) as Omit<HazardZone, "id">
+
       // 1. Save hazard to global collection
-      const hazardId = await firestoreService.createDocument(COLLECTION_NAME, hazard)
-      const fullHazard = { ...hazard, id: hazardId }
+      const hazardId = await firestoreService.createDocument(COLLECTION_NAME, cleanHazard)
+      const fullHazard = { ...cleanHazard, id: hazardId }
 
       // 2. Automatically detect relevant routes
       const routes = await routeService.getAllRoutes()
