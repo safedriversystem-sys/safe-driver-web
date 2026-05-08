@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Circle, Polyline } from "@react-google-maps/api"
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Circle } from "@react-google-maps/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, MapPin, AlertTriangle, Shield, Trash2, Save, X, Navigation } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { hazardService } from "@/lib/hazard-service"
-import { routeService } from "@/lib/route-service"
-import type { HazardZone, HazardType, Route } from "@/lib/route-types"
+
+import type { HazardZone, HazardType } from "@/lib/route-types"
 import { Badge } from "@/components/ui/badge"
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -33,7 +33,7 @@ export function HazardMonitoringMap() {
 
   const [map, setMap] = useState<google.maps.Map | null>(null)
   const [hazards, setHazards] = useState<HazardZone[]>([])
-  const [routes, setRoutes] = useState<Route[]>([])
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [selectedHazard, setSelectedHazard] = useState<HazardZone | null>(null)
@@ -51,12 +51,8 @@ export function HazardMonitoringMap() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [allHazards, allRoutes] = await Promise.all([
-        hazardService.getAllHazards(),
-        routeService.getAllRoutes(),
-      ])
+      const allHazards = await hazardService.getAllHazards()
       setHazards(allHazards)
-      setRoutes(allRoutes)
     } catch (error) {
       console.error("Error fetching data:", error)
       toast({ title: "Error", description: "Failed to load hazards and routes", variant: "destructive" })
@@ -194,18 +190,7 @@ export function HazardMonitoringMap() {
             />
           )}
 
-          {/* Route Polylines */}
-          {routes.map((route) => (
-            <Polyline
-              key={route.id}
-              path={route.stops.map((s) => ({ lat: s.latitude || 0, lng: s.longitude || 0 })).filter(p => p.lat !== 0)}
-              options={{
-                strokeColor: "#4285F4",
-                strokeOpacity: 0.3,
-                strokeWeight: 4,
-              }}
-            />
-          ))}
+
 
           {selectedHazard && (
             <InfoWindow
