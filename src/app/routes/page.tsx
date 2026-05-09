@@ -274,17 +274,28 @@ export default function RouteMonitoring() {
     try {
       setIsSubmitting(true);
       
+      const formatLocation = (loc: string) => {
+        const trimmed = loc.trim();
+        if (trimmed.toLowerCase().endsWith("bus stop")) {
+          return trimmed;
+        }
+        return `${trimmed} Bus Stop`;
+      };
+
+      const formattedStartPoint = formatLocation(newRoute.startPoint);
+      const formattedEndPoint = formatLocation(newRoute.endPoint);
+
       // Provide default stops since the UI no longer collects them
       const defaultStops = [
-        { name: newRoute.startPoint, time: "00:00", order: 0 },
-        { name: newRoute.endPoint, time: "00:00", order: 1 }
+        { name: formattedStartPoint, time: "00:00", order: 0 },
+        { name: formattedEndPoint, time: "00:00", order: 1 }
       ];
 
       const payload = {
         name: newRoute.name,
         busNumber: newRoute.busNumber || "",
-        startPoint: newRoute.startPoint,
-        endPoint: newRoute.endPoint,
+        startPoint: formattedStartPoint,
+        endPoint: formattedEndPoint,
         distance: newRoute.distance ? Number(newRoute.distance) : 0,
         estimatedTime: newRoute.estimatedTime ? Number(newRoute.estimatedTime) : 0,
         stops: defaultStops,

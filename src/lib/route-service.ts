@@ -66,7 +66,7 @@ export const routeService = {
   // Create a new route
   createRoute: async (input: CreateRouteInput): Promise<Route> => {
     try {
-      const id = input.busNumber || await generateRouteId()
+      const id = await generateRouteId()
       const now = new Date().toISOString()
 
       // Initialize stops with status
