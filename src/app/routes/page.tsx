@@ -46,6 +46,7 @@ import {
   Map as MapIcon,
   Plus,
   Trash2,
+  ArrowRightLeft,
 } from "lucide-react"
 import type { Route, RouteStop, HazardZone } from "@/lib/route-types"
 import type { Vehicle } from "@/lib/fleet-types"
@@ -54,13 +55,11 @@ import { useLanguage } from "@/components/language-provider"
 import { motion, AnimatePresence } from "framer-motion"
 import { ThreeDMap } from "@/components/3d-map"
 import { Progress } from "@/components/ui/progress"
-import { TransitSearchPanel } from "@/components/transit-search-panel"
 import { hazardService } from "@/lib/hazard-service"
 
 export default function RouteMonitoring() {
   const [routes, setRoutes] = useState<Route[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [isGatheringComplete, setIsGatheringComplete] = useState(false)
 
   // Polyline decoder helper
   const decodePolyline = (encoded: string) => {
@@ -192,68 +191,8 @@ export default function RouteMonitoring() {
       { name: "", time: "", order: 1 }
     ]
   })
-  const [isGathering, setIsGathering] = useState(false)
   const [showTransitSearch, setShowTransitSearch] = useState(false)
   const [routeToDelete, setRouteToDelete] = useState<string | null>(null)
-
-  const handleAutoGather = async () => {
-    if (!newRoute.startPoint || !newRoute.endPoint) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter both Start and End points to auto-gather route data.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      setIsGathering(true)
-      const response = await fetch("/api/maps/transit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          origin: newRoute.startPoint,
-          destination: newRoute.endPoint,
-        }),
-      })
-
-      if (!response.ok) throw new Error("Failed to fetch route data")
-      
-      const data = await response.json()
-      
-      setNewRoute({
-        ...newRoute,
-        busNumber: newRoute.busNumber || data.busLine || "",
-        distance: data.distance > 0 ? data.distance.toFixed(1) : newRoute.distance,
-        estimatedTime: data.duration > 0 ? data.duration.toString() : newRoute.estimatedTime,
-        polyline: data.polyline || newRoute.polyline,
-        stops: data.stops.length > 0 ? data.stops.map((stop: any) => ({
-          name: stop.name,
-          time: "", 
-          order: stop.order,
-          latitude: stop.lat,
-          longitude: stop.lng,
-          type: stop.type,
-          details: stop.details
-        })) : newRoute.stops,
-      })
-
-      setIsGatheringComplete(true)
-      toast({
-        title: "Data Gathered",
-        description: `Successfully detected route ${data.distance > 0 ? `(${data.distance.toFixed(1)}km)` : "(Manual entry required)"}`,
-      })
-    } catch (error) {
-      console.error("Error gathering route data:", error)
-      toast({
-        title: "Gathering Failed",
-        description: "Could not auto-detect route. Please fill details manually.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsGathering(false)
-    }
-  }
 
   // Fetch routes
   const fetchRoutes = async () => {
@@ -327,29 +266,28 @@ export default function RouteMonitoring() {
 
   const handleSaveRoute = async () => {
     // validate
-    if (!newRoute.name || !newRoute.startPoint || !newRoute.endPoint || !newRoute.distance || !newRoute.estimatedTime) {
+    if (!newRoute.name || !newRoute.startPoint || !newRoute.endPoint) {
       toast({ title: "Error", description: "Please fill all required fields", variant: "destructive" });
-      return;
-    }
-    
-    // validate stops
-    const validStops = newRoute.stops.filter(s => s.name);
-    if (validStops.length < 2) {
-      toast({ title: "Error", description: "At least 2 stops with a name are required", variant: "destructive" });
       return;
     }
 
     try {
       setIsSubmitting(true);
+      
+      // Provide default stops since the UI no longer collects them
+      const defaultStops = [
+        { name: newRoute.startPoint, time: "00:00", order: 0 },
+        { name: newRoute.endPoint, time: "00:00", order: 1 }
+      ];
+
       const payload = {
         name: newRoute.name,
-        busNumber: newRoute.busNumber,
+        busNumber: newRoute.busNumber || "",
         startPoint: newRoute.startPoint,
         endPoint: newRoute.endPoint,
-        distance: Number(newRoute.distance),
-        estimatedTime: Number(newRoute.estimatedTime),
-        stops: validStops.map((s, i) => ({ ...s, order: i })),
-        polyline: newRoute.polyline
+        distance: newRoute.distance ? Number(newRoute.distance) : 0,
+        estimatedTime: newRoute.estimatedTime ? Number(newRoute.estimatedTime) : 0,
+        stops: defaultStops,
       };
 
       const url = editingRouteId ? `/api/routes/${editingRouteId}` : "/api/routes";
@@ -504,80 +442,6 @@ export default function RouteMonitoring() {
                     <Label>End Point <span className="text-red-500">*</span></Label>
                     <Input placeholder="e.g., North Terminal" value={newRoute.endPoint} onChange={e => setNewRoute({...newRoute, endPoint: e.target.value})} />
                   </div>
-                  
-                  <div className="col-span-2 space-y-4">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="w-full bg-blue-600 text-white hover:bg-blue-700 font-bold h-14 rounded-2xl shadow-lg border-none"
-                      onClick={handleAutoGather}
-                      disabled={isGathering}
-                    >
-                      {isGathering ? (
-                        <><Loader2 className="h-5 w-5 mr-3 animate-spin" /> Fetching Bus Route...</>
-                      ) : (
-                        <><Bus className="h-5 w-5 mr-3" /> Auto-Gather Bus Route Details</>
-                      )}
-                    </Button>
-
-                    <AnimatePresence>
-                      {isGatheringComplete && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          className="bg-emerald-50 border border-emerald-100 p-6 rounded-3xl space-y-4"
-                        >
-                          <div className="flex items-center justify-between">
-                            <Badge className="bg-emerald-500 text-white border-none px-3 py-1 text-[10px] uppercase font-black tracking-widest">
-                              Bus Route Verified
-                            </Badge>
-                            <span className="text-[10px] font-bold text-emerald-600 uppercase">Google Maps Data</span>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
-                               <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Route No</p>
-                               <div className="flex items-center gap-2">
-                                 <Bus className="h-4 w-4 text-emerald-500" />
-                                 <span className="text-xl font-black text-neutral-900">{newRoute.busNumber || "N/A"}</span>
-                               </div>
-                             </div>
-                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
-                               <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Distance</p>
-                               <div className="flex items-center gap-2">
-                                 <MapPin className="h-4 w-4 text-emerald-500" />
-                                 <span className="text-xl font-black text-neutral-900">{newRoute.distance} km</span>
-                               </div>
-                             </div>
-                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
-                               <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-1">Travel Time</p>
-                               <div className="flex items-center gap-2">
-                                 <Clock className="h-4 w-4 text-emerald-500" />
-                                 <span className="text-xl font-black text-neutral-900">{newRoute.estimatedTime} mins</span>
-                               </div>
-                             </div>
-                           </div>
-
-                          <div className="space-y-3">
-                            <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Detected Bus Stops ({newRoute.stops.length})</p>
-                            <div className="flex flex-col gap-2">
-                              {newRoute.stops.map((stop: any, i: number) => (
-                                <div key={i} className="flex items-start gap-3 bg-white border border-emerald-50 p-3 rounded-xl shadow-sm">
-                                  <div className={`p-1.5 rounded-full mt-0.5 flex-shrink-0 ${stop.type === 'departure' || stop.type === 'arrival' ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-600'}`}>
-                                    {stop.type === 'intermediate' ? <Bus className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
-                                  </div>
-                                  <div>
-                                    <p className="font-bold text-sm text-neutral-800">{stop.name}</p>
-                                    {stop.details && <p className="text-xs text-neutral-500">{stop.details}</p>}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
                 </div>
 
 
@@ -728,38 +592,28 @@ export default function RouteMonitoring() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-8 pb-10 px-8">
-                  {/* Route Info Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-neutral-50/80 p-6 rounded-[1.5rem] border border-neutral-100">
+                  {/* Route Journey */}
+                  <div className="flex items-center justify-between bg-neutral-50/80 p-5 rounded-[1.5rem] border border-neutral-100">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Distance</p>
-                      <div className="flex items-center gap-1.5 font-black text-neutral-900 text-lg">
-                        <MapPin className="h-4 w-4 text-blue-500" />
-                        <span>{route.distance} <span className="text-xs font-bold text-neutral-400">km</span></span>
+                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Terminal A</p>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-emerald-500" />
+                        <span className="font-bold text-neutral-800">{route.startPoint}</span>
                       </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Est. Time</p>
-                      <div className="flex items-center gap-1.5 font-black text-neutral-900 text-lg">
-                        <Clock className="h-4 w-4 text-indigo-500" />
-                        <span>{route.estimatedTime} <span className="text-xs font-bold text-neutral-400">min</span></span>
-                      </div>
+                    <div className="flex-1 flex items-center justify-center px-4 opacity-50">
+                      <div className="h-[2px] w-full max-w-[40px] bg-neutral-200 rounded-full" />
+                      <ArrowRightLeft className="h-4 w-4 text-neutral-400 mx-2" />
+                      <div className="h-[2px] w-full max-w-[40px] bg-neutral-200 rounded-full" />
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Buses</p>
-                      <div className="flex items-center gap-1.5 font-black text-neutral-900 text-lg">
-                        <Bus className="h-4 w-4 text-emerald-500" />
-                        <span>{route.activeVehicles}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Stops</p>
-                      <div className="flex items-center gap-1.5 font-black text-neutral-900 text-lg">
-                        <Users className="h-4 w-4 text-amber-500" />
-                        <span>{route.totalStops}</span>
+                    <div className="space-y-1 text-right">
+                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Terminal B</p>
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="font-bold text-neutral-800">{route.endPoint}</span>
+                        <MapPin className="h-4 w-4 text-rose-500" />
                       </div>
                     </div>
                   </div>
-
                   {/* Assigned Buses Section */}
                   <div className="mt-2 bg-neutral-50 p-4 sm:p-6 rounded-[1.5rem] border border-neutral-100 shadow-inner">
                     <h3 className="text-lg font-black mb-4 flex items-center gap-3">
