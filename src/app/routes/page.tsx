@@ -287,8 +287,8 @@ export default function RouteMonitoring() {
 
       // Provide default stops since the UI no longer collects them
       const defaultStops = [
-        { name: formattedStartPoint, time: "00:00", order: 0 },
-        { name: formattedEndPoint, time: "00:00", order: 1 }
+        { name: formattedStartPoint, time: "00:00", order: 0, status: "upcoming" },
+        { name: formattedEndPoint, time: "00:00", order: 1, status: "upcoming" }
       ];
 
       const payload = {
