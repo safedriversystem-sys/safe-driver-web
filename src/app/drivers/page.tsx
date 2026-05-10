@@ -590,7 +590,7 @@ export default function DriversPage() {
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -893,7 +893,7 @@ export default function DriversPage() {
                       <SelectItem value="on_duty">On Duty</SelectItem>
                       <SelectItem value="off_duty">Off Duty</SelectItem>
                       <SelectItem value="suspended">Suspended</SelectItem>
-                      <SelectItem value="on_break">On Break</SelectItem>
+
                     </SelectContent>
                   </Select>
                 </div>
