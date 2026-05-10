@@ -1,101 +1,132 @@
 "use client"
 
-import { useState } from "react"
-import { Search, MapPin, CloudSun, Map as MapIcon, Phone, AlertCircle, Play, Smartphone } from "lucide-react"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useState, useEffect } from "react"
+import { Search, MapPin, Map as MapIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { FleetMap } from "./fleet-map"
 import type { Vehicle } from "@/lib/fleet-types"
-import { useLanguage } from "@/components/language-provider"
 
 interface LiveTrackingDashboardProps {
   vehicles: Vehicle[]
 }
 
-export function LiveTrackingDashboard({ vehicles }: LiveTrackingDashboardProps) {
-  const { t } = useLanguage()
+export function LiveTrackingDashboard({ vehicles: initialVehicles }: LiveTrackingDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
+  const [liveVehicles, setLiveVehicles] = useState<Vehicle[]>(initialVehicles)
 
-  const activeVehicles = vehicles.filter((v) => v.status === "active")
+  // Polling for live tracking
+  useEffect(() => {
+    const fetchLiveVehicles = async () => {
+      try {
+        const res = await fetch("/api/fleet?status=active")
+        if (res.ok) {
+          const data = await res.json()
+          setLiveVehicles(data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch live vehicles:", error)
+      }
+    }
+
+    // Initial fetch to make sure we only have active ones
+    fetchLiveVehicles()
+
+    const interval = setInterval(fetchLiveVehicles, 10000) // Poll every 10 seconds
+    return () => clearInterval(interval)
+  }, [])
+
+  // Filter based on search query
+  const filteredVehicles = liveVehicles.filter(v => 
+    v.busNumber?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    v.busNumberPlate?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    v.route?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  // Compute unique routes for pills
+  const uniqueRoutes = Array.from(new Set(
+    liveVehicles
+      .map(v => v.route || v.routeId)
+      .filter(Boolean)
+  )) as string[]
 
   return (
-    <div className="relative w-full h-[calc(100vh-220px)] rounded-xl overflow-hidden border border-neutral-200">
+    <div className="relative w-full h-[calc(100vh-220px)] rounded-[1.5rem] overflow-hidden border border-neutral-200">
       {/* Base Map Layer */}
       <FleetMap
-        vehicles={activeVehicles}
+        vehicles={filteredVehicles}
         selectedVehicle={selectedVehicle}
         onVehicleClick={setSelectedVehicle}
         className="w-full h-full"
       />
 
       {/* Top Left: Search & Filters Panel */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-3 w-full max-w-md">
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-3 w-full max-w-md pointer-events-none">
         {/* Search Bar Glass Panel */}
-        <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md p-2 rounded-full shadow-lg border border-white/40">
+        <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md p-2 rounded-full shadow-lg border border-white/50 pointer-events-auto">
           <Search className="w-5 h-5 text-neutral-500 ml-3 shrink-0" />
           <Input
-            placeholder="Search route 370 or Baddegama..."
-            className="border-0 bg-transparent shadow-none focus-visible:ring-0 text-base"
+            placeholder="Search route or bus..."
+            className="border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm font-semibold"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <Button variant="ghost" size="icon" className="rounded-full bg-neutral-900 text-white hover:bg-neutral-800 shrink-0 h-10 w-10">
+          <Button variant="ghost" size="icon" className="rounded-full bg-emerald-500 text-white hover:bg-emerald-600 shrink-0 h-10 w-10">
             <MapPin className="w-4 h-4" />
           </Button>
         </div>
 
         {/* Route Pills Strip */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none px-1">
-          {["370", "515", "574", "515/1", "339", "384", "363/4"].map((route) => (
-            <button
-              key={route}
-              className="flex items-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-sm border border-white/50 text-sm font-medium whitespace-nowrap hover:bg-white transition-colors"
-            >
-              <BusIcon className="w-4 h-4 text-neutral-700" />
-              {route}
-            </button>
-          ))}
-        </div>
+        {uniqueRoutes.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none px-1 pointer-events-auto">
+            {uniqueRoutes.map((route) => (
+              <button
+                key={route}
+                onClick={() => setSearchQuery(route)}
+                className="flex items-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-sm border border-white/50 text-sm font-bold whitespace-nowrap hover:bg-neutral-50 hover:border-emerald-200 transition-colors"
+              >
+                <BusIcon className="w-4 h-4 text-emerald-600" />
+                {route}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Top Right: Info Panels */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-4 w-72">
-
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-4 w-72 pointer-events-none">
         {/* Stats Modules */}
-        <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-lg border border-white/40">
+        <div className="bg-white/90 backdrop-blur-md p-5 rounded-[1.5rem] shadow-lg border border-white/50 pointer-events-auto transition-transform hover:-translate-y-1">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-full text-blue-600">
-                <BusIcon className="w-5 h-5" />
+              <div className="p-3 bg-blue-50 rounded-2xl text-blue-600">
+                <BusIcon className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-semibold text-neutral-800">Total Buses</p>
-                <p className="text-xs text-neutral-500">Registered in system</p>
+                <p className="font-black text-neutral-800">Total Buses</p>
+                <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Active in system</p>
               </div>
             </div>
-            <span className="text-2xl font-light">{vehicles.length}</span>
+            <span className="text-3xl font-black text-blue-600">{liveVehicles.length}</span>
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl shadow-lg border border-white/40">
+        <div className="bg-white/90 backdrop-blur-md p-5 rounded-[1.5rem] shadow-lg border border-white/50 pointer-events-auto transition-transform hover:-translate-y-1">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-full text-green-600">
-                <MapIcon className="w-5 h-5" />
+              <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
+                <MapIcon className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-semibold text-neutral-800">Active Routes</p>
-                <p className="text-xs text-neutral-500">Available bus routes</p>
+                <p className="font-black text-neutral-800">Active Routes</p>
+                <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Currently driven</p>
               </div>
             </div>
-            <span className="text-2xl font-light">12</span>
+            <span className="text-3xl font-black text-emerald-600">{uniqueRoutes.length}</span>
           </div>
         </div>
-
       </div>
-
     </div>
   )
 }

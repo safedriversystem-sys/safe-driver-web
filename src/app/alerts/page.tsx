@@ -24,6 +24,18 @@ export default function AlertsPage() {
   const previousAlertsRef = useRef<Alert[]>([])
   const isInitialLoadRef = useRef(true)
 
+  // Load saved statuses on mount
+  useEffect(() => {
+    try {
+      const savedStatuses = localStorage.getItem("safedriver-alert-statuses")
+      if (savedStatuses) {
+        setAlertStatuses(JSON.parse(savedStatuses))
+      }
+    } catch (e) {
+      console.error("Failed to load alert statuses", e)
+    }
+  }, [])
+
   // Debug: Log alerts when they change
   useEffect(() => {
     if (liveAlerts.length > 0) {
@@ -156,11 +168,19 @@ export default function AlertsPage() {
   }
 
   const handleAcknowledgeAlert = (alertId: string) => {
-    setAlertStatuses((prev) => ({ ...prev, [alertId]: "acknowledged" }))
+    setAlertStatuses((prev) => {
+      const newStatuses = { ...prev, [alertId]: "acknowledged" as const }
+      localStorage.setItem("safedriver-alert-statuses", JSON.stringify(newStatuses))
+      return newStatuses
+    })
   }
 
   const handleResolveAlert = (alertId: string) => {
-    setAlertStatuses((prev) => ({ ...prev, [alertId]: "resolved" }))
+    setAlertStatuses((prev) => {
+      const newStatuses = { ...prev, [alertId]: "resolved" as const }
+      localStorage.setItem("safedriver-alert-statuses", JSON.stringify(newStatuses))
+      return newStatuses
+    })
   }
 
   const handleContactDriver = (alert: any) => {
@@ -433,6 +453,27 @@ export default function AlertsPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => handleResolveAlert(alert.id)}
+                          className="flex items-center gap-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          {t("resolved")}
+                        </Button>
+                      </div>
+                    )}
+                    {alert.status === "acknowledged" && activeTab !== "history" && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleContactDriver(alert)}
+                          className="flex items-center gap-2"
+                        >
+                          <Phone className="h-4 w-4" />
+                          {t("contact_driver")}
+                        </Button>
+                        <Button
+                          size="sm"
                           onClick={() => handleResolveAlert(alert.id)}
                           className="flex items-center gap-2"
                         >
