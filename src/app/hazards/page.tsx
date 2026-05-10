@@ -46,7 +46,7 @@ export default function HazardsPage() {
             <HazardMonitoringMap />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
               <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
                 <AlertTriangle className="h-6 w-6" />
@@ -57,16 +57,6 @@ export default function HazardsPage() {
               </div>
             </div>
             
-            <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
-              <div className="h-12 w-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <MapIcon className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-neutral-800">School Zones</h3>
-                <p className="text-sm text-neutral-500 font-medium">Automatic speed enforcement zones for areas with high pedestrian traffic.</p>
-              </div>
-            </div>
-
             <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
               <div className="h-12 w-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center">
                 <ShieldAlert className="h-6 w-6" />

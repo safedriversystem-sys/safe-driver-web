@@ -17,7 +17,7 @@ const hazardZoneSchema = z.object({
   location: z.string().min(1),
   latitude: z.number(),
   longitude: z.number(),
-  type: z.enum(["school", "accident", "restricted", "speed", "other"]).default("school"),
+  type: z.enum(["accident", "other"]).default("accident"),
   radius: z.number().min(0).default(200),
 })
 

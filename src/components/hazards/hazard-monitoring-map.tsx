@@ -272,9 +272,6 @@ export function HazardMonitoringMap() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="accident">Accident Prone</SelectItem>
-                      <SelectItem value="school">School Zone</SelectItem>
-                      <SelectItem value="speed">Speed Trap</SelectItem>
-                      <SelectItem value="restricted">Restricted Area</SelectItem>
                       <SelectItem value="other">Other Danger</SelectItem>
                     </SelectContent>
                   </Select>
