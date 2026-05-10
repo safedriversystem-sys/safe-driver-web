@@ -399,16 +399,15 @@ export default function RouteMonitoring() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4"
+        className="flex justify-between items-center mb-8"
       >
         <div>
-          <h1 className="text-4xl font-extrabold text-neutral-900 mb-2 tracking-tight">
+          <h1 className="text-3xl font-bold text-neutral-900 mb-2">
             {t("route_monitoring")}
           </h1>
-          <p className="text-neutral-500 text-lg">{t("route_monitoring_desc")}</p>
+          <p className="text-neutral-600">{t("route_monitoring_desc")}</p>
         </div>
-        <div className="flex gap-2 bg-white p-1 rounded-xl shadow-sm border border-neutral-200">
-          <Dialog open={showAddRoute} onOpenChange={(open) => {
+        <Dialog open={showAddRoute} onOpenChange={(open) => {
             setShowAddRoute(open);
             if (!open) {
               setEditingRouteId(null);
@@ -419,7 +418,7 @@ export default function RouteMonitoring() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button className="rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white" size="sm" onClick={() => {
+              <Button onClick={() => {
                 setEditingRouteId(null);
                 setNewRoute({
                   name: "", busNumber: "", startPoint: "", endPoint: "", distance: "", estimatedTime: "",
@@ -463,16 +462,7 @@ export default function RouteMonitoring() {
               </div>
             </DialogContent>
           </Dialog>
-          <Button
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("grid")}
-            className="rounded-lg font-bold"
-          >
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Grid View
-          </Button>
-        </div>
+
       </motion.div>
 
 
@@ -513,7 +503,7 @@ export default function RouteMonitoring() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className={`text-3xl font-black ${stat.color} mb-1 tracking-tight`}>{stat.value}</div>
+                <div className={`text-3xl font-bold ${stat.color} mb-1 tracking-tight`}>{stat.value}</div>
                 <p className="text-sm text-neutral-400 font-semibold">{stat.context}</p>
               </CardContent>
             </Card>
@@ -559,7 +549,7 @@ export default function RouteMonitoring() {
       {loading ? (
         <div className="flex flex-col items-center justify-center p-24 bg-white rounded-[2rem] shadow-sm border border-neutral-100">
           <Loader2 className="h-20 w-20 text-blue-500 mb-8 animate-spin" />
-          <h3 className="text-2xl font-black text-neutral-900 mb-2">{t("loading_routes")}</h3>
+          <h3 className="text-2xl font-bold text-neutral-900 mb-2">{t("loading_routes")}</h3>
           <p className="text-neutral-500 font-medium text-lg">{t("wait_fetching")}</p>
         </div>
       ) : filteredRoutes.length === 0 ? (
@@ -567,7 +557,7 @@ export default function RouteMonitoring() {
           <div className="p-10 bg-neutral-50 rounded-full mb-8 shadow-inner">
             <RouteIcon className="h-20 w-20 text-neutral-200" />
           </div>
-          <h3 className="text-2xl font-black text-neutral-900 mb-2">{t("no_routes_found")}</h3>
+          <h3 className="text-2xl font-bold text-neutral-900 mb-2">{t("no_routes_found")}</h3>
           <p className="text-neutral-500 font-medium text-lg">{t("no_routes_match")}</p>
         </div>
       ) : (
@@ -585,12 +575,12 @@ export default function RouteMonitoring() {
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <CardTitle className="text-3xl font-black text-neutral-900 group-hover:text-blue-600 transition-colors tracking-tight">
+                        <CardTitle className="text-3xl font-bold text-neutral-900 group-hover:text-blue-600 transition-colors tracking-tight">
                           {route.name}{route.busNumber ? ` - ${route.busNumber}` : ""}
                         </CardTitle>
                         <Badge
                           variant={route.status === "active" ? "success" : "secondary"}
-                          className="rounded-full px-4 py-1.5 text-[11px] uppercase font-black tracking-widest shadow-sm"
+                          className="rounded-full px-4 py-1.5 text-[11px] uppercase font-bold tracking-widest shadow-sm"
                         >
                           {t(route.status as any)}
                         </Badge>
@@ -606,7 +596,7 @@ export default function RouteMonitoring() {
                   {/* Route Journey */}
                   <div className="flex items-center justify-between bg-neutral-50/80 p-5 rounded-[1.5rem] border border-neutral-100">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Terminal A</p>
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Terminal A</p>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-emerald-500" />
                         <span className="font-bold text-neutral-800">{route.startPoint}</span>
@@ -618,7 +608,7 @@ export default function RouteMonitoring() {
                       <div className="h-[2px] w-full max-w-[40px] bg-neutral-200 rounded-full" />
                     </div>
                     <div className="space-y-1 text-right">
-                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Terminal B</p>
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Terminal B</p>
                       <div className="flex items-center justify-end gap-2">
                         <span className="font-bold text-neutral-800">{route.endPoint}</span>
                         <MapPin className="h-4 w-4 text-rose-500" />
@@ -627,7 +617,7 @@ export default function RouteMonitoring() {
                   </div>
                   {/* Assigned Buses Section */}
                   <div className="mt-2 bg-neutral-50 p-4 sm:p-6 rounded-[1.5rem] border border-neutral-100 shadow-inner">
-                    <h3 className="text-lg font-black mb-4 flex items-center gap-3">
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-3">
                       <Bus className="h-5 w-5 text-emerald-500" />
                       Assigned Buses
                     </h3>
@@ -638,13 +628,13 @@ export default function RouteMonitoring() {
                             <DialogTrigger asChild>
                               <button className="flex items-center gap-2 bg-white px-4 py-3 rounded-2xl border border-neutral-200 shadow-sm transition-transform hover:-translate-y-1 hover:border-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                                 <Bus className="h-4 w-4 text-neutral-400" />
-                                <span className="font-black text-sm text-neutral-800">{vehicleId}</span>
+                                <span className="font-bold text-sm text-neutral-800">{vehicleId}</span>
                                 <Badge className="ml-1 bg-emerald-100 text-emerald-700 rounded-full text-[10px] pointer-events-none">On Route</Badge>
                               </button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md rounded-[2rem] border-none shadow-2xl">
                               <DialogHeader>
-                                <DialogTitle className="flex items-center gap-3 text-2xl font-black">
+                                <DialogTitle className="flex items-center gap-3 text-2xl font-bold">
                                   <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl">
                                     <Bus className="h-6 w-6" />
                                   </div>
@@ -656,11 +646,11 @@ export default function RouteMonitoring() {
                               </DialogHeader>
                               <div className="grid grid-cols-2 gap-4 py-4">
                                 <div className="col-span-2 bg-emerald-50 p-5 rounded-[1.5rem] border border-emerald-100">
-                                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Status</p>
-                                  <p className="text-2xl font-black text-emerald-700 mt-1">Active</p>
+                                  <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Status</p>
+                                  <p className="text-2xl font-bold text-emerald-700 mt-1">Active</p>
                                 </div>
                                 <div className="col-span-2 bg-neutral-50 p-5 rounded-[1.5rem] border border-neutral-100">
-                                  <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">Current Location</p>
+                                  <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-2">Current Location</p>
                                   <div className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm">
                                     <div className="p-2 bg-rose-50 text-rose-500 rounded-lg">
                                       <MapPin className="h-5 w-5" />
@@ -689,14 +679,14 @@ export default function RouteMonitoring() {
                   <div className="flex flex-wrap gap-4 pt-4 border-t border-neutral-100">
                     <Button
                       variant="outline"
-                      className="rounded-2xl border-neutral-200 h-14 px-8 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all font-black text-sm uppercase tracking-wider"
+                      className="rounded-2xl border-neutral-200 h-14 px-8 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all font-bold text-sm uppercase tracking-wider"
                       onClick={() => setSelectedRoute(route)}
                     >
                       <MapPin className="h-5 w-5 mr-3" />
                       View Map
                     </Button>
 
-                    <Button variant="ghost" className="rounded-2xl h-14 px-6 text-neutral-500 font-black text-sm uppercase tracking-wider hover:text-blue-600 hover:bg-blue-50"
+                    <Button variant="ghost" className="rounded-2xl h-14 px-6 text-neutral-500 font-bold text-sm uppercase tracking-wider hover:text-blue-600 hover:bg-blue-50"
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditingRouteId(route.id);
@@ -710,7 +700,7 @@ export default function RouteMonitoring() {
                     >
                       Edit
                     </Button>
-                    <Button variant="ghost" className="rounded-2xl h-14 px-6 text-rose-500 font-black text-sm uppercase tracking-wider hover:text-rose-600 hover:bg-rose-50"
+                    <Button variant="ghost" className="rounded-2xl h-14 px-6 text-rose-500 font-bold text-sm uppercase tracking-wider hover:text-rose-600 hover:bg-rose-50"
                       onClick={(e) => handleDeleteRoute(route.id, e)}
                     >
                       <Trash2 className="h-5 w-5 mr-3" />
@@ -746,12 +736,12 @@ export default function RouteMonitoring() {
                 <div className="flex justify-between items-start mb-6">
                   <div className="space-y-2">
                     <div className="flex items-center gap-4">
-                      <h2 className="text-4xl font-black tracking-tight text-neutral-900">{selectedRoute.name}{selectedRoute.busNumber ? ` - ${selectedRoute.busNumber}` : ""}</h2>
-                      <Badge className="bg-emerald-500 text-white font-black px-4 py-1.5 uppercase tracking-widest text-[11px] rounded-full">Active</Badge>
+                      <h2 className="text-4xl font-bold tracking-tight text-neutral-900">{selectedRoute.name}{selectedRoute.busNumber ? ` - ${selectedRoute.busNumber}` : ""}</h2>
+                      <Badge className="bg-emerald-500 text-white font-bold px-4 py-1.5 uppercase tracking-widest text-[11px] rounded-full">Active</Badge>
                     </div>
                   </div>
                   <Button variant="ghost" size="icon" className="rounded-2xl h-14 w-14 hover:bg-neutral-100" onClick={() => { setSelectedRoute(null); setModalTab("map"); setSelectedHazardInfo(null); }}>
-                    <span className="text-2xl font-black text-neutral-400 hover:text-neutral-900">✕</span>
+                    <span className="text-2xl font-bold text-neutral-400 hover:text-neutral-900">✕</span>
                   </Button>
                 </div>
 
@@ -759,7 +749,7 @@ export default function RouteMonitoring() {
                 <div className="flex gap-2 bg-neutral-100 p-1 rounded-2xl mb-6 w-fit">
                   <button
                     onClick={() => setModalTab("map")}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all ${
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                       modalTab === "map"
                         ? "bg-white text-blue-600 shadow-sm"
                         : "text-neutral-500 hover:text-neutral-800"
@@ -770,7 +760,7 @@ export default function RouteMonitoring() {
                   </button>
                   <button
                     onClick={() => { setModalTab("hazards"); setSelectedHazardInfo(null); }}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all ${
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                       modalTab === "hazards"
                         ? "bg-white text-amber-600 shadow-sm"
                         : "text-neutral-500 hover:text-neutral-800"
@@ -779,7 +769,7 @@ export default function RouteMonitoring() {
                     <AlertTriangle className="h-4 w-4" />
                     Hazard Zones
                     {routeHazards.length > 0 && (
-                      <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                      <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                         {routeHazards.length}
                       </span>
                     )}
@@ -815,7 +805,7 @@ export default function RouteMonitoring() {
                           <div className="p-5 bg-white rounded-full shadow-sm">
                             <AlertTriangle className="h-12 w-12 text-amber-200" />
                           </div>
-                          <p className="font-black text-neutral-600 text-lg">No Hazard Zones Yet</p>
+                          <p className="font-bold text-neutral-600 text-lg">No Hazard Zones Yet</p>
                           <p className="text-sm text-neutral-400 font-medium">Go to Hazard Monitoring to mark hazards on the map.</p>
                         </div>
                       ) : (
@@ -921,7 +911,7 @@ export default function RouteMonitoring() {
                               <AlertTriangle className="h-4 w-4" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="font-black text-sm text-neutral-800 truncate">{h.name}</p>
+                              <p className="font-bold text-sm text-neutral-800 truncate">{h.name}</p>
                               <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-0.5">
                                 {h.type === "other" && h.customType ? h.customType : h.type} · {h.radius}m
                               </p>
@@ -939,7 +929,7 @@ export default function RouteMonitoring() {
 
               {/* Footer */}
               <div className="p-8 bg-neutral-50 border-t border-neutral-100 flex gap-4">
-                <Button variant="outline" className="rounded-2xl border-rose-200 text-rose-500 h-14 px-10 font-black hover:bg-rose-50 hover:text-rose-600 transition-all uppercase tracking-wider" onClick={() => handleDeleteRoute(selectedRoute.id)}>
+                <Button variant="outline" className="rounded-2xl border-rose-200 text-rose-500 h-14 px-10 font-bold hover:bg-rose-50 hover:text-rose-600 transition-all uppercase tracking-wider" onClick={() => handleDeleteRoute(selectedRoute.id)}>
                   <Trash2 className="h-5 w-5 mr-3 inline-block" />
                   Delete Route
                 </Button>
@@ -977,7 +967,7 @@ export default function RouteMonitoring() {
       <AlertDialog open={!!routeToDelete} onOpenChange={(open) => !open && setRouteToDelete(null)}>
         <AlertDialogContent className="rounded-[2rem] border-none shadow-2xl p-8">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-2xl font-black text-neutral-900 flex items-center gap-3">
+            <AlertDialogTitle className="text-2xl font-bold text-neutral-900 flex items-center gap-3">
               <div className="p-2 bg-rose-50 text-rose-500 rounded-xl">
                 <Trash2 className="h-6 w-6" />
               </div>
