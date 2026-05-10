@@ -4,9 +4,8 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, Phone, MapPin, Clock, RefreshCw, CheckCircle, Bell, Volume, VolumeX, History } from "lucide-react"
+import { AlertTriangle, Phone, MapPin, Clock, RefreshCw, CheckCircle, Bell, History } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { VoiceAlertManager } from "@/lib/voice-alert-manager"
 import { EmergencyResponseSystem } from "@/lib/emergency-response-system"
 import { useLiveAlerts, type Alert, isToday, parseTimestamp } from "@/hooks/use-live-alerts"
 import { useLanguage } from "@/components/language-provider"
@@ -20,7 +19,6 @@ export default function AlertsPage() {
   // Track alert statuses (acknowledged/resolved) in local state
   const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved">>({})
   const [activeTab, setActiveTab] = useState("active")
-  const [voiceAlertsEnabled, setVoiceAlertsEnabled] = useState(true)
   const previousAlertsRef = useRef<Alert[]>([])
   const isInitialLoadRef = useRef(true)
 
@@ -104,19 +102,7 @@ export default function AlertsPage() {
 
     // Process new alerts
     newAlerts.forEach((alert) => {
-      // Trigger voice alert if enabled
-      if (voiceAlertsEnabled) {
-        const alertManager = VoiceAlertManager.getInstance()
-        // Use bus number (number_plate) and alert description for voice alert
-        const busNumber = alert.number_plate || alert.busNumber || ""
-        const alertMessage = alert.description || ""
 
-        // Create voice alert with bus number and proper message format
-        const voiceAlert = VoiceAlertManager.createBusAlert(busNumber, alertMessage, alert.type)
-        alertManager.addAlert(voiceAlert)
-
-        console.log(`🔊 Voice alert created: "${voiceAlert.message}"`)
-      }
 
       // Trigger emergency response for high severity alerts
       if (alert.severity === "high" && (alert.type === "drowsiness" || alert.type === "distraction")) {
@@ -135,15 +121,9 @@ export default function AlertsPage() {
         })
       }
     })
-  }, [liveAlerts, voiceAlertsEnabled])
+  }, [liveAlerts])
 
   useEffect(() => {
-    // Check if voice alerts are enabled in localStorage
-    const savedVoiceAlertsEnabled = localStorage.getItem("safedriver-voice-alerts-enabled")
-    if (savedVoiceAlertsEnabled !== null) {
-      setVoiceAlertsEnabled(savedVoiceAlertsEnabled === "true")
-    }
-
     // Set up event listener for voice commands
     const handleVoiceAcknowledge = () => {
       // Find the first active alert and acknowledge it
@@ -188,17 +168,7 @@ export default function AlertsPage() {
     console.log(`Contacting driver ${alert.driverName}`)
   }
 
-  const toggleVoiceAlerts = () => {
-    const newState = !voiceAlertsEnabled
-    setVoiceAlertsEnabled(newState)
 
-    // Update alert manager
-    const alertManager = VoiceAlertManager.getInstance()
-    alertManager.setEnabled(newState)
-
-    // Save preference
-    localStorage.setItem("safedriver-voice-alerts-enabled", String(newState))
-  }
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -335,10 +305,7 @@ export default function AlertsPage() {
           )}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={toggleVoiceAlerts} className="flex items-center gap-2">
-            {voiceAlertsEnabled ? <Volume className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-            {t("voice_alerts")}
-          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -356,17 +323,17 @@ export default function AlertsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="active">
-            {t("active")} ({alerts.filter((a) => a.status === "active" && isToday(a.timestamp)).length})
+            {t("active")}
           </TabsTrigger>
           <TabsTrigger value="acknowledged">
-            {t("acknowledged")} ({alerts.filter((a) => a.status === "acknowledged" && isToday(a.timestamp)).length})
+            {t("acknowledged")}
           </TabsTrigger>
           <TabsTrigger value="resolved">
-            {t("resolved")} ({alerts.filter((a) => a.status === "resolved" && isToday(a.timestamp)).length})
+            {t("resolved")}
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-1">
             <History className="h-3 w-3" />
-            {t("history")} ({historyAlerts.length})
+            {t("history")}
           </TabsTrigger>
         </TabsList>
 

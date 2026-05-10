@@ -437,8 +437,19 @@ export default function RouteMonitoring() {
               <div className="space-y-6 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Route Name <span className="text-red-500">*</span></Label>
-                    <Input placeholder="e.g., Express Route 1" value={newRoute.name} onChange={e => setNewRoute({...newRoute, name: e.target.value})} />
+                    <Label>Route Category <span className="text-red-500">*</span></Label>
+                    <Select 
+                      value={newRoute.name} 
+                      onValueChange={value => setNewRoute({...newRoute, name: value})}
+                    >
+                      <SelectTrigger className="rounded-xl border-neutral-200">
+                        <SelectValue placeholder="Select Route Category" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-neutral-200 shadow-xl">
+                        <SelectItem value="Express Route" className="rounded-lg">Express Route</SelectItem>
+                        <SelectItem value="Normal Route" className="rounded-lg">Normal Route</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Bus Number (Route No)</Label>
@@ -575,8 +586,11 @@ export default function RouteMonitoring() {
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <CardTitle className="text-3xl font-bold text-neutral-900 group-hover:text-blue-600 transition-colors tracking-tight">
-                          {route.name}{route.busNumber ? ` - ${route.busNumber}` : ""}
+                        <CardTitle className="text-3xl font-bold text-neutral-900 group-hover:text-blue-600 transition-colors tracking-tight flex items-baseline gap-2">
+                          {route.name}
+                          <span className="text-sm font-medium text-neutral-400">
+                            ({route.startPoint.replace(/ Bus Stop/i, "")} - {route.endPoint.replace(/ Bus Stop/i, "")})
+                          </span>
                         </CardTitle>
                         <Badge
                           variant={route.status === "active" ? "success" : "secondary"}
@@ -585,7 +599,6 @@ export default function RouteMonitoring() {
                           {t(route.status as any)}
                         </Badge>
                       </div>
-
                     </div>
                     <Button variant="outline" size="icon" className="rounded-2xl hover:bg-blue-50 hover:text-blue-600 border-neutral-200 shadow-sm h-12 w-12 shrink-0">
                       <Maximize2 className="h-6 w-6" />
@@ -737,6 +750,7 @@ export default function RouteMonitoring() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-4">
                       <h2 className="text-4xl font-bold tracking-tight text-neutral-900">{selectedRoute.name}{selectedRoute.busNumber ? ` - ${selectedRoute.busNumber}` : ""}</h2>
+                      <p className="text-blue-600 font-semibold text-lg">{selectedRoute.startPoint} to {selectedRoute.endPoint}</p>
                       <Badge className="bg-emerald-500 text-white font-bold px-4 py-1.5 uppercase tracking-widest text-[11px] rounded-full">Active</Badge>
                     </div>
                   </div>

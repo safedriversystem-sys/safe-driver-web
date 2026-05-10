@@ -715,7 +715,10 @@ export default function FleetManagement() {
                               <div className="flex flex-col min-w-0">
                                 <span className="truncate">{vehicle.route || t("no_route_assigned")}</span>
                                 {vehicle.route && (() => {
-                                  const r = routes.find(rt => rt.name === vehicle.route || rt.id === vehicle.routeId);
+                                  const r = routes.find(rt => 
+                                    (vehicle.routeId && rt.id === vehicle.routeId) || 
+                                    (!vehicle.routeId && rt.name === vehicle.route)
+                                  );
                                   if (r && r.startPoint && r.endPoint) {
                                     return (
                                       <span className="text-xs text-muted-foreground truncate mt-0.5">

@@ -342,7 +342,7 @@ const addRouteSafetyContent = async (doc: jsPDF, data: any, yPos: number) => {
   // Route safety table
   yPos = addSectionTitle(doc, "Route Safety Details", yPos)
 
-  const headers = ["Route Name", "Total Buses", "Active Drivers", "High Risk Areas"]
+  const headers = ["Route Category", "Total Buses", "Active Drivers", "High Risk Areas"]
   const tableData =
     data.routes?.map((route: any) => [
       route.name,

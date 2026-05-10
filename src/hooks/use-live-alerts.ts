@@ -147,7 +147,6 @@ const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: Dev
   const severity = getSeverity(alert.type, alert.tag)
 
   // 1. First, try to find matching vehicle in Firestore data for more accurate info
-  // Match by deviceId (if it's a GUID/MAC) or number plate
   const matchedVehicle = firestoreVehicles.find(v => 
     (v.deviceId && v.deviceId.toLowerCase() === deviceId.toLowerCase()) || 
     (v.documentId && v.documentId.toLowerCase() === (alert.number_plate || "").toLowerCase()) ||
@@ -162,11 +161,10 @@ const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: Dev
   const route = deviceInfo?.route || matchedVehicle?.route || "Unknown Route"
   const location = deviceInfo?.location || (deviceInfo?.status === "online" ? "Online" : "Offline")
 
-  // Generate unique ID - prioritize provided ID (historyKey)
-  // Fallback to a composite ID that includes message content to prevent collisions 
-  // when multiple distinct alerts happen at the same timestamp.
-  const contentHash = alert.message ? alert.message.substring(0, 10).replace(/\s/g, "") : ""
-  const alertId = id || `${deviceId}-${alert.time || Date.now()}-${alert.type}-${contentHash}`
+  // Generate unique ID that is guaranteed to be unique across all devices and events
+  // We MUST incorporate the deviceId to prevent collisions between different devices using the same history keys
+  const eventId = id || `evt-${alert.time || Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  const alertId = `${deviceId}-${eventId}`
 
   return {
     id: alertId,
@@ -309,7 +307,6 @@ export function useLiveAlerts() {
 
           // Separate arrays for building the final list
           const historyAlertsList: Alert[] = []
-          const transformedAlerts: Alert[] = [] // Used for "latest per device" logic
 
           // Build an exhaustive map of all alerts for today
           const alertMap = new Map<string, Alert>()
@@ -318,7 +315,7 @@ export function useLiveAlerts() {
             const deviceAlert: any = data[deviceId]
             const deviceInfo = devices[deviceId]
 
-            // 1. Process history (often more complete for the whole day)
+            // 1. Process history
             if (deviceAlert && deviceAlert.history) {
               const history = deviceAlert.history
               Object.keys(history).forEach((historyKey) => {
@@ -328,45 +325,35 @@ export function useLiveAlerts() {
                   
                   // If it's today, keep it in the primary alerts list
                   if (isToday(alert.timestamp)) {
-                    // Force state to active for today's history items if not decided
                     alert.status = (historyAlert as any).status || "active"
                     alertMap.set(alert.id, alert)
                   }
                   
                   // Also add to history array for the history tab
-                  const historyItem = { ...alert }
-                  historyItem.status = (historyAlert as any).status || "resolved"
+                  const historyItem = { ...alert, status: (historyAlert as any).status || "resolved" }
                   historyAlertsList.push(historyItem)
                 }
               })
             }
 
-            // 2. Process latest (ensure the very last one is included even if not in history yet)
+            // 2. Process latest alert
             if (deviceAlert && deviceAlert.latest) {
               const latest = deviceAlert.latest
               if (latest.message && latest.time) {
+                // For the latest node, we don't have a history key, so we pass undefined to generate a unique one
                 const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, undefined, firestoreVehicles)
                 
-                // 1. Update Active/Today Alerts map (for the Active/Acknowledge/Resolved tabs)
-                if (alertMap.has(alert.id)) {
-                  Object.assign(alertMap.get(alert.id)!, alert)
-                } else {
-                  // If it's today OR the latest for the device, show it
-                  if (isToday(alert.timestamp) || !transformedAlerts.some(a => a.deviceId === deviceId)) {
+                // Only add to the map if this EXACT event ID isn't already there
+                // (which it shouldn't be for 'latest' unless we just added it from history with the same generated ID)
+                if (!alertMap.has(alert.id)) {
+                  if (isToday(alert.timestamp)) {
                     alertMap.set(alert.id, alert)
-                    transformedAlerts.push(alert)
                   }
                 }
 
-                // 2. Explicitly add Latest to History list if not already there
-                const existsInHistory = historyAlertsList.some(h => 
-                  h.id === alert.id || (h.timestamp === alert.timestamp && h.description === alert.description)
-                )
-                
-                if (!existsInHistory) {
-                  const historyItem = { ...alert }
-                  historyItem.status = (latest as any).status || "resolved"
-                  historyAlertsList.push(historyItem)
+                // Add to history list if not already there by ID
+                if (!historyAlertsList.some(h => h.id === alert.id)) {
+                  historyAlertsList.push({ ...alert, status: (latest as any).status || "resolved" })
                 }
               }
             }
