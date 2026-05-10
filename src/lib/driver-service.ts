@@ -27,22 +27,25 @@ export const driverService = {
       // Build Firestore query constraints for server-side filtering
       const constraints: any[] = []
       
-      // Apply status filter server-side (much faster)
-      if (filters?.status && filters.status !== "all") {
-        constraints.push(firestoreService.where("status", "==", filters.status))
-      }
-      
       // Order by createdAt first (required before limit in Firestore)
       constraints.push(firestoreService.orderByField("createdAt", "desc"))
 
       // Add limit for better performance (after ordering)
+      // If filtering by status, fetch more records before filtering in memory
       const limit = filters?.limit || 100
-      if (limit > 0) {
-        constraints.push(firestoreService.limitResults(limit))
+      const fetchLimit = (filters?.status && filters.status !== "all") ? 500 : limit
+      if (fetchLimit > 0) {
+        constraints.push(firestoreService.limitResults(fetchLimit))
       }
 
       // Fetch with server-side filters
       let drivers = await firestoreService.getCollection<Driver>(COLLECTION_NAME, constraints)
+
+      // Apply status filter in memory to avoid needing composite indexes 
+      // (equality on status + order by createdAt requires composite index)
+      if (filters?.status && filters.status !== "all") {
+        drivers = drivers.filter(d => d.status === filters.status)
+      }
 
       // Apply client-side filters that can't be done server-side (text search)
       if (filters?.search) {

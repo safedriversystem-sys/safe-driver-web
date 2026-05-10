@@ -929,10 +929,9 @@ export default function DriversPage() {
                 <DialogDescription>Complete driver information and performance history</DialogDescription>
               </DialogHeader>
               <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="profile">Profile</TabsTrigger>
                   <TabsTrigger value="performance">Performance</TabsTrigger>
-                  <TabsTrigger value="history">History</TabsTrigger>
                 </TabsList>
                 <TabsContent value="profile" className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -992,20 +991,7 @@ export default function DriversPage() {
                     </Card>
                   </div>
                 </TabsContent>
-                <TabsContent value="history" className="space-y-4">
-                  <div>
-                    <Label>Last Alert</Label>
-                    <p className="font-medium">{selectedDriver.lastAlert || "Never"}</p>
-                  </div>
-                  <div>
-                    <Label>Recent Activity</Label>
-                    <div className="space-y-2 mt-2">
-                      <p className="text-sm">• Completed route Colombo - Kandy (2 hours ago)</p>
-                      <p className="text-sm">• Safety training completed (1 week ago)</p>
-                      <p className="text-sm">• Vehicle inspection passed (2 weeks ago)</p>
-                    </div>
-                  </div>
-                </TabsContent>
+
               </Tabs>
             </DialogContent>
           </Dialog>
