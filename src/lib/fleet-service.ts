@@ -31,10 +31,7 @@ export const fleetService = {
     try {
       const constraints: any[] = []
 
-      // Apply status filter server-side
-      if (filters?.status && filters.status !== "all") {
-        constraints.push(firestoreService.where("status", "==", filters.status))
-      }
+
 
 
 
@@ -50,6 +47,10 @@ export const fleetService = {
       let vehicles = await firestoreService.getCollection<Vehicle>(VEHICLES_COLLECTION, constraints)
 
       // Apply client-side filters that can't be done server-side (text search)
+      if (filters?.status && filters.status !== "all") {
+        vehicles = vehicles.filter((v) => v.status === filters.status)
+      }
+
       if (filters?.search) {
         const searchLower = filters.search.toLowerCase()
         vehicles = vehicles.filter(

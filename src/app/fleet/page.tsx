@@ -69,6 +69,7 @@ export default function FleetManagement() {
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [routes, setRoutes] = useState<Route[]>([])
+  const [updatingStatusIds, setUpdatingStatusIds] = useState<Set<string>>(new Set())
   const { toast } = useToast()
   const { t } = useLanguage()
   const [newVehicle, setNewVehicle] = useState({
@@ -87,9 +88,9 @@ export default function FleetManagement() {
 
 
   // Fetch vehicles
-  const fetchVehicles = async () => {
+  const fetchVehicles = async (silent = false) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const params = new URLSearchParams()
       if (statusFilter !== "all") {
         params.append("status", statusFilter)
@@ -152,7 +153,7 @@ export default function FleetManagement() {
   // Refetch when filters change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      fetchVehicles()
+      fetchVehicles(true)
     }, 300)
 
     return () => clearTimeout(timeoutId)
@@ -277,6 +278,12 @@ export default function FleetManagement() {
 
   const updateVehicleStatus = async (vehicleId: string, newStatus: string) => {
     try {
+      // Add to updating set
+      setUpdatingStatusIds(prev => new Set(prev).add(vehicleId))
+      
+      // Optimistic update
+      setVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: newStatus as any } : v))
+
       const response = await fetch(`/api/fleet/${vehicleId}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -291,16 +298,26 @@ export default function FleetManagement() {
 
       toast({
         title: "Success",
-        description: `Vehicle status updated to ${newStatus.replace("_", " ")}.`,
+        description: `Vehicle status updated to ${newStatus}.`,
       })
 
-      fetchVehicles()
+      // Silent refresh to ensure sync with server
+      await fetchVehicles(true)
     } catch (error: any) {
       console.error("Error updating vehicle status:", error)
+      // Rollback optimistic update on error
+      fetchVehicles(true)
+      
       toast({
         title: "Error",
         description: error?.message || "Failed to update vehicle status. Please try again.",
         variant: "destructive",
+      })
+    } finally {
+      setUpdatingStatusIds(prev => {
+        const next = new Set(prev)
+        next.delete(vehicleId)
+        return next
       })
     }
   }
@@ -541,7 +558,7 @@ export default function FleetManagement() {
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {routes.map((route) => (
                       <SelectItem key={route.id} value={route.id}>
-                        {route.name}
+                        {route.name} {route.startPoint && route.endPoint ? `(${route.startPoint.replace(/ Bus Stop/i, "")} to ${route.endPoint.replace(/ Bus Stop/i, "")})` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -693,9 +710,22 @@ export default function FleetManagement() {
                               <User className="h-4 w-4 text-muted-foreground" />
                               <span>{vehicle.driverName || t("no_driver_assigned")}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Route className="h-4 w-4 text-muted-foreground" />
-                              <span>{vehicle.route || t("no_route_assigned")}</span>
+                            <div className="flex items-start gap-2">
+                              <Route className="h-4 w-4 text-muted-foreground mt-0.5" />
+                              <div className="flex flex-col min-w-0">
+                                <span className="truncate">{vehicle.route || t("no_route_assigned")}</span>
+                                {vehicle.route && (() => {
+                                  const r = routes.find(rt => rt.name === vehicle.route || rt.id === vehicle.routeId);
+                                  if (r && r.startPoint && r.endPoint) {
+                                    return (
+                                      <span className="text-xs text-muted-foreground truncate mt-0.5">
+                                        {r.startPoint.replace(/ Bus Stop/i, "")} to {r.endPoint.replace(/ Bus Stop/i, "")}
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
                             </div>
                           </div>
 
@@ -716,22 +746,39 @@ export default function FleetManagement() {
                               {t("edit")}
                             </Button>
                             <Select
-                              value={vehicle.status}
-                              onValueChange={(value) => {
-                                if (vehicle.id) {
-                                  updateVehicleStatus(vehicle.id, value)
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="h-8 text-xs w-[120px] flex-shrink-0">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="active">{t("active")}</SelectItem>
-
-                                <SelectItem value="inactive">{t("inactive")}</SelectItem>
-                              </SelectContent>
-                            </Select>
+                               value={vehicle.status}
+                               disabled={updatingStatusIds.has(vehicle.id)}
+                               onValueChange={(value) => {
+                                 if (vehicle.id) {
+                                   updateVehicleStatus(vehicle.id, value)
+                                 }
+                               }}
+                             >
+                               <SelectTrigger className={`h-8 text-xs w-[120px] flex-shrink-0 ${updatingStatusIds.has(vehicle.id) ? "opacity-50 cursor-not-allowed" : ""}`}>
+                                 <div className="flex items-center gap-2">
+                                   {updatingStatusIds.has(vehicle.id) ? (
+                                     <Loader2 className="h-3 w-3 animate-spin" />
+                                   ) : (
+                                     <div className={`h-2 w-2 rounded-full ${vehicle.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                   )}
+                                   <SelectValue />
+                                 </div>
+                               </SelectTrigger>
+                               <SelectContent>
+                                 <SelectItem value="active">
+                                   <div className="flex items-center gap-2">
+                                     <div className="h-2 w-2 rounded-full bg-green-500" />
+                                     {t("active")}
+                                   </div>
+                                 </SelectItem>
+                                 <SelectItem value="inactive">
+                                   <div className="flex items-center gap-2">
+                                     <div className="h-2 w-2 rounded-full bg-gray-400" />
+                                     {t("inactive")}
+                                   </div>
+                                 </SelectItem>
+                               </SelectContent>
+                             </Select>
                             <Button
                               size="sm"
                               variant="destructive"
@@ -946,7 +993,7 @@ export default function FleetManagement() {
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {routes.map((route) => (
                       <SelectItem key={route.id} value={route.id}>
-                        {route.name}
+                        {route.name} {route.startPoint && route.endPoint ? `(${route.startPoint.replace(/ Bus Stop/i, "")} to ${route.endPoint.replace(/ Bus Stop/i, "")})` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
