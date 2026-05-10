@@ -520,7 +520,10 @@ export default function DriversPage() {
                 <Input
                   id="phone"
                   value={newDriver.phone}
-                  onChange={(e) => setNewDriver({ ...newDriver, phone: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^\d\s+]/g, "")
+                    setNewDriver({ ...newDriver, phone: val })
+                  }}
                   placeholder="+94 77 123 4567"
                 />
               </div>
@@ -823,7 +826,10 @@ export default function DriversPage() {
                   <Input
                     id="edit-phone"
                     value={editingDriver.phone}
-                    onChange={(e) => setEditingDriver({ ...editingDriver, phone: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^\d\s+]/g, "")
+                      setEditingDriver({ ...editingDriver, phone: val })
+                    }}
                     placeholder="+94 77 123 4567"
                   />
                 </div>
