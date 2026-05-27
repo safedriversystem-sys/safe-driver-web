@@ -171,21 +171,21 @@ export default function LoginPage() {
             {/* Simulated Live Alert Cards */}
             <div className="space-y-3 mt-8">
               {/* Alert 1 */}
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 backdrop-blur-sm flex items-start gap-4">
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl flex items-start gap-4 shadow-2xl">
                 <div className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-500 mt-0.5">
                   <AlertTriangle className="h-4 w-4 animate-pulse" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-semibold text-orange-400 uppercase tracking-wider">Drowsiness Warning</span>
+                    <span className="text-xs font-semibold text-orange-400 uppercase tracking-wider">Warning</span>
                     <span className="text-[10px] text-slate-500">Just now</span>
                   </div>
-                  <p className="text-xs text-slate-300 mt-1">Driver <strong>Sunil Perera</strong> shows signs of fatigue on Route ND-02.</p>
+                  <p className="text-xs text-slate-300 mt-1">Driver <strong className="blur-[4px] select-none opacity-80">Sunil Perera</strong> shows signs of fatigue on Route ND-02.</p>
                 </div>
               </div>
 
               {/* Alert 2 */}
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 backdrop-blur-sm flex items-start gap-4">
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl flex items-start gap-4 shadow-2xl">
                 <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500 mt-0.5">
                   <Car className="h-4 w-4" />
                 </div>
@@ -194,7 +194,7 @@ export default function LoginPage() {
                     <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">Fleet Status</span>
                     <span className="text-[10px] text-slate-500">5m ago</span>
                   </div>
-                  <p className="text-xs text-slate-300 mt-1">Bus <strong>WP ND-8890</strong> registered on system & dispatched.</p>
+                  <p className="text-xs text-slate-300 mt-1">Bus <strong className="blur-[4px] select-none opacity-80">WP ND-8890</strong> registered on system & dispatched.</p>
                 </div>
               </div>
             </div>
@@ -204,7 +204,7 @@ export default function LoginPage() {
         {/* Bottom footer info */}
         <div className="text-xs text-slate-500 relative z-10 flex justify-between">
           <span>&copy; {new Date().getFullYear()} SafeDriver Systems</span>
-          <span>v1.2.0 (Stable)</span>
+          <span>v3.1</span>
         </div>
       </div>
 
@@ -393,59 +393,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Form Switchers & Social Integrations */}
-          {mode !== "reset" && (
-            <div className="space-y-6 pt-4">
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-800"></div>
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-slate-950 px-3 text-slate-500">Or continue with</span>
-                </div>
-              </div>
 
-              {/* Google Button */}
-              <Button
-                variant="outline"
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={isSubmitting}
-                className="w-full bg-transparent border-slate-800 hover:bg-slate-900 hover:text-white text-slate-300 font-medium flex items-center justify-center gap-2 transition-all duration-200"
-              >
-                <Chrome className="h-4 w-4 text-red-500" />
-                <span>Sign in with Google</span>
-              </Button>
-
-              {/* Mode Switcher footer text */}
-              <div className="text-center text-xs text-slate-400">
-                {mode === "login" ? (
-                  <p>
-                    Don't have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => toggleMode("signup")}
-                      className="text-blue-400 hover:text-blue-300 font-semibold underline transition-colors"
-                    >
-                      Register Admin
-                    </button>
-                  </p>
-                ) : (
-                  <p>
-                    Already have an admin account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => toggleMode("login")}
-                      className="text-blue-400 hover:text-blue-300 font-semibold underline transition-colors"
-                    >
-                      Sign In
-                    </button>
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
