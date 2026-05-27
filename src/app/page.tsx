@@ -9,6 +9,9 @@ import { Car, Users, AlertTriangle, CheckCircle, Activity, Shield, Bell, Trendin
 import Link from "next/link"
 import { useLiveAlerts, isToday, parseTimestamp } from "@/hooks/use-live-alerts"
 import { useLanguage } from "@/components/language-provider"
+import { SafetyScoreCard } from "@/components/safety-score-card"
+import { RiskLevelCard } from "@/components/risk-level-card"
+import { calculateSafetyScore, calculateSafetyTrend } from "@/lib/safety-score"
 
 // Helper function to format relative time
 const formatRelativeTime = (timestamp: string | number, t: (key: string) => string): string => {
@@ -166,6 +169,9 @@ export default function HomePage() {
     const totalVehicles = fleetVehicles.length || 0
     const activeVehicles = fleetVehicles.filter((v) => v.status === "active").length || 0
 
+    const safetyScore = calculateSafetyScore(uniqueTodayAlerts)
+    const safetyTrend = calculateSafetyTrend(safetyScore)
+
     return {
       totalVehicles,
       activeVehicles,
@@ -175,6 +181,8 @@ export default function HomePage() {
       todayActiveAlerts,
       todayResolvedAlerts,
       complianceRate: 96, // This would need to come from another data source
+      safetyScore,
+      safetyTrend,
     }
   }, [liveAlerts, historyAlerts, driverStats, fleetVehicles])
 
@@ -278,8 +286,20 @@ export default function HomePage() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 items-stretch">
+        <SafetyScoreCard 
+          score={fleetStats.safetyScore} 
+          trend={fleetStats.safetyTrend}
+          className="h-full"
+        />
+
+        <RiskLevelCard 
+          score={fleetStats.safetyScore}
+          trend="-2.1%" // Using a dynamic placeholder trend
+          className="h-full"
+        />
+
+        <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t("total_vehicles")}</CardTitle>
             <Car className="h-4 w-4 text-blue-600" />

@@ -60,6 +60,9 @@ export const generatePDFReport = async (reportData: ReportData) => {
     case "incident-detailed":
       yPosition = await addIncidentDetailedContent(doc, data, yPosition)
       break
+    case "custom-dynamic":
+      yPosition = await addCustomDynamicContent(doc, data, yPosition)
+      break
     default:
       yPosition = await addDefaultContent(doc, data, yPosition)
   }
@@ -465,6 +468,78 @@ const addIncidentDetailedContent = async (doc: jsPDF, data: any, yPos: number) =
 
 const addDefaultContent = async (doc: jsPDF, data: any, yPos: number) => {
   return await addDailySummaryContent(doc, data, yPos)
+}
+
+const addCustomDynamicContent = async (doc: jsPDF, data: any, yPos: number) => {
+  // Custom Dynamic Section
+  yPos = addSectionTitle(doc, "Dynamic Safety Metrics", yPos)
+
+  doc.setFontSize(12)
+  doc.setFont("helvetica", "normal")
+  doc.text(`Target Entity: ${data.entityName}`, 20, yPos)
+  yPos += 8
+  doc.text(`Time Period: ${data.timePeriod}`, 20, yPos)
+  yPos += 8
+  doc.text(`AI Safety Score: ${data.safetyScore.toFixed(1)}%`, 20, yPos)
+  yPos += 15
+
+  // Alerts Table
+  yPos = addSectionTitle(doc, "Infraction Breakdown", yPos)
+  const alertHeaders = ["Alert Type", "Total Occurrences"]
+  const alertData = [
+    ["Drowsiness (Critical)", data.counts.drowsiness.toString()],
+    ["Yawning (Warning)", data.counts.yawn.toString()],
+    ["Phone Usage (High Risk)", data.counts.phone.toString()],
+    ["General Distraction", data.counts.distraction.toString()]
+  ]
+
+  doc.autoTable({
+    head: [alertHeaders],
+    body: alertData,
+    startY: yPos,
+    theme: "grid",
+    headStyles: { fillColor: [220, 38, 38], textColor: 255 },
+    styles: { fontSize: 10 },
+    margin: { left: 20, right: 20 },
+  })
+
+  yPos = (doc as any).lastAutoTable.finalY + 15
+
+  // Feedback Table
+  yPos = addSectionTitle(doc, "Customer Feedback & Compliance", yPos)
+  
+  doc.setFontSize(10)
+  doc.setFont("helvetica", "normal")
+  doc.text(`Total Feedbacks: ${data.feedbacks.total}`, 20, yPos)
+  yPos += 8
+  doc.text(`Average Rating: ${data.feedbacks.averageRating} / 5.0`, 20, yPos)
+  yPos += 12
+
+  if (data.feedbacks.recent.length > 0) {
+    const fbHeaders = ["Date", "Rating", "Customer Comment"]
+    const fbData = data.feedbacks.recent.map((f: any) => [
+      f.date,
+      `${f.rating} Stars`,
+      f.comment
+    ])
+
+    doc.autoTable({
+      head: [fbHeaders],
+      body: fbData,
+      startY: yPos,
+      theme: "striped",
+      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+      styles: { fontSize: 9 },
+      columnStyles: { 2: { cellWidth: 120 } },
+      margin: { left: 20, right: 20 },
+    })
+    yPos = (doc as any).lastAutoTable.finalY + 10
+  } else {
+    doc.text("No recent feedbacks available for this entity in the selected time period.", 20, yPos)
+    yPos += 10
+  }
+
+  return yPos
 }
 
 const addSectionTitle = (doc: jsPDF, title: string, yPos: number) => {

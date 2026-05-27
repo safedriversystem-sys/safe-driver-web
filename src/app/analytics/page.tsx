@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { motion } from "framer-motion"
 import {
   Card,
@@ -32,7 +32,8 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { useLanguage } from "@/components/language-provider"
-import { routeService } from "@/lib/route-service"
+import { useLiveAlerts, isToday } from "@/hooks/use-live-alerts"
+import { calculateSafetyScore } from "@/lib/safety-score"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -53,12 +54,152 @@ const itemVariants = {
 
 export default function AnalyticsPage() {
   const { t } = useLanguage()
-  const [isLoading, setIsLoading] = useState(true)
+  const { alerts: liveAlerts, historyAlerts, isLoading: isLoadingAlerts } = useLiveAlerts()
+  const [fleetVehicles, setFleetVehicles] = useState<any[]>([])
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
+  const [isLoadingFleet, setIsLoadingFleet] = useState(true)
+  const [isLoadingFeedbacks, setIsLoadingFeedbacks] = useState(true)
 
+  // Fetch feedbacks
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800)
-    return () => clearTimeout(timer)
+    const fetchFeedbacks = async () => {
+      try {
+        setIsLoadingFeedbacks(true)
+        const response = await fetch("/api/feedback", { cache: "no-store" })
+        if (response.ok) {
+          const data = await response.json()
+          setFeedbacks(data)
+        }
+      } catch (error) {
+        console.error("Error fetching feedbacks:", error)
+      } finally {
+        setIsLoadingFeedbacks(false)
+      }
+    }
+    fetchFeedbacks()
+    const interval = setInterval(fetchFeedbacks, 60000)
+    return () => clearInterval(interval)
   }, [])
+
+  // Fetch fleet vehicles
+  useEffect(() => {
+    const fetchFleetVehicles = async () => {
+      try {
+        setIsLoadingFleet(true)
+        const response = await fetch("/api/fleet", { cache: "no-store" })
+        if (response.ok) {
+          const vehicles = await response.json()
+          setFleetVehicles(vehicles)
+        }
+      } catch (error) {
+        console.error("Error fetching fleet:", error)
+      } finally {
+        setIsLoadingFleet(false)
+      }
+    }
+
+    fetchFleetVehicles()
+    const interval = setInterval(fetchFleetVehicles, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Process Live Data
+  const data = useMemo(() => {
+    const combinedTodayAlerts = [...liveAlerts.filter(a => isToday(a.timestamp)), ...historyAlerts.filter(a => isToday(a.timestamp))]
+    const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) => index === self.findIndex((a) => a.id === alert.id))
+
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const isYesterday = (ts: string | number) => new Date(ts).toDateString() === yesterday.toDateString()
+
+    // 1. Health Monitor
+    const activeNodes = new Set(uniqueTodayAlerts.map(a => a.deviceId)).size
+    
+    let latencyValue = "Syncing"
+    if (uniqueTodayAlerts.length > 0) {
+      const newestTs = Math.max(...uniqueTodayAlerts.map(a => new Date(a.timestamp).getTime() || 0))
+      const diffMs = Date.now() - newestTs
+      if (diffMs > 0 && diffMs < 60000) {
+        latencyValue = `${diffMs}ms`
+      } else {
+        latencyValue = "Optimal"
+      }
+    } else {
+      latencyValue = "Awaiting"
+    }
+
+    // 2. Performance KPIs
+    const safetyScore = calculateSafetyScore(uniqueTodayAlerts)
+    
+    const totalVehicles = fleetVehicles.length || 1
+    const activeVehicles = fleetVehicles.filter(v => v.status === "active").length
+    const fleetActivity = Math.round((activeVehicles / totalVehicles) * 100)
+
+    const totalAlertsCount = uniqueTodayAlerts.length || 1
+    const resolvedAlerts = uniqueTodayAlerts.filter(a => a.status === "resolved").length
+    const resolutionRate = uniqueTodayAlerts.length > 0 ? Math.round((resolvedAlerts / totalAlertsCount) * 100) : 100
+
+    // 3. High Risk Zones
+    const routeAlertCounts: Record<string, number> = {}
+    const routeYesterdayAlertCounts: Record<string, number> = {}
+    
+    uniqueTodayAlerts.forEach(a => {
+      const route = (a.route && a.route !== "Unknown Route") ? a.route : (a.location || "Unmapped Location")
+      routeAlertCounts[route] = (routeAlertCounts[route] || 0) + 1
+    })
+
+    // Calculate yesterday's counts for the trend
+    historyAlerts.filter(a => isYesterday(a.timestamp)).forEach(a => {
+      const route = (a.route && a.route !== "Unknown Route") ? a.route : (a.location || "Unmapped Location")
+      routeYesterdayAlertCounts[route] = (routeYesterdayAlertCounts[route] || 0) + 1
+    })
+
+    const sortedRoutes = Object.entries(routeAlertCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([zone, alerts]) => {
+        let risk = "Low"
+        if (alerts >= 8) risk = "High"
+        else if (alerts >= 3) risk = "Medium"
+        
+        const yesterdayCount = routeYesterdayAlertCounts[zone] || 0
+        const trend = alerts > yesterdayCount ? "up" : "down"
+
+        return { zone, risk, trend, alerts }
+      })
+      .slice(0, 3)
+
+    const highRiskZones = sortedRoutes.length > 0 ? sortedRoutes : [
+      { zone: "No active risk zones detected today", risk: "Low", trend: "down", alerts: 0 }
+    ]
+
+    // 4. Fatigue Prediction
+    const fatigueAlerts = uniqueTodayAlerts.filter(a => a.type.toLowerCase().includes("drowsy") || a.tag?.toLowerCase().includes("yawn"))
+    const fatigueRouteCounts: Record<string, number> = {}
+    fatigueAlerts.forEach(a => {
+      const route = (a.route && a.route !== "Unknown Route") ? a.route : "Multiple Routes"
+      fatigueRouteCounts[route] = (fatigueRouteCounts[route] || 0) + 1
+    })
+    const mostFatigueRoute = Object.entries(fatigueRouteCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "No Data"
+    const fatigueRiskIncrease = fatigueAlerts.length > 0 ? Math.min(45, fatigueAlerts.length * 5) : 5
+
+    // 5. Customer Feedbacks
+    const averageRating = feedbacks.length > 0 ? (feedbacks.reduce((sum, f) => sum + (Number(f.rating) || 5), 0) / feedbacks.length).toFixed(1) : "5.0"
+
+    return {
+      activeNodes,
+      latencyValue,
+      safetyScore,
+      fleetActivity,
+      resolutionRate,
+      highRiskZones,
+      mostFatigueRoute,
+      fatigueRiskIncrease,
+      totalAlerts: uniqueTodayAlerts.length,
+      averageRating
+    }
+  }, [liveAlerts, historyAlerts, fleetVehicles, feedbacks])
+
+  const isLoading = isLoadingAlerts || isLoadingFleet || isLoadingFeedbacks
 
   if (isLoading) {
     return (
@@ -83,7 +224,7 @@ export default function AnalyticsPage() {
             {t("analytics_dashboard") || "Performance Analytics"}
           </h1>
           <p className="text-slate-600 text-lg max-w-2xl">
-            {t("analytics_desc") || "Deep-dive into fleet performance, safety metrics, and operational efficiency with AI-driven insights."}
+            {t("analytics_desc") || "Deep-dive into fleet performance, safety metrics, and operational efficiency with live AI-driven insights."}
           </p>
         </div>
 
@@ -102,9 +243,9 @@ export default function AnalyticsPage() {
       {/* Real-time Health Monitor */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: "Network Health", value: "Optimal", sub: "99.9% S.L.A", icon: Zap, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Data Latency", value: "42ms", sub: "Real-time stream", icon: Clock, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Sync Status", value: "Active", sub: "124 Nodes active", icon: Activity, color: "text-indigo-600", bg: "bg-indigo-50" },
+          { label: "Network Health", value: data.activeNodes > 0 ? "Optimal" : "Checking", sub: "Live Connection", icon: Zap, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "Data Latency", value: data.latencyValue, sub: "Live stream", icon: Clock, color: "text-emerald-600", bg: "bg-emerald-50" },
+          { label: "Active Connections", value: data.activeNodes.toString(), sub: "Devices streaming", icon: Activity, color: "text-indigo-600", bg: "bg-indigo-50" },
         ].map((item, i) => (
           <Card key={i} className="border-2 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 bg-white/70 backdrop-blur-md">
             <CardContent className="p-6 flex items-center gap-6">
@@ -123,16 +264,16 @@ export default function AnalyticsPage() {
 
       {/* Main Analytics View */}
       <Tabs defaultValue="performance" className="space-y-8">
-        <TabsList className="bg-slate-100 p-1 rounded-2xl border-2">
-          <TabsTrigger value="performance" className="rounded-xl px-10 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-bold">
+        <TabsList className="bg-slate-100 p-1 rounded-2xl border-2 overflow-x-auto flex flex-nowrap w-full justify-start md:w-auto">
+          <TabsTrigger value="performance" className="rounded-xl px-10 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-bold shrink-0">
             <BarChart3 className="h-4 w-4 mr-2 text-indigo-600" />
             {t("performance_metrics") || "Performance"}
           </TabsTrigger>
-          <TabsTrigger value="compliance" className="rounded-xl px-10 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-bold">
+          <TabsTrigger value="compliance" className="rounded-xl px-10 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-bold shrink-0">
             <Shield className="h-4 w-4 mr-2 text-emerald-600" />
-            {t("compliance_overview") || "Compliance"}
+            {t("compliance_overview") || "Feedbacks"}
           </TabsTrigger>
-          <TabsTrigger value="risk" className="rounded-xl px-10 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-bold">
+          <TabsTrigger value="risk" className="rounded-xl px-10 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-bold shrink-0">
             <AlertTriangle className="h-4 w-4 mr-2 text-rose-600" />
             {t("risk_level") || "Risk Analysis"}
           </TabsTrigger>
@@ -146,10 +287,10 @@ export default function AnalyticsPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <CardTitle className="text-2xl font-bold">Operational Efficiency</CardTitle>
-                    <CardDescription>Fleet-wide performance index over the last 30 days</CardDescription>
+                    <CardDescription>Real-time fleet tracking & alert metrics</CardDescription>
                   </div>
                   <div className="flex gap-2">
-                    <Badge className="bg-emerald-100 text-emerald-700 border-none px-4 py-1 rounded-lg">High Efficiency</Badge>
+                    <Badge className="bg-indigo-100 text-indigo-700 border-none px-4 py-1 rounded-lg">Live Stream</Badge>
                   </div>
                 </div>
               </CardHeader>
@@ -158,9 +299,8 @@ export default function AnalyticsPage() {
                     <div className="inline-flex bg-indigo-100 p-6 rounded-3xl shadow-inner">
                       <LineChart className="h-16 w-16 text-indigo-600" />
                     </div>
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Interactive Visualizer Ready</p>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Real-time Visualizer Ready</p>
                  </div>
-                 {/* Visual decoration */}
                  <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-indigo-500/5 to-transparent" />
               </CardContent>
             </Card>
@@ -168,9 +308,9 @@ export default function AnalyticsPage() {
             {/* KPIs */}
             <div className="space-y-6">
               {[
-                { label: "Fuel Efficiency", value: 92, color: "bg-emerald-500", icon: Zap },
-                { label: "On-Time Performance", value: 87, color: "bg-blue-500", icon: Target },
-                { label: "Maintenance Score", value: 95, color: "bg-indigo-500", icon: Activity },
+                { label: "Fleet Activity", value: data.fleetActivity, color: "bg-blue-500", icon: Activity },
+                { label: "Safety Compliance", value: Math.round(data.safetyScore), color: "bg-emerald-500", icon: Shield },
+                { label: "Resolution Rate", value: data.resolutionRate, color: "bg-indigo-500", icon: Target },
               ].map((kpi, i) => (
                 <Card key={i} className="border-2 rounded-3xl shadow-lg hover:translate-x-2 transition-transform duration-300">
                   <CardContent className="p-6">
@@ -185,10 +325,10 @@ export default function AnalyticsPage() {
                     </div>
                     <Progress value={kpi.value} className={`h-3 ${kpi.color} rounded-full`} />
                     <div className="mt-3 flex justify-between items-center">
-                       <span className="text-xs font-bold text-slate-400">vs Last Month</span>
+                       <span className="text-xs font-bold text-slate-400">Live Status</span>
                        <span className="text-xs font-bold text-emerald-600 flex items-center">
                          <ArrowUpRight className="h-3 w-3 mr-1" />
-                         +4.2%
+                         Active
                        </span>
                     </div>
                   </CardContent>
@@ -203,40 +343,56 @@ export default function AnalyticsPage() {
              <div className="grid grid-cols-1 lg:grid-cols-2">
                 <div className="p-12 space-y-8">
                    <div>
-                     <Badge className="bg-emerald-600 mb-4 px-4 py-1">Fully Compliant</Badge>
-                     <h2 className="text-4xl font-black text-slate-900 leading-tight">Regulatory Standards & Safety Audits</h2>
+                     <Badge className={`${Number(data.averageRating) >= 4.0 ? 'bg-emerald-600' : Number(data.averageRating) >= 3.0 ? 'bg-amber-500' : 'bg-rose-500'} mb-4 px-4 py-1`}>
+                       {Number(data.averageRating) >= 4.0 ? 'High Satisfaction' : Number(data.averageRating) >= 3.0 ? 'Needs Improvement' : 'Critical Satisfaction'}
+                     </Badge>
+                     <h2 className="text-4xl font-black text-slate-900 leading-tight">Customer Feedbacks</h2>
                      <p className="text-slate-500 text-lg mt-4 leading-relaxed">
-                       Our automated compliance monitoring system ensures 100% adherence to national transport safety regulations.
+                       Direct passenger feedback collected regarding driver behavior and overall fleet safety.
                      </p>
                    </div>
                    
                    <div className="grid grid-cols-2 gap-8">
                       <div>
-                        <p className="text-3xl font-black text-indigo-600">99.8%</p>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Audit Score</p>
+                        <p className={`text-3xl font-black ${Number(data.averageRating) >= 4.0 ? 'text-emerald-600' : Number(data.averageRating) >= 3.0 ? 'text-amber-600' : 'text-rose-600'}`}>
+                          {data.averageRating} / 5.0
+                        </p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Average Rating</p>
                       </div>
                       <div>
-                        <p className="text-3xl font-black text-emerald-600">Zero</p>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Violations</p>
+                        <p className="text-3xl font-black text-indigo-600">{feedbacks.length}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Total Feedbacks</p>
                       </div>
                    </div>
 
                    <Button className="w-full py-7 rounded-2xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-xl group">
-                     View Compliance Log
+                     View All Feedbacks
                      <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                    </Button>
                 </div>
                 
-                <div className="bg-slate-50 p-12 flex items-center justify-center relative group">
-                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                   <div className="text-center space-y-6">
-                      <div className="inline-flex bg-white p-8 rounded-[2.5rem] shadow-xl border-2">
-                        <PieChart className="h-24 w-24 text-emerald-600 animate-spin-slow" />
-                      </div>
-                      <div className="space-y-2">
-                        <h4 className="text-xl font-bold text-slate-800">Dynamic Compliance Map</h4>
-                        <p className="text-sm text-slate-400 font-medium max-w-xs">Visualizing regulatory adherence across all operational sectors.</p>
-                      </div>
+                <div className="bg-slate-50 p-6 md:p-12 flex flex-col items-center justify-start relative group max-h-[600px] overflow-y-auto">
+                   <div className="w-full space-y-4">
+                      <h4 className="text-xl font-bold text-slate-800 sticky top-0 bg-slate-50 py-2 z-10">Recent Feedbacks</h4>
+                      {feedbacks.length === 0 ? (
+                        <p className="text-slate-500">No feedbacks available.</p>
+                      ) : (
+                        feedbacks.slice(0, 10).map((fb, i) => (
+                          <div key={i} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-2">
+                             <div className="flex justify-between items-center">
+                               <div className="flex items-center gap-2">
+                                 <div className="bg-slate-100 px-2 py-1 rounded-md text-xs font-bold">{fb.busNumber || 'Unknown Bus'}</div>
+                                 <span className="text-xs text-slate-500">{new Date(fb.createdAt || Date.now()).toLocaleDateString()}</span>
+                               </div>
+                               <Badge className={`${Number(fb.rating) >= 4 ? 'bg-emerald-100 text-emerald-700' : Number(fb.rating) >= 3 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'} border-none`}>
+                                 {fb.rating || 5} Stars
+                               </Badge>
+                             </div>
+                             <p className="text-slate-700 text-sm font-medium">"{fb.message || fb.comment || 'No comment provided.'}"</p>
+                             {fb.type && <p className="text-xs text-indigo-500 font-bold uppercase">{fb.type}</p>}
+                          </div>
+                        ))
+                      )}
                    </div>
                 </div>
              </div>
@@ -250,10 +406,10 @@ export default function AnalyticsPage() {
                    <Brain className="h-64 w-64 -mr-20 -mt-20" />
                 </div>
                 <div className="relative z-10">
-                  <Badge className="bg-rose-500 border-none mb-6 px-4 py-1 text-xs font-bold tracking-widest uppercase">Risk Forecast</Badge>
+                  <Badge className="bg-rose-500 border-none mb-6 px-4 py-1 text-xs font-bold tracking-widest uppercase">Live Risk Forecast</Badge>
                   <h3 className="text-3xl font-extrabold mb-4 leading-tight">Predictive Fatigue Analysis</h3>
                   <p className="text-slate-400 text-lg leading-relaxed mb-8">
-                    AI models indicate a 15% risk increase in driver fatigue during late-night shifts on the Coastal Road route.
+                    Live AI models indicate a {data.fatigueRiskIncrease}% risk increase in driver fatigue currently detected on <strong className="text-white">{data.mostFatigueRoute}</strong>.
                   </p>
                   <div className="flex gap-4">
                     <Button className="rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-bold px-8">Mitigate Risk</Button>
@@ -268,22 +424,18 @@ export default function AnalyticsPage() {
                   High-Risk Zones Detected
                 </h3>
                 <div className="space-y-6">
-                  {[
-                    { zone: "Kandy Road Sector 4", risk: "Medium", trend: "up", alerts: 12 },
-                    { zone: "Galle Expressway Entry", risk: "Low", trend: "down", alerts: 3 },
-                    { zone: "Negombo Town Center", risk: "High", trend: "up", alerts: 24 },
-                  ].map((zone, i) => (
+                  {data.highRiskZones.map((zone, i) => (
                     <div key={i} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-slate-100 transition-all">
                       <div className="flex items-center gap-4">
                         <div className={`p-3 rounded-xl ${zone.risk === 'High' ? 'bg-rose-100 text-rose-600' : zone.risk === 'Medium' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
                           <MapPin className="h-5 w-5" />
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-800">{zone.zone}</p>
+                        <div className="max-w-[150px] sm:max-w-[200px]">
+                          <p className="font-bold text-slate-800 truncate">{zone.zone}</p>
                           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{zone.alerts} Alerts logged</p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                          <Badge className={`${zone.risk === 'High' ? 'bg-rose-500' : zone.risk === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500'} text-white border-none`}>
                            {zone.risk} Risk
                          </Badge>

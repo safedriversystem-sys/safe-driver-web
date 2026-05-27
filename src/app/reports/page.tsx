@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import {
   Card,
   CardContent,
@@ -21,7 +21,6 @@ import {
   Activity,
   AlertTriangle,
   Calendar,
-  Filter,
   RefreshCw,
   Printer,
   ChevronRight,
@@ -31,7 +30,6 @@ import {
   Bus,
   Users,
   Clock,
-  ExternalLink,
   Loader2,
   FileDown,
 } from "lucide-react"
@@ -40,16 +38,14 @@ import { driverService } from "@/lib/driver-service"
 import { fleetService } from "@/lib/fleet-service"
 import { routeService } from "@/lib/route-service"
 import { generatePDFReport } from "@/lib/pdf-generator"
-import { useLiveAlerts } from "@/hooks/use-live-alerts"
+import { useLiveAlerts, isToday } from "@/hooks/use-live-alerts"
+import { calculateSafetyScore, getRiskLevelDetails } from "@/lib/safety-score"
 
-// Animation Variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
+    transition: { staggerChildren: 0.1 },
   },
 }
 
@@ -64,7 +60,7 @@ const itemVariants = {
 
 export default function ReportsPage() {
   const { t } = useLanguage()
-  const { alerts: liveAlerts } = useLiveAlerts()
+  const { alerts: liveAlerts, historyAlerts, isLoading: isLoadingAlerts } = useLiveAlerts()
 
   // State
   const [isLoading, setIsLoading] = useState(true)
@@ -73,22 +69,29 @@ export default function ReportsPage() {
   const [fleet, setFleet] = useState<any[]>([])
   const [routes, setRoutes] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
+  
+  // Report Config State
+  const [reportEntity, setReportEntity] = useState<"fleet" | "driver" | "bus">("fleet")
+  const [selectedEntityId, setSelectedEntityId] = useState<string>("all")
+  const [timePeriod, setTimePeriod] = useState<"daily" | "weekly" | "monthly">("daily")
 
   // Fetch Initial Data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true)
-        const [driversData, fleetData, routesData, statsData] = await Promise.all([
-          driverService.getAllDrivers(),
-          fleetService.getAllFleet(),
-          routeService.getAllRoutes(),
-          routeService.getRouteStats(),
+        const [driversRes, fleetRes, routesRes, feedbacksRes] = await Promise.all([
+          fetch("/api/drivers", { cache: "no-store" }),
+          fetch("/api/fleet", { cache: "no-store" }),
+          fetch("/api/routes", { cache: "no-store" }),
+          fetch("/api/feedback", { cache: "no-store" })
         ])
-        setDrivers(driversData)
-        setFleet(fleetData)
-        setRoutes(routesData)
-        setStats(statsData)
+        
+        if (driversRes.ok) setDrivers(await driversRes.json())
+        if (fleetRes.ok) setFleet(await fleetRes.json())
+        if (routesRes.ok) setRoutes(await routesRes.json())
+        if (feedbacksRes.ok) setFeedbacks(await feedbacksRes.json())
       } catch (error) {
         console.error("Error fetching report data:", error)
       } finally {
@@ -98,52 +101,112 @@ export default function ReportsPage() {
     fetchData()
   }, [])
 
+  // Derived Dynamic Data
+  const data = useMemo(() => {
+    const combinedTodayAlerts = [...liveAlerts.filter(a => isToday(a.timestamp)), ...historyAlerts.filter(a => isToday(a.timestamp))]
+    const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) => index === self.findIndex((a) => a.id === alert.id))
+
+    const safetyScore = calculateSafetyScore(uniqueTodayAlerts)
+    const riskDetails = getRiskLevelDetails(safetyScore)
+    
+    const activeVehicles = fleet.filter(v => v.status === "active").length
+    const fleetActivity = fleet.length > 0 ? Math.round((activeVehicles / fleet.length) * 100) : 0
+    
+    // Group alerts by type for PDF
+    const alertTypesCounts: Record<string, number> = {}
+    uniqueTodayAlerts.forEach(a => {
+      alertTypesCounts[a.type] = (alertTypesCounts[a.type] || 0) + 1
+    })
+    const alertSummary = Object.entries(alertTypesCounts).map(([type, count]) => ({
+      type, count, high: Math.round(count * 0.4), medium: Math.round(count * 0.4), low: Math.round(count * 0.2), avgResponse: "1m"
+    }))
+
+    const alertDensity = fleet.length > 0 ? (uniqueTodayAlerts.length / fleet.length).toFixed(2) : "0"
+
+    const totalDrivers = drivers.length || 1
+    const activeDrivers = drivers.filter(d => d.status === "on_duty").length
+
+    return {
+      uniqueTodayAlerts,
+      safetyScore,
+      riskLevel: riskDetails.level,
+      fleetActivity,
+      alertSummary,
+      alertDensity,
+      activeDrivers,
+      totalDrivers
+    }
+  }, [liveAlerts, historyAlerts, fleet, drivers])
+
   // Report Generation Handler
   const handleDownload = async (type: string, title: string) => {
     setIsGenerating(type)
     try {
-      // Prepare report data based on type
+      // 1. Filter Alerts based on timePeriod
+      const now = Date.now()
+      const timeMs = timePeriod === "daily" ? 24*60*60*1000 : timePeriod === "weekly" ? 7*24*60*60*1000 : 30*24*60*60*1000
+      const combinedAlerts = [...liveAlerts, ...historyAlerts].filter((alert, index, self) => index === self.findIndex((a) => a.id === alert.id))
+      
+      let filteredAlerts = combinedAlerts.filter(a => {
+        const alertTime = new Date(a.timestamp || Date.now()).getTime()
+        return (now - alertTime) <= timeMs
+      })
+
+      // 2. Filter by Entity
+      let entityName = "Entire Fleet"
+      if (reportEntity === "driver" && selectedEntityId !== "all") {
+        const driver = drivers.find(d => d.id === selectedEntityId || d.licenseNumber === selectedEntityId)
+        filteredAlerts = filteredAlerts.filter(a => a.driverId === selectedEntityId || a.driverName === driver?.name)
+        entityName = `Driver: ${driver?.name || selectedEntityId}`
+      } else if (reportEntity === "bus" && selectedEntityId !== "all") {
+        filteredAlerts = filteredAlerts.filter(a => a.busNumber === selectedEntityId || a.deviceId === selectedEntityId || a.number_plate === selectedEntityId)
+        entityName = `Bus: ${selectedEntityId}`
+      }
+
+      // 3. Calculate metrics
+      const drowsinessCount = filteredAlerts.filter(a => a.type.toLowerCase().includes('drowsy')).length
+      const yawnCount = filteredAlerts.filter(a => a.tag?.toLowerCase().includes('yawn')).length
+      const phoneCount = filteredAlerts.filter(a => a.type.toLowerCase().includes('phone')).length
+      const distractionCount = filteredAlerts.filter(a => a.type.toLowerCase().includes('distraction')).length
+      
+      const safetyScore = calculateSafetyScore(filteredAlerts)
+      
+      // 4. Filter Feedbacks
+      let filteredFeedbacks = feedbacks
+      if (reportEntity === "driver" && selectedEntityId !== "all") {
+        const driver = drivers.find(d => d.id === selectedEntityId || d.licenseNumber === selectedEntityId)
+        filteredFeedbacks = feedbacks.filter(f => f.driverId === selectedEntityId || f.driverName === driver?.name)
+      } else if (reportEntity === "bus" && selectedEntityId !== "all") {
+        filteredFeedbacks = feedbacks.filter(f => f.busNumber === selectedEntityId || f.vehicleId === selectedEntityId)
+      }
+      const avgFeedbackRating = filteredFeedbacks.length > 0 ? (filteredFeedbacks.reduce((sum, f) => sum + (Number(f.rating) || 5), 0) / filteredFeedbacks.length).toFixed(1) : "N/A"
+
       let reportData: any = {
-        summary: {
-          totalAlerts: liveAlerts.length,
-          activeDrivers: drivers.filter(d => d.status === 'on_duty').length,
-          systemUptime: 99.9,
+        entityName,
+        timePeriod: timePeriod.toUpperCase(),
+        safetyScore,
+        counts: {
+          total: filteredAlerts.length,
+          drowsiness: drowsinessCount,
+          yawn: yawnCount,
+          phone: phoneCount,
+          distraction: distractionCount
         },
-        alerts: [
-          { type: "Drowsiness", count: 12, high: 4, medium: 5, low: 3, avgResponse: "1.2m" },
-          { type: "Phone Usage", count: 8, high: 2, medium: 4, low: 2, avgResponse: "0.8m" },
-          { type: "Speeding", count: 15, high: 6, medium: 7, low: 2, avgResponse: "1.5m" },
-          { type: "Distraction", count: 5, high: 1, medium: 2, low: 2, avgResponse: "2.1m" },
-        ],
-        drivers: drivers.map(d => ({
-          name: d.name,
-          license: d.licenseNumber,
-          bus: d.busNumber || 'N/A',
-          route: d.route || 'Unassigned',
-          alerts: d.alertCount || 0,
-          status: d.status
-        })),
-        routes: routes.map(r => ({
-          name: r.name,
-          buses: r.activeVehicles,
-          drivers: r.activeVehicles,
-          distance: `${r.distance}km`,
-          riskAreas: r.safetyIncidents,
-          efficiency: r.onTimePerformance
-        })),
-        compliance: {
-          driverLicenseValidity: 98,
-          vehicleInspections: 94,
-          safetyTraining: 92,
-          emergencyProtocols: 97,
-          dataReporting: 99
+        feedbacks: {
+          total: filteredFeedbacks.length,
+          averageRating: avgFeedbackRating,
+          recent: filteredFeedbacks.slice(0, 10).map(f => ({
+            rating: f.rating || 5,
+            comment: f.message || f.comment || "No comment",
+            date: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "Recent"
+          }))
         }
       }
 
       await generatePDFReport({
-        type,
-        title,
-        dateRange: "Current Month",
+        type: "custom-dynamic",
+        title: `${entityName} - ${timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)} Report`,
+        dateRange: `Last ${timePeriod === 'daily' ? '24 Hours' : timePeriod === 'weekly' ? '7 Days' : '30 Days'}`,
         data: reportData
       })
     } catch (error) {
@@ -153,7 +216,9 @@ export default function ReportsPage() {
     }
   }
 
-  if (isLoading) {
+  const initialLoading = isLoading || isLoadingAlerts
+
+  if (initialLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
@@ -176,7 +241,7 @@ export default function ReportsPage() {
             {t("reports_analytics") || "Reports & Analytics"}
           </h1>
           <p className="text-slate-600 text-lg max-w-2xl">
-            {t("reports_desc") || "Generate comprehensive PDF reports with visual charts and analytics for your entire fleet."}
+            {t("reports_desc") || "Generate comprehensive PDF reports with live visual charts and dynamic fleet analytics."}
           </p>
         </div>
 
@@ -195,10 +260,10 @@ export default function ReportsPage() {
       {/* Analytics Overview Cards */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: t("overall_safety_score") || "Safety Score", value: "94.2%", icon: Shield, color: "text-emerald-600", bg: "bg-emerald-50", trend: "+2.4%" },
-          { label: t("performance_index") || "Performance", value: "88.7%", icon: TrendingUp, color: "text-indigo-600", bg: "bg-indigo-50", trend: "+1.2%" },
-          { label: t("risk_level") || "Risk Level", value: "Low", icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50", trend: "-5.0%" },
-          { label: t("compliance") || "Compliance", value: "96.5%", icon: Activity, color: "text-rose-600", bg: "bg-rose-50", trend: "+0.8%" },
+          { label: t("overall_safety_score") || "Safety Score", value: `${data.safetyScore.toFixed(1)}%`, icon: Shield, color: "text-emerald-600", bg: "bg-emerald-50", trend: "Live" },
+          { label: t("performance_index") || "Fleet Activity", value: `${data.fleetActivity}%`, icon: TrendingUp, color: "text-indigo-600", bg: "bg-indigo-50", trend: "Live" },
+          { label: t("risk_level") || "Risk Level", value: data.riskLevel, icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50", trend: "Live" },
+          { label: t("compliance") || "Alert Density", value: data.alertDensity, icon: Activity, color: "text-rose-600", bg: "bg-rose-50", trend: "Live" },
         ].map((stat, i) => (
           <Card key={i} className="border-2 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 group">
             <CardContent className="p-6">
@@ -206,7 +271,7 @@ export default function ReportsPage() {
                 <div className={`${stat.bg} p-3 rounded-2xl group-hover:scale-110 transition-transform duration-300`}>
                   <stat.icon className={`h-6 w-6 ${stat.color}`} />
                 </div>
-                <Badge className={`${stat.trend.startsWith('+') ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} border-none rounded-lg`}>
+                <Badge className="bg-emerald-100 text-emerald-700 border-none rounded-lg">
                   {stat.trend}
                 </Badge>
               </div>
@@ -214,7 +279,6 @@ export default function ReportsPage() {
                 <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{stat.label}</p>
                 <h3 className="text-3xl font-bold text-slate-900">{stat.value}</h3>
               </div>
-              <Progress value={parseInt(stat.value)} className="mt-4 h-2 rounded-full" />
             </CardContent>
           </Card>
         ))}
@@ -257,31 +321,64 @@ export default function ReportsPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <label className="text-sm font-bold text-slate-700">{t("time_period") || "Time Period"}</label>
-                    <select className="w-full bg-slate-50 border-2 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors">
-                      <option>{t("weekly") || "Weekly"}</option>
-                      <option>{t("monthly") || "Monthly"}</option>
-                      <option>{t("quarterly") || "Quarterly"}</option>
-                      <option>{t("on_demand") || "Custom Range"}</option>
+                    <label className="text-sm font-bold text-slate-700">Target Entity</label>
+                    <select 
+                      className="w-full bg-slate-50 border-2 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors"
+                      value={reportEntity}
+                      onChange={(e) => {
+                        setReportEntity(e.target.value as any)
+                        setSelectedEntityId("all")
+                      }}
+                    >
+                      <option value="fleet">Entire Fleet</option>
+                      <option value="driver">Specific Driver</option>
+                      <option value="bus">Specific Bus</option>
                     </select>
                   </div>
 
-                  <div className="space-y-4">
-                    <label className="text-sm font-bold text-slate-700">{t("additional_filters") || "Data Filters"}</label>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
-                        <input type="checkbox" className="w-4 h-4 rounded text-blue-600" defaultChecked />
-                        <span className="text-sm font-medium">{t("all_drivers") || "Include All Drivers"}</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
-                        <input type="checkbox" className="w-4 h-4 rounded text-blue-600" defaultChecked />
-                        <span className="text-sm font-medium">{t("all_vehicles") || "Include All Buses"}</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
-                        <input type="checkbox" className="w-4 h-4 rounded text-blue-600" />
-                        <span className="text-sm font-medium text-rose-600 font-bold">{t("high_severity_only") || "High Severity Alerts Only"}</span>
-                      </label>
+                  {reportEntity === "driver" && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                      <label className="text-sm font-bold text-slate-700">Select Driver</label>
+                      <select 
+                        className="w-full bg-slate-50 border-2 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors"
+                        value={selectedEntityId}
+                        onChange={(e) => setSelectedEntityId(e.target.value)}
+                      >
+                        <option value="all">Select a driver...</option>
+                        {drivers.map(d => (
+                          <option key={d.id || d.licenseNumber} value={d.id || d.licenseNumber}>{d.name} ({d.licenseNumber})</option>
+                        ))}
+                      </select>
                     </div>
+                  )}
+
+                  {reportEntity === "bus" && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                      <label className="text-sm font-bold text-slate-700">Select Bus</label>
+                      <select 
+                        className="w-full bg-slate-50 border-2 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors"
+                        value={selectedEntityId}
+                        onChange={(e) => setSelectedEntityId(e.target.value)}
+                      >
+                        <option value="all">Select a bus...</option>
+                        {fleet.map(f => (
+                          <option key={f.id || f.busNumber} value={f.id || f.busNumber}>{f.busNumber || f.id}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <label className="text-sm font-bold text-slate-700">{t("time_period") || "Time Period"}</label>
+                    <select 
+                      className="w-full bg-slate-50 border-2 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors"
+                      value={timePeriod}
+                      onChange={(e) => setTimePeriod(e.target.value as any)}
+                    >
+                      <option value="daily">Daily (Last 24 Hours)</option>
+                      <option value="weekly">Weekly (Last 7 Days)</option>
+                      <option value="monthly">Monthly (Last 30 Days)</option>
+                    </select>
                   </div>
 
                   <Button 
@@ -310,7 +407,7 @@ export default function ReportsPage() {
                     desc: t("driver_performance_desc") || "Safety scores, alert history, and ranking for all drivers.",
                     icon: Users,
                     color: "bg-blue-100 text-blue-700",
-                    period: "Weekly"
+                    period: "Dynamic"
                   },
                   { 
                     id: "fleet-analytics", 
@@ -318,7 +415,7 @@ export default function ReportsPage() {
                     desc: t("fleet_analytics_desc") || "Vehicle health, fuel efficiency, and operational utilization.",
                     icon: Bus,
                     color: "bg-emerald-100 text-emerald-700",
-                    period: "Monthly"
+                    period: "Dynamic"
                   },
                   { 
                     id: "daily-summary", 
@@ -326,7 +423,7 @@ export default function ReportsPage() {
                     desc: t("daily_summary_desc") || "Full breakdown of safety incidents and system alerts for the period.",
                     icon: Shield,
                     color: "bg-rose-100 text-rose-700",
-                    period: "Daily"
+                    period: "Dynamic"
                   },
                   { 
                     id: "compliance", 
@@ -334,7 +431,7 @@ export default function ReportsPage() {
                     desc: t("regulatory_desc") || "Audit trail for licenses, permits, and regulatory standards.",
                     icon: Activity,
                     color: "bg-amber-100 text-amber-700",
-                    period: "Quarterly"
+                    period: "Dynamic"
                   }
                 ].map((report) => (
                   <Card key={report.id} className="border-2 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 group relative">
@@ -352,7 +449,7 @@ export default function ReportsPage() {
                       <div className="flex items-center justify-between pt-4 border-t-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center">
                           <Clock className="h-3 w-3 mr-1" />
-                          Last: 2 days ago
+                          Live Status
                         </span>
                         <Button 
                           variant="ghost" 
@@ -380,32 +477,8 @@ export default function ReportsPage() {
                   <CardTitle>{t("previously_generated") || "Recently Generated Reports"}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { name: "Monthly_Fleet_Audit_April.pdf", date: "Apr 24, 2024", size: "2.4 MB" },
-                      { name: "Weekly_Safety_Briefing_Q3.pdf", date: "Apr 22, 2024", size: "1.8 MB" },
-                      { name: "Driver_Performance_Leaderboard.pdf", date: "Apr 20, 2024", size: "3.1 MB" },
-                    ].map((file, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors group cursor-pointer">
-                        <div className="flex items-center gap-4">
-                          <div className="bg-white p-2.5 rounded-xl shadow-sm border-2">
-                            <FileText className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-800">{file.name}</p>
-                            <p className="text-xs text-slate-500 font-medium">{file.date} • {file.size}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="icon" variant="ghost" className="rounded-xl hover:bg-white text-slate-400 hover:text-blue-600 shadow-sm transition-all border-2 border-transparent hover:border-blue-100">
-                            <Printer className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="rounded-xl hover:bg-white text-slate-400 hover:text-blue-600 shadow-sm transition-all border-2 border-transparent hover:border-blue-100">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="space-y-4 text-center p-8">
+                     <p className="text-slate-400 font-medium">No reports generated today. Generate a report above to view history.</p>
                   </div>
                 </CardContent>
               </Card>
@@ -422,7 +495,7 @@ export default function ReportsPage() {
                     <LineChart className="h-5 w-5 text-indigo-600" />
                     {t("performance_trends") || "Safety Performance Trends"}
                   </CardTitle>
-                  <CardDescription>Historical safety scores across the entire fleet</CardDescription>
+                  <CardDescription>Live safety scores across the entire fleet</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 flex items-center justify-center relative group">
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -430,7 +503,7 @@ export default function ReportsPage() {
                     <div className="inline-flex bg-indigo-100 p-4 rounded-full mb-2">
                       <LineChart className="h-12 w-12 text-indigo-600 animate-pulse" />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-800">Visual Analytics Active</h3>
+                    <h3 className="text-xl font-bold text-slate-800">Visual Analytics Ready</h3>
                     <p className="text-slate-500 max-w-xs mx-auto">Interactive charts are synchronized with real-time fleet telemetry.</p>
                   </div>
                 </CardContent>
@@ -443,7 +516,7 @@ export default function ReportsPage() {
                     <PieChart className="h-5 w-5 text-rose-600" />
                     {t("incident_analysis_visuals") || "Incident Distribution"}
                   </CardTitle>
-                  <CardDescription>Breakdown of safety alerts by category</CardDescription>
+                  <CardDescription>Live breakdown of safety alerts</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 flex items-center justify-center group relative">
                    <div className="absolute inset-0 bg-gradient-to-br from-rose-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -465,22 +538,17 @@ export default function ReportsPage() {
                   <Activity className="h-32 w-32 -mr-12 -mt-12" />
                 </div>
                 <div className="relative z-10">
-                  <p className="text-blue-100 font-bold uppercase tracking-widest text-xs mb-2">System Uptime</p>
-                  <h2 className="text-5xl font-extrabold mb-4">99.98%</h2>
-                  <p className="text-blue-100/80 text-sm leading-relaxed">Infrastructure health and data ingestion pipelines are operating at peak capacity.</p>
-                  <div className="mt-8 flex gap-2">
-                    {[1,1,1,1,1,1,0,1,1,1,1,1].map((u, i) => (
-                      <div key={i} className={`h-8 w-1.5 rounded-full ${u ? 'bg-white' : 'bg-white/30'}`} />
-                    ))}
-                  </div>
+                  <p className="text-blue-100 font-bold uppercase tracking-widest text-xs mb-2">Live Alert Engine</p>
+                  <h2 className="text-5xl font-extrabold mb-4">{data.uniqueTodayAlerts.length}</h2>
+                  <p className="text-blue-100/80 text-sm leading-relaxed">Total alerts securely ingested and processed by the live analytical pipeline today.</p>
                 </div>
               </Card>
 
               <Card className="border-2 rounded-3xl shadow-xl p-8 bg-white overflow-hidden group">
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-1">Average Response</p>
-                    <h2 className="text-4xl font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors">1.4m</h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-1">Fleet Sync Status</p>
+                    <h2 className="text-4xl font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors">Optimal</h2>
                   </div>
                   <div className="bg-slate-50 p-3 rounded-2xl">
                     <Clock className="h-6 w-6 text-slate-400" />
@@ -488,15 +556,10 @@ export default function ReportsPage() {
                 </div>
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm font-bold">
-                    <span className="text-slate-600">Incident Detection</span>
-                    <span className="text-emerald-600">0.4m</span>
+                    <span className="text-slate-600">Active Duty Drivers</span>
+                    <span className="text-emerald-600">{data.activeDrivers} / {data.totalDrivers}</span>
                   </div>
-                  <Progress value={40} className="h-1.5 bg-slate-100" />
-                  <div className="flex justify-between text-sm font-bold">
-                    <span className="text-slate-600">Alert Processing</span>
-                    <span className="text-amber-600">1.0m</span>
-                  </div>
-                  <Progress value={75} className="h-1.5 bg-slate-100" />
+                  <Progress value={(data.activeDrivers / data.totalDrivers) * 100} className="h-1.5 bg-slate-100" />
                 </div>
               </Card>
 
@@ -504,18 +567,13 @@ export default function ReportsPage() {
                  <div className="flex justify-between items-start mb-6">
                   <div>
                     <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-1">Alert Density</p>
-                    <h2 className="text-4xl font-extrabold text-slate-900 group-hover:text-rose-600 transition-colors">0.12</h2>
+                    <h2 className="text-4xl font-extrabold text-slate-900 group-hover:text-rose-600 transition-colors">{data.alertDensity}</h2>
                   </div>
                   <div className="bg-slate-50 p-3 rounded-2xl">
                     <AlertTriangle className="h-6 w-6 text-slate-400" />
                   </div>
                 </div>
-                <p className="text-slate-500 text-sm mb-6">Average number of high-severity alerts per 100km driven across the fleet.</p>
-                <div className="flex items-end gap-1 h-12">
-                   {[40, 60, 45, 90, 65, 30, 80, 50, 40, 70, 55, 35].map((h, i) => (
-                     <div key={i} className="flex-1 bg-slate-100 rounded-t-sm hover:bg-rose-500 transition-colors cursor-help" style={{ height: `${h}%` }} />
-                   ))}
-                </div>
+                <p className="text-slate-500 text-sm mb-6">Average number of alerts per active vehicle in the fleet today.</p>
               </Card>
            </div>
         </TabsContent>
@@ -527,79 +585,13 @@ export default function ReportsPage() {
                 <TrendingUp className="h-64 w-64 -mr-24 -mt-24" />
               </div>
               <div className="max-w-2xl relative z-10">
-                <Badge className="mb-4 bg-blue-600 border-none px-4 py-1 text-xs font-bold uppercase tracking-widest">AI Prediction</Badge>
-                <h2 className="text-4xl font-extrabold mb-6 leading-tight">Safety performance is projected to improve by <span className="text-blue-400">12%</span> next month.</h2>
+                <Badge className="mb-4 bg-blue-600 border-none px-4 py-1 text-xs font-bold uppercase tracking-widest">Live Safety Insight</Badge>
+                <h2 className="text-4xl font-extrabold mb-6 leading-tight">Live Safety Score is currently tracking at <span className="text-blue-400">{data.safetyScore.toFixed(1)}%</span>.</h2>
                 <p className="text-slate-400 text-lg leading-relaxed mb-8">
-                  Based on current training completion rates and decreasing drowsiness trends, our ML models predict a significant reduction in high-severity alerts for the morning shift.
+                  The AI-Weighted risk analysis is continuously evaluating all incoming alerts. Risk level is dynamically classified as <strong className="text-white">{data.riskLevel}</strong>.
                 </p>
-                <div className="flex flex-wrap gap-6">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-                      <Shield className="h-6 w-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase text-slate-500">Confidence</p>
-                      <p className="font-bold">94.2%</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                      <Activity className="h-6 w-6 text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase text-slate-500">Stability</p>
-                      <p className="font-bold">High</p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
-            <CardContent className="p-12">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                  <div className="space-y-6">
-                    <h3 className="text-2xl font-bold flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-blue-600" />
-                      Key Drivers of Improvement
-                    </h3>
-                    <div className="space-y-4">
-                      {[
-                        { label: "Night-shift Rest Optimization", value: 85, color: "bg-blue-600" },
-                        { label: "Predictive Maintenance Scheduling", value: 92, color: "bg-indigo-600" },
-                        { label: "Dynamic Route Risk Assessment", value: 78, color: "bg-violet-600" },
-                      ].map((item, i) => (
-                        <div key={i} className="space-y-2">
-                          <div className="flex justify-between text-sm font-bold">
-                            <span>{item.label}</span>
-                            <span>{item.value}%</span>
-                          </div>
-                          <Progress value={item.value} className={`h-2 ${item.color}`} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                     <h3 className="text-2xl font-bold flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-rose-600" />
-                      Strategic Recommendations
-                    </h3>
-                    <div className="space-y-4">
-                      {[
-                        "Increase morning shift briefings for Colombo-Kandy route.",
-                        "Audit brake systems on 2018 model buses before monsoon.",
-                        "Re-evaluate rest stops on Galle coastal road for long-haul drivers."
-                      ].map((rec, i) => (
-                        <div key={i} className="flex gap-4 p-4 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-slate-100 transition-all cursor-default">
-                           <div className="h-6 w-6 rounded-full bg-white border-2 flex items-center justify-center flex-shrink-0 mt-0.5">
-                             <span className="text-xs font-bold">{i+1}</span>
-                           </div>
-                           <p className="text-slate-600 font-medium">{rec}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-               </div>
-            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
