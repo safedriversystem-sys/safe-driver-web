@@ -38,11 +38,22 @@ interface Notification {
 }
 
 import { useLanguage } from "@/components/language-provider"
+import { useAuth } from "@/components/auth-provider"
 
 export function AdminHeader() {
+  const { user, signOut } = useAuth()
   const router = useRouter()
   const { alerts: liveAlerts } = useLiveAlerts()
   const { t } = useLanguage()
+
+  const initials = user?.displayName
+    ? user.displayName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "A"
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -590,18 +601,22 @@ export function AdminHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-medium">
-                  A
+                  {initials}
                 </div>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-foreground">{t("admin_user")}</p>
-                  <p className="text-xs text-muted-foreground">admin@safedriver.com</p>
+                  <p className="text-sm font-medium text-foreground truncate max-w-[120px]">
+                    {user?.displayName || t("admin_user")}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate max-w-[120px]">
+                    {user?.email || "admin@safedriver.com"}
+                  </p>
                 </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <div className="px-2 py-1.5 border-b">
-                <p className="text-sm font-medium">Admin User</p>
-                <p className="text-xs text-gray-500">admin@safedriver.com</p>
+                <p className="text-sm font-medium truncate">{user?.displayName || "Admin User"}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email || "admin@safedriver.com"}</p>
               </div>
               <DropdownMenuItem asChild>
                 <Link href="/settings" className="cursor-pointer flex items-center">
@@ -617,7 +632,7 @@ export function AdminHeader() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+              <DropdownMenuItem onClick={signOut} className="cursor-pointer text-red-600 focus:text-red-600">
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </DropdownMenuItem>

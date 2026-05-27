@@ -2,17 +2,14 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { AdminHeader } from "@/components/admin-header"
-import { AdminSidebar } from "@/components/admin-sidebar"
-import { MobileNav } from "@/components/mobile-nav"
-import { OfflineIndicator } from "@/components/offline-indicator"
-import { VoiceCommandButton } from "@/components/voice-command-button"
 import { Toaster } from "@/components/ui/toaster"
 import { FirebaseInitializer } from "@/components/firebase-initializer"
 import { ServiceWorkerRegister } from "@/components/service-worker-register"
 import { ThemeProvider } from "@/components/theme-provider"
 import { LanguageProvider } from "@/components/language-provider"
 import { ColorSchemeInitializer } from "@/components/color-scheme-initializer"
+import { AuthProvider } from "@/components/auth-provider"
+import { LayoutWrapper } from "@/components/layout-wrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -64,28 +61,8 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <ColorSchemeInitializer />
-            <div className="min-h-screen bg-background text-foreground">
-              <AdminHeader />
-              <div className="flex">
-                {/* Desktop Sidebar - hidden on mobile */}
-                <div className="hidden md:block">
-                  <AdminSidebar />
-                </div>
-
-                {/* Main Content - full width on mobile, adjusted margin on desktop */}
-                <main className="flex-1 md:ml-64 p-4 md:p-6 pt-20 md:pt-24 bg-background min-h-screen w-full relative z-0">{children}</main>
-              </div>
-
-              {/* Mobile Navigation - visible only on mobile */}
-              <div className="md:hidden">
-                <MobileNav />
-              </div>
-
-              {/* Offline Indicator */}
-              <OfflineIndicator />
-
-              {/* Voice Command Button */}
-              <VoiceCommandButton />
+            <AuthProvider>
+              <LayoutWrapper>{children}</LayoutWrapper>
 
               {/* Toast Notifications */}
               <Toaster />
@@ -95,7 +72,7 @@ export default function RootLayout({
 
               {/* Service Worker Registration (client-side only) */}
               <ServiceWorkerRegister />
-            </div>
+            </AuthProvider>
           </ThemeProvider>
         </LanguageProvider>
       </body>
