@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Download,
   FileText,
@@ -23,7 +24,6 @@ import {
   Calendar,
   RefreshCw,
   Printer,
-  ChevronRight,
   BarChart3,
   PieChart,
   LineChart,
@@ -34,9 +34,6 @@ import {
   FileDown,
 } from "lucide-react"
 import { useLanguage } from "@/components/language-provider"
-import { driverService } from "@/lib/driver-service"
-import { fleetService } from "@/lib/fleet-service"
-import { routeService } from "@/lib/route-service"
 import { generatePDFReport } from "@/lib/pdf-generator"
 import { useLiveAlerts, isToday } from "@/hooks/use-live-alerts"
 import { calculateSafetyScore, getRiskLevelDetails } from "@/lib/safety-score"
@@ -200,12 +197,43 @@ export default function ReportsPage() {
             comment: f.message || f.comment || "No comment",
             date: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "Recent"
           }))
+        },
+        summary: {
+          totalAlerts: data.uniqueTodayAlerts.length,
+          activeDrivers: data.activeDrivers,
+          systemUptime: 100,
+        },
+        alerts: data.alertSummary.length > 0 ? data.alertSummary : [
+          { type: "No Data", count: 0, high: 0, medium: 0, low: 0, avgResponse: "0m" }
+        ],
+        drivers: (Array.isArray(drivers) ? drivers : []).map(d => ({
+          name: d.name,
+          license: d.licenseNumber,
+          bus: d.busNumber || 'N/A',
+          route: d.route || 'Unassigned',
+          alerts: d.alertCount || 0,
+          status: d.status
+        })),
+        routes: (Array.isArray(routes) ? routes : []).map(r => ({
+          name: r.name,
+          buses: r.activeVehicles,
+          drivers: r.activeVehicles,
+          distance: `${r.distance}km`,
+          riskAreas: r.safetyIncidents,
+          efficiency: r.onTimePerformance
+        })),
+        compliance: {
+          driverLicenseValidity: 100,
+          vehicleInspections: 100,
+          safetyTraining: Math.round(data.safetyScore),
+          emergencyProtocols: 100,
+          dataReporting: 100
         }
       }
 
       await generatePDFReport({
-        type: "custom-dynamic",
-        title: `${entityName} - ${timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)} Report`,
+        type: type === 'custom' ? 'custom-dynamic' : type,
+        title: type === 'custom' ? `${entityName} - ${timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)} Report` : title,
         dateRange: `Last ${timePeriod === 'daily' ? '24 Hours' : timePeriod === 'weekly' ? '7 Days' : '30 Days'}`,
         data: reportData
       })
@@ -322,63 +350,83 @@ export default function ReportsPage() {
 
                   <div className="space-y-4">
                     <label className="text-sm font-bold text-slate-700">Target Entity</label>
-                    <select 
-                      className="w-full bg-slate-50 border-2 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors"
-                      value={reportEntity}
-                      onChange={(e) => {
-                        setReportEntity(e.target.value as any)
+                    <Select 
+                      value={reportEntity} 
+                      onValueChange={(val) => {
+                        setReportEntity(val as any)
                         setSelectedEntityId("all")
                       }}
                     >
-                      <option value="fleet">Entire Fleet</option>
-                      <option value="driver">Specific Driver</option>
-                      <option value="bus">Specific Bus</option>
-                    </select>
+                      <SelectTrigger className="w-full bg-slate-50 border-2 rounded-xl p-3 h-auto">
+                        <SelectValue placeholder="Select target entity..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fleet">Entire Fleet</SelectItem>
+                        <SelectItem value="driver">Specific Driver</SelectItem>
+                        <SelectItem value="bus">Specific Bus</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {reportEntity === "driver" && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                       <label className="text-sm font-bold text-slate-700">Select Driver</label>
-                      <select 
-                        className="w-full bg-slate-50 border-2 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors"
-                        value={selectedEntityId}
-                        onChange={(e) => setSelectedEntityId(e.target.value)}
+                      <Select 
+                        value={selectedEntityId} 
+                        onValueChange={setSelectedEntityId}
                       >
-                        <option value="all">Select a driver...</option>
-                        {drivers.map(d => (
-                          <option key={d.id || d.licenseNumber} value={d.id || d.licenseNumber}>{d.name} ({d.licenseNumber})</option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-full bg-slate-50 border-2 rounded-xl p-3 h-auto">
+                          <SelectValue placeholder="Select a driver..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Select a driver...</SelectItem>
+                          {(Array.isArray(drivers) ? drivers : []).map(d => (
+                            <SelectItem key={d.id || d.licenseNumber} value={d.id || d.licenseNumber}>
+                              {d.name} ({d.licenseNumber})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
 
                   {reportEntity === "bus" && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                       <label className="text-sm font-bold text-slate-700">Select Bus</label>
-                      <select 
-                        className="w-full bg-slate-50 border-2 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors"
-                        value={selectedEntityId}
-                        onChange={(e) => setSelectedEntityId(e.target.value)}
+                      <Select 
+                        value={selectedEntityId} 
+                        onValueChange={setSelectedEntityId}
                       >
-                        <option value="all">Select a bus...</option>
-                        {fleet.map(f => (
-                          <option key={f.id || f.busNumber} value={f.id || f.busNumber}>{f.busNumber || f.id}</option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-full bg-slate-50 border-2 rounded-xl p-3 h-auto">
+                          <SelectValue placeholder="Select a bus..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Select a bus...</SelectItem>
+                          {(Array.isArray(fleet) ? fleet : []).map(f => (
+                            <SelectItem key={f.id || f.busNumber} value={f.id || f.busNumber}>
+                              {f.busNumber || f.id}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
 
                   <div className="space-y-4">
                     <label className="text-sm font-bold text-slate-700">{t("time_period") || "Time Period"}</label>
-                    <select 
-                      className="w-full bg-slate-50 border-2 rounded-xl p-3 outline-none focus:border-blue-500 transition-colors"
-                      value={timePeriod}
-                      onChange={(e) => setTimePeriod(e.target.value as any)}
+                    <Select 
+                      value={timePeriod} 
+                      onValueChange={(val) => setTimePeriod(val as any)}
                     >
-                      <option value="daily">Daily (Last 24 Hours)</option>
-                      <option value="weekly">Weekly (Last 7 Days)</option>
-                      <option value="monthly">Monthly (Last 30 Days)</option>
-                    </select>
+                      <SelectTrigger className="w-full bg-slate-50 border-2 rounded-xl p-3 h-auto">
+                        <SelectValue placeholder="Select time period..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily (Last 24 Hours)</SelectItem>
+                        <SelectItem value="weekly">Weekly (Last 7 Days)</SelectItem>
+                        <SelectItem value="monthly">Monthly (Last 30 Days)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <Button 
