@@ -180,7 +180,7 @@ export default function LoginPage() {
                     <span className="text-xs font-semibold text-orange-400 uppercase tracking-wider">Warning</span>
                     <span className="text-[10px] text-slate-500">Just now</span>
                   </div>
-                  <p className="text-xs text-slate-300 mt-1">Driver <strong className="blur-[4px] select-none opacity-80">Sunil Perera</strong> shows signs of fatigue on Route ND-02.</p>
+                  <p className="text-xs text-slate-300 mt-1">Driver <strong className="text-slate-200">Sunil Perera</strong> shows signs of fatigue on Route ND-02.</p>
                 </div>
               </div>
 
@@ -194,7 +194,7 @@ export default function LoginPage() {
                     <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">Fleet Status</span>
                     <span className="text-[10px] text-slate-500">5m ago</span>
                   </div>
-                  <p className="text-xs text-slate-300 mt-1">Bus <strong className="blur-[4px] select-none opacity-80">WP ND-8890</strong> registered on system & dispatched.</p>
+                  <p className="text-xs text-slate-300 mt-1">Bus <strong className="text-slate-200">WP ND-8890</strong> registered on system & dispatched.</p>
                 </div>
               </div>
             </div>
@@ -392,6 +392,32 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          {/* Social Login Separator */}
+          {mode !== "reset" && (
+            <>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-800"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-slate-950 px-2 text-slate-500 uppercase tracking-wider">Or continue with</span>
+                </div>
+              </div>
+
+              {/* Google Sign In Button */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGoogleLogin}
+                disabled={isSubmitting}
+                className="w-full bg-transparent border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white transition-colors"
+              >
+                <Chrome className="h-4 w-4 mr-2" />
+                Google
+              </Button>
+            </>
+          )}
 
 
         </div>

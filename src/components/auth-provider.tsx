@@ -38,12 +38,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Subscribe to Firebase Auth changes
+    let isResolved = false
     const unsubscribe = authService.onAuthStateChange((firebaseUser) => {
+      isResolved = true
       setUser(firebaseUser)
       setLoading(false)
     })
 
-    return () => unsubscribe()
+    // Fallback timeout in case Firebase is blocked or offline
+    const timeoutId = setTimeout(() => {
+      if (!isResolved) {
+        console.warn("Firebase auth check timed out. Defaulting to unauthenticated state.")
+        setLoading(false)
+      }
+    }, 500)
+
+    return () => {
+      clearTimeout(timeoutId)
+      unsubscribe()
+    }
   }, [])
 
   // Guard routing based on authentication status

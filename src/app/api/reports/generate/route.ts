@@ -134,12 +134,21 @@ export async function POST(req: Request) {
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Recent Passenger Comments</h3>
                 <div class="space-y-4">
                   ${data.feedbacks.recent.map((f: any) => `
-                    <div class="bg-white shadow-sm rounded-xl p-4 border border-gray-200">
-                      <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full shadow-sm">${f.rating} Stars</span>
-                        <span class="text-xs text-gray-500 font-medium">${f.date}</span>
+                    <div class="bg-white shadow-sm rounded-xl p-4 border border-gray-200 mb-4">
+                      <div class="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 class="font-bold text-gray-900">${f.title || 'Passenger Feedback'}</h4>
+                          <div class="flex items-center gap-2 mt-1">
+                            <span class="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full shadow-sm">${f.rating} Stars</span>
+                            ${f.busNumber && f.busNumber !== "Unknown Bus" ? `<span class="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full">Bus: ${f.busNumber}</span>` : ''}
+                          </div>
+                        </div>
+                        <div class="text-right">
+                          <p class="text-xs text-gray-500 font-medium">${f.date}</p>
+                          <p class="text-xs font-semibold text-gray-600 mt-1">${f.userName || 'Anonymous'}</p>
+                        </div>
                       </div>
-                      <p class="text-gray-700 italic">"${f.comment}"</p>
+                      <p class="text-gray-700 italic mt-3">"${f.comment}"</p>
                     </div>
                   `).join('')}
                 </div>

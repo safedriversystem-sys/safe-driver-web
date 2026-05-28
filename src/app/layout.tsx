@@ -51,6 +51,26 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="SafeDriver" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('error', function(event) {
+                var msg = event.message || '';
+                if (msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf('Loading chunk') !== -1 || msg.indexOf('Cannot read properties of undefined (reading \\'call\\')') !== -1) {
+                  console.warn('ChunkLoadError detected, reloading window...');
+                  window.location.reload();
+                }
+              });
+              window.addEventListener('unhandledrejection', function(event) {
+                var msg = (event.reason && event.reason.message) ? event.reason.message : String(event.reason);
+                if (msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf('Loading chunk') !== -1 || msg.indexOf('Cannot read properties of undefined (reading \\'call\\')') !== -1) {
+                  console.warn('ChunkLoadError rejection detected, reloading window...');
+                  window.location.reload();
+                }
+              });
+            `,
+          }}
+        />
       </head>
       <body className={inter.className}>
         <LanguageProvider>

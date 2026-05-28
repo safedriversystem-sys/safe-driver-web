@@ -176,7 +176,8 @@ export default function ReportsPage() {
       } else if (reportEntity === "bus" && selectedEntityId !== "all") {
         filteredFeedbacks = feedbacks.filter(f => f.busNumber === selectedEntityId || f.vehicleId === selectedEntityId)
       }
-      const avgFeedbackRating = filteredFeedbacks.length > 0 ? (filteredFeedbacks.reduce((sum, f) => sum + (Number(f.rating) || 5), 0) / filteredFeedbacks.length).toFixed(1) : "N/A"
+      const getRatingValue = (f: any) => typeof f.rating === 'object' ? (f.rating?.overall || 5) : (Number(f.rating) || 5);
+      const avgFeedbackRating = filteredFeedbacks.length > 0 ? (filteredFeedbacks.reduce((sum, f) => sum + getRatingValue(f), 0) / filteredFeedbacks.length).toFixed(1) : "N/A"
 
       let reportData: any = {
         entityName,
@@ -193,9 +194,12 @@ export default function ReportsPage() {
           total: filteredFeedbacks.length,
           averageRating: avgFeedbackRating,
           recent: filteredFeedbacks.slice(0, 10).map(f => ({
-            rating: f.rating || 5,
-            comment: f.message || f.comment || "No comment",
-            date: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "Recent"
+            rating: typeof f.rating === 'object' ? (f.rating?.overall || 5) : (f.rating || 5),
+            comment: f.description || f.comment || f.message || "No comment",
+            title: f.title || "Untitled Feedback",
+            userName: f.isAnonymous ? "Anonymous" : (f.userName || "Unknown Passenger"),
+            busNumber: f.busNumber || "Unknown Bus",
+            date: (f.createdAt || f.timestamp) ? new Date(f.createdAt || f.timestamp).toLocaleDateString() : "Recent"
           }))
         },
         summary: {
