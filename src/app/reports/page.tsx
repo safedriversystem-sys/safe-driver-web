@@ -71,7 +71,7 @@ export default function ReportsPage() {
   // Report Config State
   const [reportEntity, setReportEntity] = useState<"fleet" | "driver" | "bus">("fleet")
   const [selectedEntityId, setSelectedEntityId] = useState<string>("all")
-  const [timePeriod, setTimePeriod] = useState<"daily" | "weekly" | "monthly">("daily")
+  const [timePeriod, setTimePeriod] = useState<"daily" | "weekly" | "monthly" | "lifetime">("daily")
 
   // Fetch Initial Data
   useEffect(() => {
@@ -141,7 +141,7 @@ export default function ReportsPage() {
     try {
       // 1. Filter Alerts based on timePeriod
       const now = Date.now()
-      const timeMs = timePeriod === "daily" ? 24*60*60*1000 : timePeriod === "weekly" ? 7*24*60*60*1000 : 30*24*60*60*1000
+      const timeMs = timePeriod === "daily" ? 24*60*60*1000 : timePeriod === "weekly" ? 7*24*60*60*1000 : timePeriod === "monthly" ? 30*24*60*60*1000 : Infinity
       const combinedAlerts = [...liveAlerts, ...historyAlerts].filter((alert, index, self) => index === self.findIndex((a) => a.id === alert.id))
       
       let filteredAlerts = combinedAlerts.filter(a => {
@@ -169,12 +169,17 @@ export default function ReportsPage() {
       const safetyScore = calculateSafetyScore(filteredAlerts)
       
       // 4. Filter Feedbacks
-      let filteredFeedbacks = feedbacks
+      let filteredFeedbacks = feedbacks.filter(f => {
+        if (!f.timestamp && !f.createdAt) return false;
+        const feedbackTime = new Date((f.timestamp || f.createdAt) as string).getTime();
+        return (now - feedbackTime) <= timeMs;
+      });
+      
       if (reportEntity === "driver" && selectedEntityId !== "all") {
         const driver = drivers.find(d => d.id === selectedEntityId || d.licenseNumber === selectedEntityId)
-        filteredFeedbacks = feedbacks.filter(f => f.driverId === selectedEntityId || f.driverName === driver?.name)
+        filteredFeedbacks = filteredFeedbacks.filter(f => f.driverId === selectedEntityId || f.driverName === driver?.name)
       } else if (reportEntity === "bus" && selectedEntityId !== "all") {
-        filteredFeedbacks = feedbacks.filter(f => f.busNumber === selectedEntityId || f.vehicleId === selectedEntityId)
+        filteredFeedbacks = filteredFeedbacks.filter(f => f.busNumber === selectedEntityId || f.vehicleId === selectedEntityId)
       }
       const getRatingValue = (f: any) => typeof f.rating === 'object' ? (f.rating?.overall || 5) : (Number(f.rating) || 5);
       const avgFeedbackRating = filteredFeedbacks.length > 0 ? (filteredFeedbacks.reduce((sum, f) => sum + getRatingValue(f), 0) / filteredFeedbacks.length).toFixed(1) : "N/A"
@@ -238,7 +243,7 @@ export default function ReportsPage() {
       await generatePDFReport({
         type: type === 'custom' ? 'custom-dynamic' : type,
         title: type === 'custom' ? `${entityName} - ${timePeriod.charAt(0).toUpperCase() + timePeriod.slice(1)} Report` : title,
-        dateRange: `Last ${timePeriod === 'daily' ? '24 Hours' : timePeriod === 'weekly' ? '7 Days' : '30 Days'}`,
+        dateRange: timePeriod === 'lifetime' ? 'All Time' : `Last ${timePeriod === 'daily' ? '24 Hours' : timePeriod === 'weekly' ? '7 Days' : '30 Days'}`,
         data: reportData
       })
     } catch (error) {
@@ -429,6 +434,7 @@ export default function ReportsPage() {
                         <SelectItem value="daily">Daily (Last 24 Hours)</SelectItem>
                         <SelectItem value="weekly">Weekly (Last 7 Days)</SelectItem>
                         <SelectItem value="monthly">Monthly (Last 30 Days)</SelectItem>
+                        <SelectItem value="lifetime">Lifetime (All Time)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
