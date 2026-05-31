@@ -4,7 +4,6 @@ import React, { createContext, useContext, useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { authService } from "@/lib/firebase/auth"
 import { User } from "firebase/auth"
-import { Shield } from "lucide-react"
 
 interface AuthContextType {
   user: User | null
@@ -19,21 +18,23 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const isPublicPath = pathname === "/login"
+
     // Fast path: Check if we have no session details at all on a fresh run
     const savedSandboxUser = localStorage.getItem("safedriver_sandbox_user")
     const hasLoggedInFlag = localStorage.getItem("safedriver_logged_in") === "true"
 
     if (!savedSandboxUser && !hasLoggedInFlag) {
-      // Direct navigation to login page on a fresh run, bypass loading state and firebase initialization check
+      // No session at all — immediately go to login without showing loading screen
       setLoading(false)
       setUser(null)
-      if (pathname !== "/login") {
+      if (!isPublicPath) {
         router.replace("/login")
       }
       return
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Subscribe to Firebase Auth changes
+    // Subscribe to Firebase Auth changes (only reached if hasLoggedInFlag is true)
     let isResolved = false
     const unsubscribe = authService.onAuthStateChange((firebaseUser) => {
       isResolved = true
@@ -62,13 +63,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    // Fallback timeout in case Firebase is blocked or offline
+    // Fallback timeout in case Firebase is blocked or offline — immediately unblock
     const timeoutId = setTimeout(() => {
       if (!isResolved) {
         console.warn("Firebase auth check timed out. Defaulting to unauthenticated state.")
+        localStorage.removeItem("safedriver_logged_in")
+        setUser(null)
         setLoading(false)
       }
-    }, 500)
+    }, 1500)
 
     return () => {
       clearTimeout(timeoutId)
@@ -83,11 +86,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isPublicPath = pathname === "/login"
 
     if (!user && !isPublicPath) {
-      // Unauthenticated users are redirected to login page
-      router.push("/login")
+      router.replace("/login")
     } else if (user && isPublicPath) {
-      // Authenticated users trying to access login page are redirected to dashboard
-      router.push("/")
+      router.replace("/")
     }
   }, [user, loading, pathname, router])
 
@@ -144,17 +145,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    setLoading(true)
     localStorage.removeItem("safedriver_sandbox_user")
     localStorage.removeItem("safedriver_logged_in")
     setUser(null)
+    setLoading(false)
     try {
       await authService.signOut()
     } catch (error) {
       console.error("Firebase SignOut error:", error)
     } finally {
-      setLoading(false)
-      router.push("/login")
+      router.replace("/login")
     }
   }
 
@@ -193,39 +193,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Beautiful premium splash loading screen
-  const isPublicPath = pathname === "/login"
-
-  if (loading || (!user && !isPublicPath)) {
-    return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 text-white z-50 overflow-hidden">
-        {/* Animated Background Gradients */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
-          <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-blue-500 blur-3xl animate-pulse duration-4000"></div>
-          <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-emerald-500 blur-3xl animate-pulse duration-3000"></div>
-        </div>
-
-        <div className="relative flex flex-col items-center z-10 max-w-sm px-6 text-center">
-          {/* Glowing Shield Logo */}
-          <div className="relative flex items-center justify-center w-24 h-24 rounded-full bg-blue-500/10 border border-blue-500/30 shadow-[0_0_50px_rgba(59,130,246,0.2)] animate-bounce duration-2000 mb-6">
-            <Shield className="h-12 w-12 text-blue-500 animate-pulse" />
-            <div className="absolute inset-0 rounded-full border-2 border-t-emerald-500 border-r-transparent border-b-transparent border-l-transparent animate-spin duration-1000"></div>
-          </div>
-
-          <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-200 to-emerald-400 bg-clip-text text-transparent mb-2">
-            SafeDriver
-          </h2>
-          <p className="text-sm text-slate-400 font-medium mb-8">
-            Authority Panel & Safety Management
-          </p>
-
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></div>
-            <span>{loading ? "Initializing secure session..." : "Redirecting to login..."}</span>
-          </div>
-        </div>
-      </div>
-    )
+  // While loading or awaiting unauthenticated redirect, render nothing (no loading screen)
+  if (loading || (!user && pathname !== "/login")) {
+    return null
   }
 
   return (

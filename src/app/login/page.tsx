@@ -1,30 +1,29 @@
 "use client"
 
 import React, { useState } from "react"
+import Image from "next/image"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { 
-  Shield, 
+  Shield,
   Mail, 
   Lock, 
   User, 
   AlertCircle, 
   ArrowRight, 
-  Chrome, 
   ArrowLeft, 
   Eye, 
   EyeOff, 
   CheckCircle2,
   AlertTriangle,
-  Car,
-  Bell
+  Car
 } from "lucide-react"
 
 export default function LoginPage() {
-  const { signIn, signUp, resetPassword, signInWithGoogle } = useAuth()
+  const { signIn, signUp } = useAuth()
   const { toast } = useToast()
 
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login")
@@ -59,24 +58,6 @@ export default function LoginPage() {
     setTouched((prev) => ({ ...prev, [field]: true }))
   }
 
-  const handleGoogleLogin = async () => {
-    setIsSubmitting(true)
-    try {
-      await signInWithGoogle()
-      toast({
-        title: "Success",
-        description: "Logged in via Google successfully.",
-      })
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: "Google Login Failed",
-        description: err.message || "Failed to log in with Google.",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -149,8 +130,8 @@ export default function LoginPage() {
 
         {/* Top Header */}
         <div className="flex items-center gap-3 relative z-10">
-          <div className="p-2 rounded-lg bg-blue-600/10 border border-blue-500/30 text-blue-500">
-            <Shield className="h-6 w-6" />
+          <div className="flex-shrink-0 w-10 h-10">
+            <Image src="/logo.png" alt="SafeDriver Logo" width={40} height={40} className="object-contain w-10 h-10" />
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white">SafeDriver</h1>
@@ -180,7 +161,7 @@ export default function LoginPage() {
                     <span className="text-xs font-semibold text-orange-400 uppercase tracking-wider">Warning</span>
                     <span className="text-[10px] text-slate-500">Just now</span>
                   </div>
-                  <p className="text-xs text-slate-300 mt-1">Driver <strong className="text-slate-200">Sunil Perera</strong> shows signs of fatigue on Route ND-02.</p>
+                  <p className="text-xs text-slate-300 mt-1">Driver <strong className="text-slate-200 blur-sm select-none">Sunil Perera</strong> shows signs of fatigue on Route ND-02.</p>
                 </div>
               </div>
 
@@ -194,7 +175,7 @@ export default function LoginPage() {
                     <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">Fleet Status</span>
                     <span className="text-[10px] text-slate-500">5m ago</span>
                   </div>
-                  <p className="text-xs text-slate-300 mt-1">Bus <strong className="text-slate-200">WP ND-8890</strong> registered on system & dispatched.</p>
+                  <p className="text-xs text-slate-300 mt-1">Bus <strong className="text-slate-200 blur-sm select-none">WP ND-8890</strong> registered on system & dispatched.</p>
                 </div>
               </div>
             </div>
@@ -212,7 +193,9 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-6 sm:p-12 md:p-16 relative bg-slate-950">
         {/* Mobile Logo */}
         <div className="lg:hidden flex items-center gap-2 mb-8 self-start">
-          <Shield className="h-6 w-6 text-blue-500" />
+          <div className="flex-shrink-0 w-7 h-7">
+            <Image src="/logo.png" alt="SafeDriver Logo" width={28} height={28} className="object-contain w-7 h-7" />
+          </div>
           <span className="text-lg font-bold text-white">SafeDriver</span>
         </div>
 
@@ -327,18 +310,7 @@ export default function LoginPage() {
             {/* Password Input (Login and Register) */}
             {mode !== "reset" && (
               <div className="space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="password" className="text-slate-300 text-sm">Password</Label>
-                  {mode === "login" && (
-                    <button
-                      type="button"
-                      onClick={() => toggleMode("reset")}
-                      className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
-                </div>
+                <Label htmlFor="password" className="text-slate-300 text-sm">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                   <Input
@@ -393,31 +365,6 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Social Login Separator */}
-          {mode !== "reset" && (
-            <>
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-800"></div>
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-slate-950 px-2 text-slate-500 uppercase tracking-wider">Or continue with</span>
-                </div>
-              </div>
-
-              {/* Google Sign In Button */}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGoogleLogin}
-                disabled={isSubmitting}
-                className="w-full bg-transparent border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white transition-colors"
-              >
-                <Chrome className="h-4 w-4 mr-2" />
-                Google
-              </Button>
-            </>
-          )}
 
 
         </div>

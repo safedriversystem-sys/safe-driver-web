@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -11,7 +12,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Settings, LogOut, Shield, Search, Mic, AlertTriangle, MessageSquare, Users, Bus, MapPin, FileText, CheckCircle, Clock, X } from "lucide-react"
+import { Bell, Settings, LogOut, Search, Mic, AlertTriangle, MessageSquare, Users, Bus, MapPin, FileText, CheckCircle, Clock, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { useLiveAlerts } from "@/hooks/use-live-alerts"
@@ -417,7 +418,9 @@ export function AdminHeader() {
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <div className="flex items-center space-x-2">
-            <Shield className="h-7 w-7 text-primary-600" />
+            <div className="flex-shrink-0 w-8 h-8">
+              <Image src="/logo.png" alt="SafeDriver Logo" width={32} height={32} className="object-contain w-8 h-8" />
+            </div>
             <div className="hidden sm:block">
               <h1 className="text-lg md:text-xl font-bold text-foreground">SafeDriver</h1>
               <p className="text-xs text-muted-foreground hidden md:block">{t("transport_safety")}</p>

@@ -274,47 +274,33 @@ export default function ReportsPage() {
       {/* Header Section */}
       <motion.div variants={itemVariants} className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">
-            {t("reports_analytics") || "Reports & Analytics"}
-          </h1>
-          <p className="text-slate-600 text-lg max-w-2xl">
-            {t("reports_desc") || "Generate comprehensive PDF reports with live visual charts and dynamic fleet analytics."}
-          </p>
+          <h1 className="text-3xl font-bold text-foreground">Reports & Analytics</h1>
+          <p className="text-muted-foreground mt-2">Generate comprehensive reports with live visual charts and fleet analytics.</p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Button variant="outline" className="rounded-xl border-2 hover:bg-slate-50">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            {t("refresh_data") || "Refresh"}
-          </Button>
-          <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
-            <Calendar className="h-4 w-4 mr-2" />
-            {t("date_range") || "Date Range"}
-          </Button>
-        </div>
+
       </motion.div>
 
       {/* Analytics Overview Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { label: t("overall_safety_score") || "Safety Score", value: `${data.safetyScore.toFixed(1)}%`, icon: Shield, color: "text-emerald-600", bg: "bg-emerald-50", trend: "Live" },
-          { label: t("performance_index") || "Fleet Activity", value: `${data.fleetActivity}%`, icon: TrendingUp, color: "text-indigo-600", bg: "bg-indigo-50", trend: "Live" },
-          { label: t("risk_level") || "Risk Level", value: data.riskLevel, icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50", trend: "Live" },
-          { label: t("compliance") || "Alert Density", value: data.alertDensity, icon: Activity, color: "text-rose-600", bg: "bg-rose-50", trend: "Live" },
+          { label: "Overall Safety Score", value: `${data.safetyScore.toFixed(1)}%`, icon: Shield, color: "text-emerald-600", bg: "bg-emerald-50", trend: "Live" },
+          { label: "Risk Level", value: data.riskLevel, icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50", trend: "Live" },
+          { label: "Alert Density", value: data.alertDensity, icon: Activity, color: "text-rose-600", bg: "bg-rose-50", trend: "Live" },
         ].map((stat, i) => (
-          <Card key={i} className="border-2 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 group">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className={`${stat.bg} p-3 rounded-2xl group-hover:scale-110 transition-transform duration-300`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
+          <Card key={i} className="border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 group">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start mb-3">
+                <div className={`${stat.bg} p-2.5 rounded-xl group-hover:scale-105 transition-transform duration-300`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
                 </div>
-                <Badge className="bg-emerald-100 text-emerald-700 border-none rounded-lg">
+                <Badge className="bg-emerald-100 text-emerald-700 border-none rounded-lg text-xs">
                   {stat.trend}
                 </Badge>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{stat.label}</p>
-                <h3 className="text-3xl font-bold text-slate-900">{stat.value}</h3>
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                <h3 className="text-2xl font-bold text-foreground">{stat.value}</h3>
               </div>
             </CardContent>
           </Card>

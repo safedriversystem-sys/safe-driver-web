@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   generator: 'v0.dev',
   icons: {
-    icon: '/placeholder-logo.png',
-    apple: '/placeholder-logo.png',
+    icon: '/logo.png',
+    apple: '/logo.png',
   },
   appleWebApp: {
     capable: true,
@@ -45,8 +45,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/placeholder-logo.png" />
-        <link rel="apple-touch-icon" href="/placeholder-logo.png" />
+        <link rel="icon" href="/logo.png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
