@@ -26,7 +26,7 @@ export default function LoginPage() {
   const { signIn, signUp } = useAuth()
   const { toast } = useToast()
 
-  const [mode, setMode] = useState<"login" | "signup" | "reset">("login")
+  const [mode, setMode] = useState<"login" | "signup">("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
@@ -67,7 +67,6 @@ export default function LoginPage() {
 
     if (mode === "login" && (emailError || passwordError)) return
     if (mode === "signup" && (emailError || passwordError || nameError)) return
-    if (mode === "reset" && emailError) return
 
     setIsSubmitting(true)
 
@@ -84,13 +83,6 @@ export default function LoginPage() {
           title: "Registration Success",
           description: "Account registered and logged in.",
         })
-      } else if (mode === "reset") {
-        await resetPassword(email)
-        toast({
-          title: "Reset Request Sent",
-          description: "A password reset email has been sent.",
-        })
-        setMode("login")
       }
     } catch (err: any) {
       let friendlyMsg = err.message || "Authentication error."
@@ -112,7 +104,7 @@ export default function LoginPage() {
     }
   }
 
-  const toggleMode = (newMode: "login" | "signup" | "reset") => {
+  const toggleMode = (newMode: "login" | "signup") => {
     setMode(newMode)
     setEmail("")
     setPassword("")
@@ -214,21 +206,6 @@ export default function LoginPage() {
                 <p className="text-sm text-slate-400">Register as a transport safety administrator.</p>
               </>
             )}
-            {mode === "reset" && (
-              <>
-                <div className="flex items-center gap-2 mb-2">
-                  <button 
-                    onClick={() => toggleMode("login")} 
-                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition-colors"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </button>
-                  <span className="text-sm text-slate-400 font-medium">Back to Sign In</span>
-                </div>
-                <h2 className="text-2xl font-bold tracking-tight text-white">Reset Password</h2>
-                <p className="text-sm text-slate-400">We will email you a secure link to reset your password.</p>
-              </>
-            )}
           </div>
 
           {/* Sandbox Access Helper (English, Sinhala, Tamil inline toggle context) */}
@@ -308,38 +285,36 @@ export default function LoginPage() {
             </div>
 
             {/* Password Input (Login and Register) */}
-            {mode !== "reset" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-slate-300 text-sm">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onBlur={() => handleBlur("password")}
-                    className={`pl-10 pr-10 bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500 focus-visible:ring-blue-500 focus-visible:border-blue-500 ${
-                      touched.password && passwordError ? "border-red-500 focus-visible:ring-red-500" : ""
-                    } ${touched.password && !passwordError ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}`}
-                  />
-                  {/* Eye Toggle password visibility */}
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {touched.password && passwordError && (
-                  <p className="text-xs text-red-500 font-medium flex items-center gap-1 mt-1">
-                    <span>{passwordError}</span>
-                  </p>
-                )}
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-slate-300 text-sm">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onBlur={() => handleBlur("password")}
+                  className={`pl-10 pr-10 bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500 focus-visible:ring-blue-500 focus-visible:border-blue-500 ${
+                    touched.password && passwordError ? "border-red-500 focus-visible:ring-red-500" : ""
+                  } ${touched.password && !passwordError ? "border-emerald-500 focus-visible:ring-emerald-500" : ""}`}
+                />
+                {/* Eye Toggle password visibility */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
-            )}
+              {touched.password && passwordError && (
+                <p className="text-xs text-red-500 font-medium flex items-center gap-1 mt-1">
+                  <span>{passwordError}</span>
+                </p>
+              )}
+            </div>
 
             {/* Submit Button */}
             <Button
@@ -357,7 +332,6 @@ export default function LoginPage() {
                   <span>
                     {mode === "login" && "Sign In"}
                     {mode === "signup" && "Create Account"}
-                    {mode === "reset" && "Send Reset Link"}
                   </span>
                   <ArrowRight className="h-4 w-4" />
                 </div>
