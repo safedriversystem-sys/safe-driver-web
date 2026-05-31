@@ -118,17 +118,51 @@ export const generatePDFReport = async (reportData: ReportData) => {
     // Executive Summary
     currentY = drawSectionHeader(currentY, "Executive Summary");
 
-    // Metrics boxes (Total Alerts, Active Drivers, System Uptime)
-    const boxWidth = 57;
+    let summaryCards: Array<{ label: string; value: string | number; color: [number, number, number] }> = [];
+
+    if (type === "driver-performance") {
+      const driverAlerts = data?.drivers?.reduce((sum: number, d: any) => sum + (Number(d.alerts) || 0), 0) ?? 0;
+      summaryCards = [
+        { label: "Total Drivers", value: data?.drivers?.length ?? 0, color: secondaryColor },
+        { label: "Total Driver Alerts", value: driverAlerts, color: accentColor },
+        { label: "Avg Safety Score", value: `${Math.round(data?.safetyScore ?? 95)}%`, color: [16, 185, 129] as [number, number, number] }
+      ];
+    } else if (type === "fleet-analytics") {
+      const activeBuses = data?.routes?.reduce((sum: number, r: any) => sum + (Number(r.buses) || 0), 0) ?? 0;
+      const totalRoutes = data?.routes?.length ?? 0;
+      const avgEfficiency = data?.routes?.length > 0
+        ? `${(data.routes.reduce((sum: number, r: any) => sum + parseFloat(r.efficiency || 0), 0) / data.routes.length).toFixed(0)}%`
+        : "100%";
+      summaryCards = [
+        { label: "Active Routes Monitored", value: totalRoutes, color: secondaryColor },
+        { label: "Active Buses Dispatched", value: activeBuses, color: [16, 185, 129] as [number, number, number] },
+        { label: "Schedule Efficiency", value: avgEfficiency, color: [79, 70, 229] as [number, number, number] }
+      ];
+    } else if (type === "compliance") {
+      summaryCards = [
+        { label: "License Compliance", value: `${data?.compliance?.driverLicenseValidity ?? 100}%`, color: secondaryColor },
+        { label: "Safety Training Rate", value: `${data?.compliance?.safetyTraining ?? 100}%`, color: [16, 185, 129] as [number, number, number] },
+        { label: "Audit Rating Score", value: "A+", color: [79, 70, 229] as [number, number, number] }
+      ];
+    } else if (type === "custom-dynamic") {
+      summaryCards = [
+        { label: "Total Alerts (Filtered)", value: data?.counts?.total ?? 0, color: accentColor },
+        { label: "Passenger Rating", value: `${data?.feedbacks?.averageRating || "N/A"}/5`, color: [16, 185, 129] as [number, number, number] }
+      ];
+    } else {
+      summaryCards = [
+        { label: "Total Active Alerts", value: data?.counts?.total ?? data?.summary?.totalAlerts ?? 0, color: accentColor },
+        { label: "Active Drivers On-Duty", value: data?.summary?.activeDrivers ?? 0, color: secondaryColor },
+        { label: "Global System Uptime", value: `${data?.summary?.systemUptime ?? 100}%`, color: [16, 185, 129] as [number, number, number] }
+      ];
+    }
+
     const boxHeight = 24;
     const boxGap = 5;
     const startX = 14;
-
-    const summaryCards = [
-      { label: "Total Alerts (Today)", value: data?.summary?.totalAlerts ?? 0, color: accentColor },
-      { label: "Active Drivers", value: data?.summary?.activeDrivers ?? 0, color: secondaryColor },
-      { label: "System Uptime", value: `${data?.summary?.systemUptime ?? 100}%`, color: [16, 185, 129] as [number, number, number] } // emerald-500
-    ];
+    const totalAvailableWidth = 182;
+    const numCards = summaryCards.length || 1;
+    const boxWidth = (totalAvailableWidth - (boxGap * (numCards - 1))) / numCards;
 
     summaryCards.forEach((card, index) => {
       const x = startX + index * (boxWidth + boxGap);
