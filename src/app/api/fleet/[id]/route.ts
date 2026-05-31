@@ -82,7 +82,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const validationResult = updateVehicleSchema.safeParse(body)
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: "Validation failed", details: validationResult.error.errors },
+        { error: "Validation failed", details: validationResult.error.issues },
         { status: 400 },
       )
     }

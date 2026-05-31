@@ -29,7 +29,7 @@ const createVehicleSchema = z.object({
     .number({
       required_error: "Year is required",
       invalid_type_error: "Year must be a valid number",
-    })
+    } as any)
     .int("Year must be a whole number")
     .min(1900, `Year must be between 1900 and ${new Date().getFullYear() + 1}`)
     .max(new Date().getFullYear() + 1, `Year cannot be greater than ${new Date().getFullYear() + 1}`),
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     const validationResult = createVehicleSchema.safeParse(body)
     if (!validationResult.success) {
       // Format validation errors into user-friendly messages
-      const errorMessages = validationResult.error.errors.map((err) => {
+      const errorMessages = validationResult.error.issues.map((err: any) => {
         const field = err.path.join(".")
         return `${field.charAt(0).toUpperCase() + field.slice(1)}: ${err.message}`
       })
@@ -121,8 +121,8 @@ export async function POST(request: NextRequest) {
         {
           error: "Validation failed",
           message: mainError,
-          details: validationResult.error.errors,
-          fields: validationResult.error.errors.reduce((acc, err) => {
+          details: validationResult.error.issues,
+          fields: validationResult.error.issues.reduce((acc: any, err: any) => {
             const field = err.path.join(".")
             acc[field] = err.message
             return acc

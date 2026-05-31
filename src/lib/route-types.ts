@@ -11,7 +11,7 @@ export interface RouteStop {
   order: number
 }
 
-export type HazardType = "accident" | "other"
+export type HazardType = "accident" | "school" | "speed" | "other"
 
 export interface HazardZone {
   id?: string

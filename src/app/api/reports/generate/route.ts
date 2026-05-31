@@ -196,7 +196,7 @@ export async function POST(req: Request) {
     const page = await browser.newPage();
     
     // Set content and wait for network to be idle to ensure fonts/css load
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' as any });
     
     // Generate PDF buffer
     const pdfBuffer = await page.pdf({
@@ -208,7 +208,7 @@ export async function POST(req: Request) {
     await browser.close();
 
     // Return the PDF buffer
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(pdfBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
-import type { Route } from "@/lib/route-types"
+import type { Route as RouteType } from "@/lib/route-types"
 
 import {
   Bus,
@@ -68,7 +68,7 @@ export default function FleetManagement() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [routes, setRoutes] = useState<Route[]>([])
+  const [routes, setRoutes] = useState<RouteType[]>([])
   const [updatingStatusIds, setUpdatingStatusIds] = useState<Set<string>>(new Set())
   const { toast } = useToast()
   const { t } = useLanguage()

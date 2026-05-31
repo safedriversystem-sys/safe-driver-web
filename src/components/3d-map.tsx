@@ -239,7 +239,7 @@ export function ThreeDMap({ routes = [], vehicles = [] }: { routes?: RouteType[]
   return (
     <div className="w-full h-full relative group">
       <div className="w-full h-[600px] bg-gradient-to-b from-sky-50 to-white rounded-[3rem] overflow-hidden border-[12px] border-white shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] relative">
-        <Canvas camera={{ position: [20, 20, 20], fov: 40 }} shadows antialias="true">
+        <Canvas camera={{ position: [20, 20, 20], fov: 40 }} shadows gl={{ antialias: true }}>
           <Suspense fallback={null}>
             <fog attach="fog" args={["#f0f9ff", 20, 100]} />
             

@@ -156,7 +156,7 @@ export function MobileNav() {
                             href={item.href}
                             className={`flex items-center justify-between rounded-md px-2 py-2 text-sm font-medium hover:bg-gray-100 ${
                               pathname === item.href ? "bg-gray-100" : ""
-                            } ${item.className || ""}`}
+                            } ${(item as any).className || ""}`}
                           >
                             <div className="flex items-center space-x-2">
                               <item.icon className="h-4 w-4" />

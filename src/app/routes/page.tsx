@@ -56,6 +56,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { ThreeDMap } from "@/components/3d-map"
 import { Progress } from "@/components/ui/progress"
 import { hazardService } from "@/lib/hazard-service"
+import { TransitSearchPanel } from "@/components/transit-search-panel"
 
 export default function RouteMonitoring() {
   const [routes, setRoutes] = useState<Route[]>([])
@@ -957,7 +958,7 @@ export default function RouteMonitoring() {
           onClose={() => setShowTransitSearch(false)} 
           initialOrigin={newRoute.startPoint}
           initialDestination={newRoute.endPoint}
-          onSelect={(route) => {
+          onSelect={(route: any) => {
             setNewRoute({
               ...newRoute,
               busNumber: route.busLine || newRoute.busNumber,

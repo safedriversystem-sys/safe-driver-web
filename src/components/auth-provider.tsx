@@ -25,8 +25,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   useEffect(() => {
-    // Check if there is a sandbox user session in localStorage first
+    // Fast path: Check if we have no session details at all on a fresh run
     const savedSandboxUser = localStorage.getItem("safedriver_sandbox_user")
+    const hasLoggedInFlag = localStorage.getItem("safedriver_logged_in") === "true"
+
+    if (!savedSandboxUser && !hasLoggedInFlag) {
+      // Direct navigation to login page on a fresh run, bypass loading state and firebase initialization check
+      setLoading(false)
+      setUser(null)
+      if (pathname !== "/login") {
+        router.replace("/login")
+      }
+      return
+    }
+
     if (savedSandboxUser) {
       try {
         setUser(JSON.parse(savedSandboxUser))
@@ -42,6 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = authService.onAuthStateChange((firebaseUser) => {
       isResolved = true
       setUser(firebaseUser)
+      if (firebaseUser) {
+        localStorage.setItem("safedriver_logged_in", "true")
+      } else {
+        localStorage.removeItem("safedriver_logged_in")
+      }
       setLoading(false)
     })
 
@@ -57,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId)
       unsubscribe()
     }
-  }, [])
+  }, [pathname, router])
 
   // Guard routing based on authentication status
   useEffect(() => {
@@ -79,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await authService.signIn(email, password)
       localStorage.removeItem("safedriver_sandbox_user")
+      localStorage.setItem("safedriver_logged_in", "true")
       setLoading(false)
       return result
     } catch (error: any) {
@@ -91,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           emailVerified: true,
         } as unknown as User
         localStorage.setItem("safedriver_sandbox_user", JSON.stringify(mockUser))
+        localStorage.setItem("safedriver_logged_in", "true")
         setUser(mockUser)
         setLoading(false)
         return { user: mockUser }
@@ -105,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await authService.signUp(email, password, name)
       localStorage.removeItem("safedriver_sandbox_user")
+      localStorage.setItem("safedriver_logged_in", "true")
       setLoading(false)
       return result
     } catch (error: any) {
@@ -116,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailVerified: true,
       } as unknown as User
       localStorage.setItem("safedriver_sandbox_user", JSON.stringify(mockUser))
+      localStorage.setItem("safedriver_logged_in", "true")
       setUser(mockUser)
       setLoading(false)
       return { user: mockUser }
@@ -125,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true)
     localStorage.removeItem("safedriver_sandbox_user")
+    localStorage.removeItem("safedriver_logged_in")
     setUser(null)
     try {
       await authService.signOut()
@@ -152,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await authService.signInWithGoogle()
       localStorage.removeItem("safedriver_sandbox_user")
+      localStorage.setItem("safedriver_logged_in", "true")
       setLoading(false)
       return result
     } catch (error) {
@@ -163,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailVerified: true,
       } as unknown as User
       localStorage.setItem("safedriver_sandbox_user", JSON.stringify(mockUser))
+      localStorage.setItem("safedriver_logged_in", "true")
       setUser(mockUser)
       setLoading(false)
       return { user: mockUser }
@@ -170,7 +194,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Beautiful premium splash loading screen
-  if (loading) {
+  const isPublicPath = pathname === "/login"
+
+  if (loading || (!user && !isPublicPath)) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center bg-slate-950 text-white z-50 overflow-hidden">
         {/* Animated Background Gradients */}
@@ -195,7 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></div>
-            <span>Initializing secure session...</span>
+            <span>{loading ? "Initializing secure session..." : "Redirecting to login..."}</span>
           </div>
         </div>
       </div>
