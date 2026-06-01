@@ -313,7 +313,7 @@ export const translations = {
 
 
         // Header
-        "search_placeholder": "Search...",
+        "search_placeholder": "Search driver name or fleet...",
         "notifications": "Notifications",
         "admin_user": "Admin User",
         "transport_safety": "Transport Safety Management",
@@ -384,7 +384,7 @@ export const translations = {
         "safedriver_pro": "SafeDriver Pro",
 
         // Header
-        "search_placeholder": "සොයන්න...",
+        "search_placeholder": "රියදුරු නම හෝ වාහන ඇණිය සොයන්න...",
         "notifications": "දැනුම්දීම්",
         "admin_user": "පරිපාලක",
         "transport_safety": "ප්‍රවාහන ආරක්ෂණ කළමනාකරණය",
@@ -744,7 +744,7 @@ export const translations = {
         "safedriver_pro": "SafeDriver Pro",
 
         // Header
-        "search_placeholder": "தேடு...",
+        "search_placeholder": "ஓட்டுநர் பெயர் அல்லது வாகனத்தை தேடு...",
         "notifications": "அறிவிப்புகள்",
         "admin_user": "நிர்வாகி",
         "transport_safety": "போக்குவரத்து பாதுகாப்பு மேலாண்மை",
