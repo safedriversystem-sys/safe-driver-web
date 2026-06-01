@@ -43,14 +43,16 @@ export default function DriversPage() {
   
   // Calculate real-time alert counts for each driver
   const driversWithAlertCounts = useMemo(() => {
-    // Get unique today's alerts
-    const todayAlerts = liveAlerts.filter(alert => isToday(alert.timestamp))
+    // Include active/acknowledged alerts (unresolved risks) and today's alerts
+    const activeOrTodayAlerts = liveAlerts.filter(alert => 
+      alert.status === "active" || alert.status === "acknowledged" || isToday(alert.timestamp)
+    )
     
     return drivers.map(driver => {
       // Find alerts for this driver's assigned bus
       if (!driver.busNumber) return { ...driver, alertCount: 0 }
       
-      const count = todayAlerts.filter(alert => 
+      const count = activeOrTodayAlerts.filter(alert => 
         (alert.number_plate === driver.busNumber || alert.busNumber === driver.busNumber)
       ).length
       

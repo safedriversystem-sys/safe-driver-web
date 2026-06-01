@@ -35,7 +35,7 @@ import {
 } from "lucide-react"
 import { useLanguage } from "@/components/language-provider"
 import { generatePDFReport } from "@/lib/pdf-generator"
-import { useLiveAlerts, isToday } from "@/hooks/use-live-alerts"
+import { useLiveAlerts, isToday, isWithinLast24Hours, isWithinLast30Days } from "@/hooks/use-live-alerts"
 import { calculateSafetyScore, getRiskLevelDetails } from "@/lib/safety-score"
 
 const containerVariants = {
@@ -100,10 +100,20 @@ export default function ReportsPage() {
 
   // Derived Dynamic Data
   const data = useMemo(() => {
-    const combinedTodayAlerts = [...liveAlerts.filter(a => isToday(a.timestamp)), ...historyAlerts.filter(a => isToday(a.timestamp))]
-    const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) => index === self.findIndex((a) => a.id === alert.id))
+    // Combine all alerts and remove duplicates based on alert ID
+    const combinedAlerts = [...liveAlerts, ...historyAlerts]
+    const uniqueAlerts = combinedAlerts.filter((alert, index, self) =>
+      index === self.findIndex((a) => a.id === alert.id)
+    )
 
-    const safetyScore = calculateSafetyScore(uniqueTodayAlerts)
+    // Today's alerts (scoped to calendar today or last 24 hours)
+    const todayAlertsList = uniqueAlerts.filter(
+      (alert) => isToday(alert.timestamp) || isWithinLast24Hours(alert.timestamp)
+    )
+
+    // Safety score is calculated based on ALL alerts from the last 30 days
+    const alertsLast30Days = uniqueAlerts.filter((alert) => isWithinLast30Days(alert.timestamp))
+    const safetyScore = calculateSafetyScore(alertsLast30Days)
     const riskDetails = getRiskLevelDetails(safetyScore)
     
     const activeVehicles = fleet.filter(v => v.status === "active").length
@@ -111,20 +121,20 @@ export default function ReportsPage() {
     
     // Group alerts by type for PDF
     const alertTypesCounts: Record<string, number> = {}
-    uniqueTodayAlerts.forEach(a => {
+    todayAlertsList.forEach(a => {
       alertTypesCounts[a.type] = (alertTypesCounts[a.type] || 0) + 1
     })
     const alertSummary = Object.entries(alertTypesCounts).map(([type, count]) => ({
       type, count, high: Math.round(count * 0.4), medium: Math.round(count * 0.4), low: Math.round(count * 0.2), avgResponse: "1m"
     }))
 
-    const alertDensity = fleet.length > 0 ? (uniqueTodayAlerts.length / fleet.length).toFixed(2) : "0"
+    const alertDensity = fleet.length > 0 ? (todayAlertsList.length / fleet.length).toFixed(2) : "0"
 
     const totalDrivers = drivers.length || 1
     const activeDrivers = drivers.filter(d => d.status === "on_duty").length
 
     return {
-      uniqueTodayAlerts,
+      uniqueTodayAlerts: todayAlertsList,
       safetyScore,
       riskLevel: riskDetails.level,
       fleetActivity,

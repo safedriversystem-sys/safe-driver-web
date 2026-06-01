@@ -82,6 +82,22 @@ export const isToday = (timestamp: string | number | undefined): boolean => {
          date.getDate() === now.getDate()
 }
 
+// Helper function to check if alert is within the last 24 hours
+export const isWithinLast24Hours = (timestamp: string | number | undefined): boolean => {
+  const date = parseTimestamp(timestamp)
+  if (!date) return false
+  const now = Date.now()
+  return now - date.getTime() <= 24 * 60 * 60 * 1000
+}
+
+// Helper function to check if alert is within the last 30 days
+export const isWithinLast30Days = (timestamp: string | number | undefined): boolean => {
+  const date = parseTimestamp(timestamp)
+  if (!date) return false
+  const now = Date.now()
+  return now - date.getTime() <= 30 * 24 * 60 * 60 * 1000
+}
+
 // Map Firebase alert types to UI alert types
 const mapAlertType = (type: string, tag: string): string => {
   const lowerType = type.toLowerCase()
@@ -191,6 +207,33 @@ export function useLiveAlerts() {
   const [error, setError] = useState<Error | null>(null)
   const [devices, setDevices] = useState<Record<string, DeviceInfo>>({})
   const [firestoreVehicles, setFirestoreVehicles] = useState<Vehicle[]>([])
+  const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved">>({})
+
+  // Load and sync alert statuses from localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const loadStatuses = () => {
+      try {
+        const saved = localStorage.getItem("safedriver-alert-statuses")
+        if (saved) {
+          setAlertStatuses(JSON.parse(saved))
+        }
+      } catch (e) {
+        console.error("Failed to load alert statuses", e)
+      }
+    }
+
+    loadStatuses()
+
+    window.addEventListener("storage", loadStatuses)
+    window.addEventListener("safedriver-alert-status-change", loadStatuses)
+
+    return () => {
+      window.removeEventListener("storage", loadStatuses)
+      window.removeEventListener("safedriver-alert-status-change", loadStatuses)
+    }
+  }, [])
 
   // Subscribe to Firestore vehicles for enriched data (routes, driver names)
   useEffect(() => {
@@ -323,14 +366,16 @@ export function useLiveAlerts() {
                 if (historyAlert && historyAlert.message && historyAlert.time) {
                   const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey, firestoreVehicles)
                   
-                  // If it's today, keep it in the primary alerts list
-                  if (isToday(alert.timestamp)) {
-                    alert.status = (historyAlert as any).status || "active"
+                  const currentStatus = alertStatuses[alert.id] || (historyAlert as any).status || "active"
+                  alert.status = currentStatus
+
+                  // If it's today / last 24 hours, keep it in the primary alerts list
+                  if (isToday(alert.timestamp) || isWithinLast24Hours(alert.timestamp)) {
                     alertMap.set(alert.id, alert)
                   }
                   
                   // Also add to history array for the history tab
-                  const historyItem = { ...alert, status: (historyAlert as any).status || "resolved" }
+                  const historyItem = { ...alert, status: currentStatus }
                   historyAlertsList.push(historyItem)
                 }
               })
@@ -343,23 +388,25 @@ export function useLiveAlerts() {
                 // For the latest node, we don't have a history key, so we pass undefined to generate a unique one
                 const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, undefined, firestoreVehicles)
                 
+                const currentStatus = alertStatuses[alert.id] || (latest as any).status || "active"
+                alert.status = currentStatus
+
                 // Only add to the map if this EXACT event ID isn't already there
-                // (which it shouldn't be for 'latest' unless we just added it from history with the same generated ID)
                 if (!alertMap.has(alert.id)) {
-                  if (isToday(alert.timestamp)) {
+                  if (isToday(alert.timestamp) || isWithinLast24Hours(alert.timestamp)) {
                     alertMap.set(alert.id, alert)
                   }
                 }
 
                 // Add to history list if not already there by ID
                 if (!historyAlertsList.some(h => h.id === alert.id)) {
-                  historyAlertsList.push({ ...alert, status: (latest as any).status || "resolved" })
+                  historyAlertsList.push({ ...alert, status: currentStatus })
                 }
               }
             }
           })
 
-          // Final alert list: all distinct events from today
+          // Final alert list: all distinct active/today events
           const finalAlerts = Array.from(alertMap.values())
 
           // Helper to get time for sorting
@@ -393,7 +440,7 @@ export function useLiveAlerts() {
       setError(err instanceof Error ? err : new Error("Failed to set up alerts listener"))
       setIsLoading(false)
     }
-  }, [devices, firestoreVehicles]) // Re-run when devices or firestoreVehicles data changes
+  }, [devices, firestoreVehicles, alertStatuses]) // Re-run when devices, firestoreVehicles, or alertStatuses data changes
 
   return { alerts, historyAlerts, isLoading, error }
 }

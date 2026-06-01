@@ -79,8 +79,7 @@ export default function AlertsPage() {
       return uniqueAlerts
     }
 
-    // For Active, Acknowledged, and Resolved tabs, show only today's alerts.
-    return alerts.filter((alert) => alert.status === activeTab && isToday(alert.timestamp))
+    return alerts.filter((alert) => alert.status === activeTab)
   }, [alerts, historyAlerts, activeTab])
 
   // Detect new alerts and trigger voice/emergency notifications
@@ -151,6 +150,7 @@ export default function AlertsPage() {
     setAlertStatuses((prev) => {
       const newStatuses = { ...prev, [alertId]: "acknowledged" as const }
       localStorage.setItem("safedriver-alert-statuses", JSON.stringify(newStatuses))
+      window.dispatchEvent(new Event("safedriver-alert-status-change"))
       return newStatuses
     })
   }
@@ -159,6 +159,7 @@ export default function AlertsPage() {
     setAlertStatuses((prev) => {
       const newStatuses = { ...prev, [alertId]: "resolved" as const }
       localStorage.setItem("safedriver-alert-statuses", JSON.stringify(newStatuses))
+      window.dispatchEvent(new Event("safedriver-alert-status-change"))
       return newStatuses
     })
   }

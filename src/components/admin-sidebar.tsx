@@ -36,8 +36,8 @@ export function AdminSidebar() {
   const { alerts: liveAlerts } = useLiveAlerts()
   const { t } = useLanguage()
 
-  // Count active alerts (alerts with status "active" from today)
-  const activeAlertsCount = liveAlerts.filter((alert) => alert.status === "active" && isToday(alert.timestamp)).length
+  // Count active alerts (alerts with status "active")
+  const activeAlertsCount = liveAlerts.filter((alert) => alert.status === "active").length
 
   return (
     <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-background border-r border-border overflow-y-auto shadow-sm z-50">

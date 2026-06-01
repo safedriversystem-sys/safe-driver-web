@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Car, Users, AlertTriangle, CheckCircle, Activity, Shield, Bell, TrendingUp, MapPin, Clock, MessageSquare, Star } from "lucide-react"
 import Link from "next/link"
-import { useLiveAlerts, isToday, parseTimestamp } from "@/hooks/use-live-alerts"
+import { useLiveAlerts, isToday, parseTimestamp, isWithinLast24Hours, isWithinLast30Days } from "@/hooks/use-live-alerts"
 import { useLanguage } from "@/components/language-provider"
 import { SafetyScoreCard } from "@/components/safety-score-card"
 import { RiskLevelCard } from "@/components/risk-level-card"
@@ -150,37 +150,40 @@ export default function HomePage() {
 
   // Calculate stats from real-time data
   const fleetStats = useMemo(() => {
-    // Get today's alerts from both live and history (same logic as alerts page history tab)
-    const todayLiveAlerts = liveAlerts.filter((alert) => isToday(alert.timestamp))
-    const todayHistoryAlerts = historyAlerts.filter((alert) => isToday(alert.timestamp))
-
-    // Combine today's alerts and remove duplicates based on alert ID
-    const combinedTodayAlerts = [...todayLiveAlerts, ...todayHistoryAlerts]
-    const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) =>
+    // Combine all alerts and remove duplicates based on alert ID
+    const combinedAlerts = [...liveAlerts, ...historyAlerts]
+    const uniqueAlerts = combinedAlerts.filter((alert, index, self) =>
       index === self.findIndex((a) => a.id === alert.id)
     )
 
-    // Calculate today's alert counts
-    const todayAlerts = uniqueTodayAlerts.length
-    const todayActiveAlerts = uniqueTodayAlerts.filter((a) => a.status === "active").length
-    const todayResolvedAlerts = uniqueTodayAlerts.filter((a) => a.status === "resolved").length
+    // Today's alerts (scoped to calendar today or last 24 hours)
+    const todayAlertsList = uniqueAlerts.filter(
+      (alert) => isToday(alert.timestamp) || isWithinLast24Hours(alert.timestamp)
+    )
+
+    // Calculate today's / active alert counts
+    const todayAlertsCount = todayAlertsList.length
+    const todayActiveAlerts = todayAlertsList.filter((a) => a.status === "active").length
+    const todayResolvedAlerts = todayAlertsList.filter((a) => a.status === "resolved").length
+
+    // Safety score is calculated based on ALL alerts from the last 30 days
+    const alertsLast30Days = uniqueAlerts.filter((alert) => isWithinLast30Days(alert.timestamp))
+    const safetyScore = calculateSafetyScore(alertsLast30Days)
+    const safetyTrend = calculateSafetyTrend(safetyScore)
 
     // Get fleet statistics from fleet management
     const totalVehicles = fleetVehicles.length || 0
     const activeVehicles = fleetVehicles.filter((v) => v.status === "active").length || 0
-
-    const safetyScore = calculateSafetyScore(uniqueTodayAlerts)
-    const safetyTrend = calculateSafetyTrend(safetyScore)
 
     return {
       totalVehicles,
       activeVehicles,
       driversOnDuty: driverStats.onDuty || 0,
       totalDrivers: driverStats.total || 0,
-      alertsToday: todayAlerts,
+      alertsToday: todayAlertsCount,
       todayActiveAlerts,
       todayResolvedAlerts,
-      complianceRate: 96, // This would need to come from another data source
+      complianceRate: 96,
       safetyScore,
       safetyTrend,
     }
@@ -239,7 +242,7 @@ export default function HomePage() {
     }
 
     return liveAlerts
-      .filter((alert) => isToday(alert.timestamp)) // Only show today's alerts on dashboard as requested
+      .filter((alert) => isToday(alert.timestamp) || isWithinLast24Hours(alert.timestamp))
       .sort((a, b) => {
         const getTime = (ts: any) => {
           if (!ts) return 0
@@ -277,6 +280,9 @@ export default function HomePage() {
     { title: t("view_analytics"), href: "/analytics", icon: Activity, color: "bg-orange-500" },
   ]
 
+  const scoreTrendNum = parseFloat(fleetStats.safetyTrend) || 0
+  const riskTrend = scoreTrendNum === 0 ? "0.0%" : `${scoreTrendNum > 0 ? "-" : "+"}${Math.abs(scoreTrendNum).toFixed(1)}%`
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -295,7 +301,7 @@ export default function HomePage() {
 
         <RiskLevelCard 
           score={fleetStats.safetyScore}
-          trend="-2.1%" // Using a dynamic placeholder trend
+          trend={riskTrend}
           className="h-full"
         />
 
