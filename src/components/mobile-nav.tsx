@@ -71,11 +71,6 @@ const additionalLinks = [
     icon: FileText,
   },
   {
-    title: "Voice Settings",
-    href: "/voice-settings",
-    icon: Mic,
-  },
-  {
     title: "Notifications",
     href: "/notifications",
     icon: Phone,

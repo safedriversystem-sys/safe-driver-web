@@ -6,7 +6,6 @@ import { AdminHeader } from "@/components/admin-header"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { MobileNav } from "@/components/mobile-nav"
 import { OfflineIndicator } from "@/components/offline-indicator"
-import { VoiceCommandButton } from "@/components/voice-command-button"
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -38,9 +37,6 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
 
       {/* Offline Indicator */}
       <OfflineIndicator />
-
-      {/* Voice Command Button */}
-      <VoiceCommandButton />
     </div>
   )
 }

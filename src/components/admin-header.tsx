@@ -627,13 +627,7 @@ export function AdminHeader() {
                   Settings
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/voice-settings" className="cursor-pointer flex items-center">
-                  <Mic className="h-4 w-4 mr-2" />
-                  Voice Settings
-                </Link>
-              </DropdownMenuItem>
+
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} className="cursor-pointer text-red-600 focus:text-red-600">
                 <LogOut className="h-4 w-4 mr-2" />
