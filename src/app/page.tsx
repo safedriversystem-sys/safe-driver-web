@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Car, Users, AlertTriangle, CheckCircle, Activity, Shield, Bell, TrendingUp, MapPin, Clock, MessageSquare, Star } from "lucide-react"
+import { Car, Users, AlertTriangle, CheckCircle, Activity, Shield, Bell, TrendingUp, MapPin, Clock, MessageSquare, Star, FileText } from "lucide-react"
 import Link from "next/link"
 import { useLiveAlerts, isToday, parseTimestamp, isWithinLast24Hours, isWithinLast30Days } from "@/hooks/use-live-alerts"
 import { useLanguage } from "@/components/language-provider"
@@ -277,7 +277,7 @@ export default function HomePage() {
     { title: t("view_fleet"), href: "/fleet", icon: Car, color: "bg-blue-500" },
     { title: t("driver_management"), href: "/drivers", icon: Users, color: "bg-green-500" },
     { title: t("view_routes"), href: "/routes", icon: MapPin, color: "bg-purple-500" },
-    { title: t("view_analytics"), href: "/analytics", icon: Activity, color: "bg-orange-500" },
+    { title: t("reports"), href: "/reports", icon: FileText, color: "bg-orange-500" },
   ]
 
   const scoreTrendNum = parseFloat(fleetStats.safetyTrend) || 0
