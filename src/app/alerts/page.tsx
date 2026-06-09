@@ -56,8 +56,8 @@ export default function AlertsPage() {
   const alerts = useMemo(
     () =>
       liveAlerts.map((alert) => {
-        let status = alertStatuses[alert.id]
-        if (!status && alert.timestamp) {
+        let status = (alertStatuses && typeof alertStatuses === "object" && !Array.isArray(alertStatuses)) ? alertStatuses[alert.id] : undefined
+        if (!status && alert.timestamp && alertStatuses && typeof alertStatuses === "object" && !Array.isArray(alertStatuses)) {
           const tsStr = alert.timestamp.toString()
           const matchingKey = Object.keys(alertStatuses).find(key => 
             key.includes(alert.deviceId || "") && key.includes(tsStr)

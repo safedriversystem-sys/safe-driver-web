@@ -210,8 +210,8 @@ const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: Dev
 }
 
 export function useLiveAlerts() {
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [historyAlerts, setHistoryAlerts] = useState<Alert[]>([])
+  const [rawAlerts, setRawAlerts] = useState<Alert[]>([])
+  const [rawHistoryAlerts, setRawHistoryAlerts] = useState<Alert[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [devices, setDevices] = useState<Record<string, DeviceInfo>>({})
@@ -226,7 +226,10 @@ export function useLiveAlerts() {
       try {
         const saved = localStorage.getItem("safedriver-alert-statuses")
         if (saved) {
-          setAlertStatuses(JSON.parse(saved))
+          const parsed = JSON.parse(saved)
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            setAlertStatuses(parsed)
+          }
         }
       } catch (e) {
         console.error("Failed to load alert statuses", e)
@@ -289,7 +292,7 @@ export function useLiveAlerts() {
     }
   }, [])
 
-  // Listen to alerts
+  // Listen to alerts (Only runs when network devices/vehicles change, completely independent of local status toggles)
   useEffect(() => {
     if (typeof window === "undefined") {
       return
@@ -337,18 +340,11 @@ export function useLiveAlerts() {
           
           const data = snapshot.val()
           console.log("📊 Alerts data received from Firebase:", data)
-          console.log("📊 Data type:", typeof data)
-          console.log("📊 Is null:", data === null)
-          console.log("📊 Is undefined:", data === undefined)
-          console.log("📊 Data keys:", data ? Object.keys(data) : "null")
 
           if (!data || data === null) {
             console.log("⚠️ No alerts data found in Firebase - path /alerts is empty or null")
-            console.log("⚠️ This could mean:")
-            console.log("   1. Database rules don't allow read access")
-            console.log("   2. Path /alerts doesn't exist")
-            console.log("   3. Path /alerts is empty")
-            setAlerts([])
+            setRawAlerts([])
+            setRawHistoryAlerts([])
             setIsLoading(false)
             return
           }
@@ -375,19 +371,8 @@ export function useLiveAlerts() {
                 if (historyAlert && historyAlert.message && historyAlert.time) {
                   const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey, firestoreVehicles)
                   
-                  // Robust lookup by checking ID or timestamp match
-                  let currentStatus = alertStatuses[alert.id]
-                  if (!currentStatus && alert.timestamp) {
-                    const tsStr = alert.timestamp.toString()
-                    const matchingKey = Object.keys(alertStatuses).find(key => 
-                      key.includes(deviceId) && key.includes(tsStr)
-                    )
-                    if (matchingKey) {
-                      currentStatus = alertStatuses[matchingKey]
-                    }
-                  }
-                  currentStatus = currentStatus || (historyAlert as any).status || "active"
-                  alert.status = currentStatus
+                  // Use raw status from database
+                  alert.status = (historyAlert as any).status || "active"
 
                   // If it's today / last 24 hours, keep it in the primary alerts list
                   if (isToday(alert.timestamp) || isWithinLast24Hours(alert.timestamp)) {
@@ -395,8 +380,7 @@ export function useLiveAlerts() {
                   }
                   
                   // Also add to history array for the history tab
-                  const historyItem = { ...alert, status: currentStatus }
-                  historyAlertsList.push(historyItem)
+                  historyAlertsList.push(alert)
                 }
               })
             }
@@ -408,19 +392,8 @@ export function useLiveAlerts() {
                 // For the latest node, we pass a stable identifier based on its timestamp
                 const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, `latest-${latest.time}`, firestoreVehicles)
                 
-                // Robust lookup by checking ID or timestamp match
-                let currentStatus = alertStatuses[alert.id]
-                if (!currentStatus && alert.timestamp) {
-                  const tsStr = alert.timestamp.toString()
-                  const matchingKey = Object.keys(alertStatuses).find(key => 
-                    key.includes(deviceId) && key.includes(tsStr)
-                  )
-                  if (matchingKey) {
-                    currentStatus = alertStatuses[matchingKey]
-                  }
-                }
-                currentStatus = currentStatus || (latest as any).status || "active"
-                alert.status = currentStatus
+                // Use raw status from database
+                alert.status = (latest as any).status || "active"
 
                 // Check if this alert is already in the map (from history) by matching deviceId, timestamp, and message
                 const isMapDuplicate = Array.from(alertMap.values()).some(a =>
@@ -446,7 +419,7 @@ export function useLiveAlerts() {
 
                 // Add to history list if not already there
                 if (!isHistoryDuplicate) {
-                  historyAlertsList.push({ ...alert, status: currentStatus })
+                  historyAlertsList.push(alert)
                 }
               }
             }
@@ -467,8 +440,8 @@ export function useLiveAlerts() {
 
           console.log(`📊 Final processed: ${finalAlerts.length} active/today, ${historyAlertsList.length} history`)
 
-          setAlerts(finalAlerts)
-          setHistoryAlerts(historyAlertsList)
+          setRawAlerts(finalAlerts)
+          setRawHistoryAlerts(historyAlertsList)
           setIsLoading(false)
         } catch (err) {
           console.error("❌ Error processing alerts:", err)
@@ -486,7 +459,47 @@ export function useLiveAlerts() {
       setError(err instanceof Error ? err : new Error("Failed to set up alerts listener"))
       setIsLoading(false)
     }
-  }, [devices, firestoreVehicles, alertStatuses]) // Re-run when devices, firestoreVehicles, or alertStatuses data changes
+  }, [devices, firestoreVehicles]) // Re-run ONLY when devices or firestoreVehicles change
+
+  // Dynamically merge alertStatuses with rawAlerts
+  const alerts = useMemo(() => {
+    return rawAlerts.map((alert) => {
+      let status = (alertStatuses && typeof alertStatuses === "object" && !Array.isArray(alertStatuses)) ? alertStatuses[alert.id] : undefined
+      if (!status && alert.timestamp && alertStatuses && typeof alertStatuses === "object" && !Array.isArray(alertStatuses)) {
+        const tsStr = alert.timestamp.toString()
+        const matchingKey = Object.keys(alertStatuses).find((key) => 
+          key.includes(alert.deviceId || "") && key.includes(tsStr)
+        )
+        if (matchingKey) {
+          status = alertStatuses[matchingKey]
+        }
+      }
+      return {
+        ...alert,
+        status: status || alert.status,
+      }
+    })
+  }, [rawAlerts, alertStatuses])
+
+  // Dynamically merge alertStatuses with rawHistoryAlerts
+  const historyAlerts = useMemo(() => {
+    return rawHistoryAlerts.map((alert) => {
+      let status = (alertStatuses && typeof alertStatuses === "object" && !Array.isArray(alertStatuses)) ? alertStatuses[alert.id] : undefined
+      if (!status && alert.timestamp && alertStatuses && typeof alertStatuses === "object" && !Array.isArray(alertStatuses)) {
+        const tsStr = alert.timestamp.toString()
+        const matchingKey = Object.keys(alertStatuses).find((key) => 
+          key.includes(alert.deviceId || "") && key.includes(tsStr)
+        )
+        if (matchingKey) {
+          status = alertStatuses[matchingKey]
+        }
+      }
+      return {
+        ...alert,
+        status: status || alert.status,
+      }
+    })
+  }, [rawHistoryAlerts, alertStatuses])
 
   return { alerts, historyAlerts, isLoading, error }
 }
