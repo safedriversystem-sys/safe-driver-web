@@ -375,7 +375,18 @@ export function useLiveAlerts() {
                 if (historyAlert && historyAlert.message && historyAlert.time) {
                   const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey, firestoreVehicles)
                   
-                  const currentStatus = alertStatuses[alert.id] || (historyAlert as any).status || "active"
+                  // Robust lookup by checking ID or timestamp match
+                  let currentStatus = alertStatuses[alert.id]
+                  if (!currentStatus && alert.timestamp) {
+                    const tsStr = alert.timestamp.toString()
+                    const matchingKey = Object.keys(alertStatuses).find(key => 
+                      key.includes(deviceId) && key.includes(tsStr)
+                    )
+                    if (matchingKey) {
+                      currentStatus = alertStatuses[matchingKey]
+                    }
+                  }
+                  currentStatus = currentStatus || (historyAlert as any).status || "active"
                   alert.status = currentStatus
 
                   // If it's today / last 24 hours, keep it in the primary alerts list
@@ -394,10 +405,21 @@ export function useLiveAlerts() {
             if (deviceAlert && deviceAlert.latest) {
               const latest = deviceAlert.latest
               if (latest.message && latest.time) {
-                // For the latest node, we don't have a history key, so we pass undefined to generate a unique one
-                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, undefined, firestoreVehicles)
+                // For the latest node, we pass a stable identifier based on its timestamp
+                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, `latest-${latest.time}`, firestoreVehicles)
                 
-                const currentStatus = alertStatuses[alert.id] || (latest as any).status || "active"
+                // Robust lookup by checking ID or timestamp match
+                let currentStatus = alertStatuses[alert.id]
+                if (!currentStatus && alert.timestamp) {
+                  const tsStr = alert.timestamp.toString()
+                  const matchingKey = Object.keys(alertStatuses).find(key => 
+                    key.includes(deviceId) && key.includes(tsStr)
+                  )
+                  if (matchingKey) {
+                    currentStatus = alertStatuses[matchingKey]
+                  }
+                }
+                currentStatus = currentStatus || (latest as any).status || "active"
                 alert.status = currentStatus
 
                 // Check if this alert is already in the map (from history) by matching deviceId, timestamp, and message

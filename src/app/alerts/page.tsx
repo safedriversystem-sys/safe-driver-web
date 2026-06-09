@@ -55,10 +55,22 @@ export default function AlertsPage() {
   // Memoization prevents unnecessary re-renders and effect loops.
   const alerts = useMemo(
     () =>
-      liveAlerts.map((alert) => ({
-        ...alert,
-        status: alertStatuses[alert.id] || alert.status,
-      })),
+      liveAlerts.map((alert) => {
+        let status = alertStatuses[alert.id]
+        if (!status && alert.timestamp) {
+          const tsStr = alert.timestamp.toString()
+          const matchingKey = Object.keys(alertStatuses).find(key => 
+            key.includes(alert.deviceId || "") && key.includes(tsStr)
+          )
+          if (matchingKey) {
+            status = alertStatuses[matchingKey]
+          }
+        }
+        return {
+          ...alert,
+          status: status || alert.status,
+        }
+      }),
     [liveAlerts, alertStatuses],
   )
 
