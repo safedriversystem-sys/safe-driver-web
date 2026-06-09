@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, Phone, MapPin, Clock, RefreshCw, CheckCircle, Bell, History } from "lucide-react"
+import { AlertTriangle, Phone, MapPin, Clock, RefreshCw, CheckCircle, Bell, History, Eye, EyeOff } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EmergencyResponseSystem } from "@/lib/emergency-response-system"
 import { useLiveAlerts, type Alert, isToday, parseTimestamp } from "@/hooks/use-live-alerts"
@@ -18,6 +18,7 @@ export default function AlertsPage() {
 
   // Track alert statuses (acknowledged/resolved) in local state
   const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved">>({})
+  const [expandedImages, setExpandedImages] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState("active")
   const previousAlertsRef = useRef<Alert[]>([])
   const isInitialLoadRef = useRef(true)
@@ -412,19 +413,42 @@ export default function AlertsPage() {
                     </div>
 
                     {alert.evidence && (
-                      <div className="mt-2 mb-4 rounded-xl overflow-hidden border border-neutral-200 max-w-md bg-neutral-50 p-1.5">
-                        <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest px-2 py-1 flex items-center gap-1.5 mb-1">
-                          <AlertTriangle className="h-3 w-3 text-orange-500" />
-                          Evidence Image
-                        </div>
-                        <img 
-                          src={alert.evidence} 
-                          alt="Alert Evidence" 
-                          className="w-full h-auto object-contain max-h-[500px] rounded-lg shadow-sm border border-neutral-100" 
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
+                      <div className="mt-2 mb-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setExpandedImages(prev => ({ ...prev, [alert.id]: !prev[alert.id] }))}
+                          className="flex items-center gap-2 mb-2 bg-neutral-50 hover:bg-neutral-100 text-neutral-600 border-neutral-200"
+                        >
+                          {expandedImages[alert.id] ? (
+                            <>
+                              <EyeOff className="h-4 w-4 text-neutral-500" />
+                              Hide Image
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="h-4 w-4 text-neutral-500" />
+                              Show Image
+                            </>
+                          )}
+                        </Button>
+                        
+                        {expandedImages[alert.id] && (
+                          <div className="rounded-xl overflow-hidden border border-neutral-200 max-w-md bg-neutral-50 p-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest px-2 py-1 flex items-center gap-1.5 mb-1">
+                              <AlertTriangle className="h-3 w-3 text-orange-500" />
+                              Evidence Image
+                            </div>
+                            <img 
+                              src={alert.evidence} 
+                              alt="Alert Evidence" 
+                              className="w-full h-auto object-contain max-h-[500px] rounded-lg shadow-sm border border-neutral-100" 
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
 
