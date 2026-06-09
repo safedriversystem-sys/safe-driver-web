@@ -411,6 +411,23 @@ export default function AlertsPage() {
                       )}
                     </div>
 
+                    {alert.evidence && (
+                      <div className="mt-2 mb-4 rounded-xl overflow-hidden border border-neutral-200 max-w-md bg-neutral-50 p-1.5">
+                        <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest px-2 py-1 flex items-center gap-1.5 mb-1">
+                          <AlertTriangle className="h-3 w-3 text-orange-500" />
+                          Evidence Image
+                        </div>
+                        <img 
+                          src={alert.evidence} 
+                          alt="Alert Evidence" 
+                          className="w-full h-auto object-cover max-h-60 rounded-lg shadow-sm border border-neutral-100" 
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+
                     {alert.status === "active" && activeTab !== "history" && (
                       <div className="flex gap-2">
                         <Button

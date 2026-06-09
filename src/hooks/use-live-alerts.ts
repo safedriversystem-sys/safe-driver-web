@@ -11,6 +11,8 @@ export interface FirebaseAlert {
   time: string
   type: string
   number_plate?: string
+  evidence?: string
+  evidence_path?: string
 }
 
 export interface DeviceAlert {
@@ -34,6 +36,8 @@ export interface Alert {
   deviceId?: string
   tag?: string
   number_plate?: string
+  evidence?: string
+  evidence_path?: string
 }
 
 // Helper function to robustly parse various timestamp formats
@@ -249,6 +253,8 @@ const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: Dev
     deviceId,
     tag: alert.tag,
     number_plate,
+    evidence: alert.evidence,
+    evidence_path: alert.evidence_path,
   }
 }
 
