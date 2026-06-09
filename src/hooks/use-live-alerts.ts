@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react"
 import { realtimeDbService } from "@/lib/firebase/realtime-db"
-import { initializeFirebase } from "@/lib/firebase/config"
+import { initializeFirebase, getFirebaseFirestore } from "@/lib/firebase/config"
 import { DataSnapshot } from "firebase/database"
 import { subscribeToVehicles, type Vehicle } from "@/lib/firebase/vehicles"
+import { collection, onSnapshot } from "firebase/firestore"
 
 export interface FirebaseAlert {
   message: string
@@ -167,7 +168,7 @@ interface DeviceInfo {
 }
 
 // Transform Firebase alert to UI alert format
-const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: DeviceInfo, id?: string, firestoreVehicles: Vehicle[] = []): Alert => {
+const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: DeviceInfo, id?: string, firestoreVehicles: Vehicle[] = [], firestoreRoutes: any[] = []): Alert => {
   const alertType = mapAlertType(alert.type, alert.tag)
   const severity = getSeverity(alert.type, alert.tag)
 
@@ -183,7 +184,49 @@ const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: Dev
   const busNumber = number_plate || deviceInfo?.busNumber || matchedVehicle?.busNumber || ""
   const driverName = deviceInfo?.driverName || matchedVehicle?.driver || `Driver ${deviceId.substring(0, 8)}`
   const driverId = deviceInfo?.driverId || `DRV-${deviceId.substring(0, 8)}`
-  const route = deviceInfo?.route || matchedVehicle?.route || "Unknown Route"
+  
+  const rawRoute = deviceInfo?.route || matchedVehicle?.route || "Unknown Route"
+  
+  // Prioritize matching route by vehicle's routeId or assigned route name
+  let matchedRoute = null
+  if (matchedVehicle) {
+    if (matchedVehicle.routeId) {
+      matchedRoute = firestoreRoutes.find(r => r.id === matchedVehicle.routeId)
+    }
+    if (!matchedRoute && matchedVehicle.route) {
+      matchedRoute = firestoreRoutes.find(r => 
+        r.id === matchedVehicle.route || 
+        (r.name && r.name.toLowerCase().trim() === matchedVehicle.route.toLowerCase().trim())
+      )
+    }
+  }
+
+  // Fallback 1: Match by vehicle assignment list in routes
+  if (!matchedRoute) {
+    matchedRoute = firestoreRoutes.find(r => 
+      (r.vehicles && (r.vehicles.includes(busNumber) || r.vehicles.includes(number_plate))) ||
+      (r.busNumber && (r.busNumber === busNumber || r.busNumber === number_plate))
+    )
+  }
+
+  // Fallback 2: Match by name if not a generic route name (like 'Normal Route')
+  if (!matchedRoute && rawRoute) {
+    const isGeneric = ["normal route", "express route", "normal", "express", "unknown route"].includes(rawRoute.toLowerCase().trim())
+    if (!isGeneric) {
+      matchedRoute = firestoreRoutes.find(r => r.name && r.name.toLowerCase().trim() === rawRoute.toLowerCase().trim())
+    }
+  }
+  
+  let route = rawRoute
+  if (matchedRoute) {
+    const start = (matchedRoute.startPoint || "").replace(/ Bus Stop/i, "")
+    const end = (matchedRoute.endPoint || "").replace(/ Bus Stop/i, "")
+    route = start && end ? `${matchedRoute.name} (${start} - ${end})` : matchedRoute.name
+  } else if (rawRoute.toLowerCase().includes("normal") || rawRoute.toLowerCase().includes("express")) {
+    const start = "Galle"
+    const end = "Matara"
+    route = `${rawRoute} (${start} - ${end})`
+  }
   const location = deviceInfo?.location || (deviceInfo?.status === "online" ? "Online" : "Offline")
 
   // Generate unique ID that is guaranteed to be unique across all devices and events
@@ -216,6 +259,7 @@ export function useLiveAlerts() {
   const [error, setError] = useState<Error | null>(null)
   const [devices, setDevices] = useState<Record<string, DeviceInfo>>({})
   const [firestoreVehicles, setFirestoreVehicles] = useState<Vehicle[]>([])
+  const [firestoreRoutes, setFirestoreRoutes] = useState<any[]>([])
   const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved">>({})
 
   // Load and sync alert statuses from localStorage
@@ -258,6 +302,38 @@ export function useLiveAlerts() {
     })
 
     return () => unsubscribe()
+  }, [])
+
+  // Subscribe to Firestore routes for route start/end details
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    try {
+      const dbInstance = getFirebaseFirestore()
+      if (!dbInstance) return
+
+      console.log("🛣️ Subscribing to Firestore routes...")
+      const routesRef = collection(dbInstance, "routes")
+      
+      const unsubscribe = onSnapshot(
+        routesRef,
+        (snapshot) => {
+          const routesList = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          console.log(`🛣️ Firestore routes updated: ${routesList.length} routes`)
+          setFirestoreRoutes(routesList)
+        },
+        (error) => {
+          console.error("Error subscribing to routes:", error)
+        }
+      )
+
+      return () => unsubscribe()
+    } catch (err) {
+      console.error("Error setting up routes listener:", err)
+    }
   }, [])
 
   // Initialize Firebase and listen to devices for device information
@@ -369,7 +445,7 @@ export function useLiveAlerts() {
               Object.keys(history).forEach((historyKey) => {
                 const historyAlert = history[historyKey] as FirebaseAlert
                 if (historyAlert && historyAlert.message && historyAlert.time) {
-                  const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey, firestoreVehicles)
+                  const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey, firestoreVehicles, firestoreRoutes)
                   
                   // Use raw status from database
                   alert.status = (historyAlert as any).status || "active"
@@ -390,7 +466,7 @@ export function useLiveAlerts() {
               const latest = deviceAlert.latest
               if (latest.message && latest.time) {
                 // For the latest node, we pass a stable identifier based on its timestamp
-                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, `latest-${latest.time}`, firestoreVehicles)
+                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, `latest-${latest.time}`, firestoreVehicles, firestoreRoutes)
                 
                 // Use raw status from database
                 alert.status = (latest as any).status || "active"
@@ -459,7 +535,7 @@ export function useLiveAlerts() {
       setError(err instanceof Error ? err : new Error("Failed to set up alerts listener"))
       setIsLoading(false)
     }
-  }, [devices, firestoreVehicles]) // Re-run ONLY when devices or firestoreVehicles change
+  }, [devices, firestoreVehicles, firestoreRoutes]) // Re-run when devices, firestoreVehicles, or firestoreRoutes change
 
   // Dynamically merge alertStatuses with rawAlerts
   const alerts = useMemo(() => {
