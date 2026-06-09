@@ -98,6 +98,15 @@ export const isWithinLast30Days = (timestamp: string | number | undefined): bool
   return now - date.getTime() <= 30 * 24 * 60 * 60 * 1000
 }
 
+// Helper function to check if alert is within the previous 24 hours (24h to 48h ago)
+export const isWithinPrevious24Hours = (timestamp: string | number | undefined): boolean => {
+  const date = parseTimestamp(timestamp)
+  if (!date) return false
+  const now = Date.now()
+  const diff = now - date.getTime()
+  return diff > 24 * 60 * 60 * 1000 && diff <= 48 * 60 * 60 * 1000
+}
+
 // Map Firebase alert types to UI alert types
 const mapAlertType = (type: string, tag: string): string => {
   const lowerType = type.toLowerCase()

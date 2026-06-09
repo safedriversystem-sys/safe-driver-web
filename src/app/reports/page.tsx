@@ -111,9 +111,9 @@ export default function ReportsPage() {
       (alert) => isToday(alert.timestamp) || isWithinLast24Hours(alert.timestamp)
     )
 
-    // Safety score is calculated based on ALL alerts from the last 30 days
-    const alertsLast30Days = uniqueAlerts.filter((alert) => isWithinLast30Days(alert.timestamp))
-    const safetyScore = calculateSafetyScore(alertsLast30Days)
+    // Safety score is calculated based on ALL alerts from the last 24 hours
+    const alertsLast24Hours = uniqueAlerts.filter((alert) => isWithinLast24Hours(alert.timestamp))
+    const safetyScore = calculateSafetyScore(alertsLast24Hours)
     const riskDetails = getRiskLevelDetails(safetyScore)
     
     const activeVehicles = fleet.filter(v => v.status === "active").length

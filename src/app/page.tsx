@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Car, Users, AlertTriangle, CheckCircle, Activity, Shield, Bell, TrendingUp, MapPin, Clock, MessageSquare, Star, FileText } from "lucide-react"
 import Link from "next/link"
-import { useLiveAlerts, isToday, parseTimestamp, isWithinLast24Hours, isWithinLast30Days } from "@/hooks/use-live-alerts"
+import { useLiveAlerts, isToday, parseTimestamp, isWithinLast24Hours, isWithinLast30Days, isWithinPrevious24Hours } from "@/hooks/use-live-alerts"
 import { useLanguage } from "@/components/language-provider"
 import { SafetyScoreCard } from "@/components/safety-score-card"
 import { RiskLevelCard } from "@/components/risk-level-card"
@@ -166,10 +166,14 @@ export default function HomePage() {
     const todayActiveAlerts = todayAlertsList.filter((a) => a.status === "active").length
     const todayResolvedAlerts = todayAlertsList.filter((a) => a.status === "resolved").length
 
-    // Safety score is calculated based on ALL alerts from the last 30 days
-    const alertsLast30Days = uniqueAlerts.filter((alert) => isWithinLast30Days(alert.timestamp))
-    const safetyScore = calculateSafetyScore(alertsLast30Days)
-    const safetyTrend = calculateSafetyTrend(safetyScore)
+    // Safety score is calculated based on ALL alerts from the last 24 hours
+    const alertsLast24Hours = uniqueAlerts.filter((alert) => isWithinLast24Hours(alert.timestamp))
+    const safetyScore = calculateSafetyScore(alertsLast24Hours)
+
+    // Safety trend compares last 24 hours with the previous 24 hours (24h to 48h ago)
+    const alertsPrevious24Hours = uniqueAlerts.filter((alert) => isWithinPrevious24Hours(alert.timestamp))
+    const previousSafetyScore = calculateSafetyScore(alertsPrevious24Hours)
+    const safetyTrend = calculateSafetyTrend(safetyScore, previousSafetyScore)
 
     // Get fleet statistics from fleet management
     const totalVehicles = fleetVehicles.length || 0
