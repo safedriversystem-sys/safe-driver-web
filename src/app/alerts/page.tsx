@@ -420,7 +420,7 @@ export default function AlertsPage() {
                         <img 
                           src={alert.evidence} 
                           alt="Alert Evidence" 
-                          className="w-full h-auto object-cover max-h-60 rounded-lg shadow-sm border border-neutral-100" 
+                          className="w-full h-auto object-contain max-h-[500px] rounded-lg shadow-sm border border-neutral-100" 
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                           }}
