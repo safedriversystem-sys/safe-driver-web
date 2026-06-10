@@ -104,7 +104,6 @@ export default function DriversPage() {
       onDuty: driversData.filter((d) => d.status === "on_duty").length,
       offDuty: driversData.filter((d) => d.status === "off_duty").length,
       suspended: driversData.filter((d) => d.status === "suspended").length,
-      onBreak: driversData.filter((d) => d.status === "on_break").length,
     }
   }
 
@@ -197,8 +196,6 @@ export default function DriversPage() {
     switch (status) {
       case "on_duty":
         return "success"
-      case "on_break":
-        return "warning"
       case "off_duty":
         return "secondary"
       case "suspended":
@@ -694,7 +691,6 @@ export default function DriversPage() {
                 <SelectItem value="all">{t("all_status")}</SelectItem>
                 <SelectItem value="on_duty">{t("on_duty")}</SelectItem>
                 <SelectItem value="off_duty">{t("off_duty")}</SelectItem>
-                <SelectItem value="on_break">{t("on_break")}</SelectItem>
                 <SelectItem value="suspended">{t("suspended")}</SelectItem>
               </SelectContent>
             </Select>
@@ -734,7 +730,6 @@ export default function DriversPage() {
                     <Badge variant={getStatusColor(driver.status)}>
                       {driver.status === 'on_duty' ? t('on_duty') :
                        driver.status === 'off_duty' ? t('off_duty') :
-                       driver.status === 'on_break' ? t('on_break') :
                        driver.status === 'suspended' ? t('suspended') : 'UNKNOWN'}
                     </Badge>
                   </div>
@@ -788,7 +783,6 @@ export default function DriversPage() {
                          <div className="flex items-center gap-2">
                            <div className={`h-2 w-2 rounded-full ${
                              driver.status === 'on_duty' ? 'bg-green-500' :
-                             driver.status === 'on_break' ? 'bg-orange-500' :
                              driver.status === 'suspended' ? 'bg-red-500' : 'bg-gray-400'
                            }`} />
                            <SelectValue />
@@ -807,12 +801,6 @@ export default function DriversPage() {
                              {t("off_duty")}
                            </div>
                          </SelectItem>
-                          <SelectItem value="on_break">
-                            <div className="flex items-center gap-2">
-                              <div className="h-2 w-2 rounded-full bg-orange-500" />
-                              {t("on_break")}
-                            </div>
-                          </SelectItem>
                          <SelectItem value="suspended">
                            <div className="flex items-center gap-2">
                              <div className="h-2 w-2 rounded-full bg-red-500" />
@@ -941,7 +929,6 @@ export default function DriversPage() {
                     <SelectContent>
                       <SelectItem value="on_duty">{t("on_duty")}</SelectItem>
                       <SelectItem value="off_duty">{t("off_duty")}</SelectItem>
-                      <SelectItem value="on_break">{t("on_break")}</SelectItem>
                       <SelectItem value="suspended">{t("suspended")}</SelectItem>
                     </SelectContent>
                   </Select>

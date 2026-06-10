@@ -1,4 +1,4 @@
-export type DriverStatus = "on_duty" | "off_duty" | "suspended" | "on_break"
+export type DriverStatus = "on_duty" | "off_duty" | "suspended"
 
 export interface Driver {
   id: string
