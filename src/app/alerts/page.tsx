@@ -52,6 +52,7 @@ export default function AlertsPage() {
   }, [liveAlerts])
 
 
+
   // Merge live alerts with status tracking.
   // Memoization prevents unnecessary re-renders and effect loops.
   const alerts = useMemo(
@@ -78,18 +79,24 @@ export default function AlertsPage() {
   // Filter alerts based on active tab as derived state.
   const filteredAlerts = useMemo(() => {
     if (activeTab === "history") {
-      const combinedAlerts = [...alerts, ...historyAlerts]
-      const uniqueAlerts = combinedAlerts.filter((alert, index, self) =>
-        index === self.findIndex((a) => a.id === alert.id),
+      // Show only today's alerts in history (combine today's live alerts and today's history alerts)
+      const todayLiveAlerts = alerts.filter((alert) => isToday(alert.timestamp))
+      const todayHistoryAlerts = historyAlerts.filter((alert) => isToday(alert.timestamp))
+
+      // Combine and remove duplicates based on alert ID
+      const combinedTodayAlerts = [...todayLiveAlerts, ...todayHistoryAlerts]
+      const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) =>
+        index === self.findIndex((a) => a.id === alert.id)
       )
 
-      uniqueAlerts.sort((a, b) => {
+      // Sort by timestamp (newest first)
+      uniqueTodayAlerts.sort((a, b) => {
         const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
         const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
         return timeB - timeA
       })
 
-      return uniqueAlerts
+      return uniqueTodayAlerts
     }
 
     return alerts.filter((alert) => alert.status === activeTab)

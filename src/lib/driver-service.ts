@@ -112,6 +112,7 @@ export const driverService = {
         route: input.route || "",
         status: "off_duty",
         alertCount: 0,
+        safetyScore: 100,
         joinDate: now.split("T")[0],
         experience: input.experience || "",
         address: input.address || "",
