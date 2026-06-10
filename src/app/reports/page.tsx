@@ -15,7 +15,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Download,
   FileText,
-  TrendingUp,
   Shield,
   Activity,
   AlertTriangle,
@@ -456,21 +455,6 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
 
-      {/* AI Insight Banner */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <CardTitle>Live Safety Insight</CardTitle>
-            <Badge variant="secondary">AI-Powered</Badge>
-          </div>
-          <CardDescription>
-            Live Safety Score is currently tracking at <strong className="text-foreground">{data.safetyScore.toFixed(1)}%</strong>.
-            Risk level is dynamically classified as <strong className="text-foreground">{data.riskLevel}</strong>.
-            The AI-weighted risk analysis is continuously evaluating all incoming alerts.
-          </CardDescription>
-        </CardHeader>
-      </Card>
 
     </div>
   )
