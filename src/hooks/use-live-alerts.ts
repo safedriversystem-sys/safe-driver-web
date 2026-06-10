@@ -41,10 +41,23 @@ export interface Alert {
 }
 
 // Helper function to robustly parse various timestamp formats
-export const parseTimestamp = (timestamp: string | number | undefined): Date | null => {
+export const parseTimestamp = (timestamp: any): Date | null => {
   if (!timestamp) return null
 
   try {
+    // 0. Handle Date object
+    if (timestamp instanceof Date) {
+      return timestamp
+    }
+
+    // 0.1 Handle Firestore Timestamp object (seconds/nanoseconds or _seconds)
+    if (typeof timestamp === "object") {
+      const seconds = timestamp.seconds ?? timestamp._seconds
+      if (typeof seconds === "number") {
+        return new Date(seconds * 1000)
+      }
+    }
+
     // 1. Handle numeric timestamps (number or string-digit)
     if (typeof timestamp === "number" || (typeof timestamp === "string" && /^\d+$/.test(timestamp))) {
       const num = Number(timestamp)
@@ -269,7 +282,18 @@ export function useLiveAlerts() {
 
   // Helper function to update history alerts state from historyAlertsMapRef
   const updateHistoryAlerts = () => {
-    const historyAlertsList = Array.from(historyAlertsMapRef.current.values()).sort((a, b) => {
+    const allHistory = Array.from(historyAlertsMapRef.current.values())
+    
+    // Deduplicate based on deviceId, timestamp, and description
+    const uniqueHistory = allHistory.filter((alert, index, self) =>
+      index === self.findIndex((a) => 
+        a.deviceId === alert.deviceId && 
+        a.timestamp === alert.timestamp && 
+        a.description === alert.description
+      )
+    )
+
+    const historyAlertsList = uniqueHistory.sort((a, b) => {
       const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
       const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
       return timeB - timeA

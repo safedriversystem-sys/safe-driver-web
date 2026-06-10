@@ -78,26 +78,37 @@ export default function AlertsPage() {
 
   // Filter alerts based on active tab as derived state.
   const filteredAlerts = useMemo(() => {
+    let sourceAlerts: Alert[] = []
+
     if (activeTab === "history") {
-      // Combine all live alerts and all history alerts
-      const combinedAlerts = [...alerts, ...historyAlerts]
-
-      // Combine and remove duplicates based on alert ID
-      const uniqueAlerts = combinedAlerts.filter((alert, index, self) =>
-        index === self.findIndex((a) => a.id === alert.id)
-      )
-
-      // Sort by timestamp (newest first)
-      uniqueAlerts.sort((a, b) => {
-        const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
-        const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
-        return timeB - timeA
-      })
-
-      return uniqueAlerts
+      sourceAlerts = [...alerts, ...historyAlerts]
+    } else {
+      sourceAlerts = alerts.filter((alert) => alert.status === activeTab)
     }
 
-    return alerts.filter((alert) => alert.status === activeTab)
+    // Deduplicate alerts based on deviceId, timestamp (within 60s), and description
+    const uniqueAlerts = sourceAlerts.filter((alert, index, self) =>
+      index === self.findIndex((a) => {
+        const timeA = parseTimestamp(a.timestamp)?.getTime() || 0
+        const timeB = parseTimestamp(alert.timestamp)?.getTime() || 0
+        const isWithinTimeWindow = Math.abs(timeA - timeB) <= 60000
+
+        return (
+          a.deviceId === alert.deviceId && 
+          isWithinTimeWindow && 
+          (a.description || "") === (alert.description || "")
+        )
+      })
+    )
+
+    // Sort by timestamp (newest first)
+    uniqueAlerts.sort((a, b) => {
+      const timeA = parseTimestamp(a.timestamp)?.getTime() || 0
+      const timeB = parseTimestamp(b.timestamp)?.getTime() || 0
+      return timeB - timeA
+    })
+
+    return uniqueAlerts
   }, [alerts, historyAlerts, activeTab])
 
   // Detect new alerts and trigger voice/emergency notifications
