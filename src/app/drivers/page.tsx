@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit, MoreHorizontal } from "lucide-react"
+import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit, MoreHorizontal, Bus, Route } from "lucide-react"
 import type { Driver } from "@/lib/driver-types"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/components/language-provider"
@@ -72,6 +72,7 @@ export default function DriversPage() {
     onDuty: 0,
     offDuty: 0,
     suspended: 0,
+    onBreak: 0,
   })
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -103,6 +104,7 @@ export default function DriversPage() {
       onDuty: driversData.filter((d) => d.status === "on_duty").length,
       offDuty: driversData.filter((d) => d.status === "off_duty").length,
       suspended: driversData.filter((d) => d.status === "suspended").length,
+      onBreak: driversData.filter((d) => d.status === "on_break").length,
     }
   }
 
@@ -195,6 +197,8 @@ export default function DriversPage() {
     switch (status) {
       case "on_duty":
         return "success"
+      case "on_break":
+        return "warning"
       case "off_duty":
         return "secondary"
       case "suspended":
@@ -362,6 +366,32 @@ export default function DriversPage() {
       if (!driver) return
 
       const newStatus = driver.status === "on_duty" ? "off_duty" : "on_duty"
+      const response = await fetch(`/api/drivers/${driverId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update status")
+
+      toast({
+        title: "Success",
+        description: `Driver status updated to ${newStatus.replace("_", " ")}.`,
+      })
+
+      fetchDrivers()
+    } catch (error) {
+      console.error("Error updating status:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update driver status. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const updateDriverStatus = async (driverId: string, newStatus: string) => {
+    try {
       const response = await fetch(`/api/drivers/${driverId}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -598,31 +628,21 @@ export default function DriversPage() {
         </Dialog>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Drivers Statistics */}
+      <div className="grid grid-cols-1 gap-6 mb-8">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("total_drivers")}</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-              <Users className="h-8 w-8 text-primary" />
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("total_drivers")}</CardTitle>
+            <Users className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.onDuty} {t("on_duty")} • {stats.onBreak} {t("on_break")} • {stats.offDuty} {t("off_duty")} • {stats.suspended} {t("suspended")}
+            </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("on_duty")}</p>
-                <p className="text-2xl font-bold text-green-600">{stats.onDuty}</p>
-              </div>
-              <Activity className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div >
+      </div>
 
       {/* Filters */}
       < Card >
@@ -650,6 +670,7 @@ export default function DriversPage() {
                 <SelectItem value="all">{t("all_status")}</SelectItem>
                 <SelectItem value="on_duty">{t("on_duty")}</SelectItem>
                 <SelectItem value="off_duty">{t("off_duty")}</SelectItem>
+                <SelectItem value="on_break">{t("on_break")}</SelectItem>
                 <SelectItem value="suspended">{t("suspended")}</SelectItem>
               </SelectContent>
             </Select>
@@ -667,87 +688,125 @@ export default function DriversPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredDrivers.map((driver) => (
-            <Card key={driver.id} className="hover:shadow-lg transition-all duration-200 overflow-visible group border-l-4" style={{ borderLeftColor: driver.status === 'on_duty' ? '#22c55e' : driver.status === 'suspended' ? '#ef4444' : '#9ca3af' }}>
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                  {/* Left Column: Avatar + Info */}
-                  <div className="flex items-start gap-4 flex-1 min-w-0">
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${driver.status === 'on_duty' ? 'bg-green-100 dark:bg-green-950/30' :
-                        driver.status === 'suspended' ? 'bg-red-100 dark:bg-red-950/30' : 'bg-muted'
-                      }`}>
-                      <Users className={`h-7 w-7 ${driver.status === 'on_duty' ? 'text-green-600 dark:text-green-400' :
-                          driver.status === 'suspended' ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
-                        }`} />
+            <Card key={driver.id || `driver-${driver.licenseNumber}`} className="hover:shadow-lg transition-shadow overflow-visible">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-lg">{driver.name}</CardTitle>
+                    <CardDescription className="flex flex-col gap-1">
+                      <span className="flex items-center gap-1">
+                        License: {driver.licenseNumber}
+                      </span>
+                      {driver.experience && (
+                        <span>
+                          Experience: {driver.experience}
+                        </span>
+                      )}
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Badge variant={getStatusColor(driver.status)}>
+                      {driver.status === 'on_duty' ? t('on_duty') :
+                       driver.status === 'off_duty' ? t('off_duty') :
+                       driver.status === 'on_break' ? t('on_break') :
+                       driver.status === 'suspended' ? t('suspended') : 'UNKNOWN'}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Bus and Route assigned info */}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Bus className="h-4 w-4 text-muted-foreground" />
+                      <span className="truncate">{driver.busNumber || "No Bus Assigned"}</span>
                     </div>
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="text-xl font-bold text-foreground">{driver.name}</h3>
-                        <Badge variant={getStatusColor(driver.status)}>
-                          {driver.status.replace("_", " ").toUpperCase()}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        <p className="font-medium text-foreground/80">License: {driver.licenseNumber}</p>
-                        <p>
-                          {driver.busNumber && driver.route
-                            ? `Bus: ${driver.busNumber} • Route: ${driver.route}`
-                            : driver.busNumber
-                              ? `Bus: ${driver.busNumber}`
-                              : driver.route
-                                ? `Route: ${driver.route}`
-                                : "No bus or route assigned"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-5 pt-1 text-sm text-muted-foreground flex-wrap">
-                        <span className="flex items-center hover:text-primary transition-colors cursor-pointer" onClick={() => handleContactDriver(driver)}>
-                          <Phone className="h-3.5 w-3.5 mr-1.5" />
-                          {driver.phone}
-                        </span>
-                        <span className="flex items-center hover:text-primary transition-colors">
-                          <Mail className="h-3.5 w-3.5 mr-1.5" />
-                          {driver.email}
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Route className="h-4 w-4 text-muted-foreground" />
+                      <span className="truncate">{driver.route || "No Route Assigned"}</span>
                     </div>
                   </div>
 
-                  {/* Right Column: Actions */}
-                  <div className="flex items-center gap-6 flex-shrink-0 self-start sm:self-center mt-4 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end">
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setSelectedDriver(driver)} className="hidden sm:flex">
-                        View Profile
-                      </Button>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem onClick={() => setSelectedDriver(driver)} className="sm:hidden">
-                            <Eye className="mr-2 h-4 w-4" /> View Profile
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditDriver(driver)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleContactDriver(driver)}>
-                            <Phone className="mr-2 h-4 w-4" /> Contact Driver
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleToggleStatus(driver.id)}>
-                            <Activity className="mr-2 h-4 w-4" />
-                            {driver.status === "on_duty" ? "Set Off Duty" : "Set On Duty"}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleDeleteClick(driver)} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete Driver
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                  {/* Contact details */}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2 hover:text-primary transition-colors cursor-pointer" onClick={() => handleContactDriver(driver)}>
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="truncate">{driver.phone}</span>
                     </div>
+                    <div className="flex items-center gap-2 hover:text-primary transition-colors">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span className="truncate">{driver.email}</span>
+                    </div>
+                  </div>
+
+                  {/* Footer buttons */}
+                  <div className="flex gap-2 pt-2 flex-wrap items-center">
+                    <Button size="sm" variant="outline" onClick={() => setSelectedDriver(driver)} className="flex-shrink-0">
+                      <Eye className="h-4 w-4 mr-1" />
+                      {t("details")}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleEditDriver(driver)} className="flex-shrink-0">
+                      <Edit className="h-4 w-4 mr-1" />
+                      {t("edit")}
+                    </Button>
+                    <Select
+                       value={driver.status}
+                       onValueChange={(value: Driver["status"]) => {
+                         if (driver.id) {
+                           updateDriverStatus(driver.id, value)
+                         }
+                       }}
+                     >
+                       <SelectTrigger className="h-8 text-xs w-[120px] flex-shrink-0">
+                         <div className="flex items-center gap-2">
+                           <div className={`h-2 w-2 rounded-full ${
+                             driver.status === 'on_duty' ? 'bg-green-500' :
+                             driver.status === 'on_break' ? 'bg-orange-500' :
+                             driver.status === 'suspended' ? 'bg-red-500' : 'bg-gray-400'
+                           }`} />
+                           <SelectValue />
+                         </div>
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="on_duty">
+                           <div className="flex items-center gap-2">
+                             <div className="h-2 w-2 rounded-full bg-green-500" />
+                             {t("on_duty")}
+                           </div>
+                         </SelectItem>
+                         <SelectItem value="off_duty">
+                           <div className="flex items-center gap-2">
+                             <div className="h-2 w-2 rounded-full bg-gray-400" />
+                             {t("off_duty")}
+                           </div>
+                         </SelectItem>
+                          <SelectItem value="on_break">
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full bg-orange-500" />
+                              {t("on_break")}
+                            </div>
+                          </SelectItem>
+                         <SelectItem value="suspended">
+                           <div className="flex items-center gap-2">
+                             <div className="h-2 w-2 rounded-full bg-red-500" />
+                             {t("suspended")}
+                           </div>
+                         </SelectItem>
+                       </SelectContent>
+                     </Select>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDeleteClick(driver)}
+                      disabled={!driver.id}
+                      className="bg-red-600 hover:bg-red-700 text-white flex-shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      {t("delete")}
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -856,10 +915,10 @@ export default function DriversPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="on_duty">On Duty</SelectItem>
-                      <SelectItem value="off_duty">Off Duty</SelectItem>
-                      <SelectItem value="suspended">Suspended</SelectItem>
-
+                      <SelectItem value="on_duty">{t("on_duty")}</SelectItem>
+                      <SelectItem value="off_duty">{t("off_duty")}</SelectItem>
+                      <SelectItem value="on_break">{t("on_break")}</SelectItem>
+                      <SelectItem value="suspended">{t("suspended")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

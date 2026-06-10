@@ -11,7 +11,7 @@ try {
 }
 
 const updateStatusSchema = z.object({
-  status: z.enum(["on_duty", "off_duty", "suspended"]),
+  status: z.enum(["on_duty", "off_duty", "suspended", "on_break"]),
 })
 
 // PUT /api/drivers/[id]/status - Update driver status
