@@ -163,6 +163,15 @@ export default function ReportsPage() {
         },
         summary: { totalAlerts: filteredAlerts.length, activeDrivers: data.activeDrivers, systemUptime: 100 },
         alerts: dynamicAlertSummary.length > 0 ? dynamicAlertSummary : [{ type: "No Data", count: 0, high: 0, medium: 0, low: 0, avgResponse: "0m" }],
+        alertDetails: filteredAlerts.map(a => ({
+          type: a.type || "Unknown",
+          driverName: a.driverName || "Unknown Driver",
+          busNumber: a.busNumber || a.number_plate || "N/A",
+          timestamp: a.timestamp ? new Date(a.timestamp).toLocaleString() : "N/A",
+          severity: a.severity || "medium",
+          description: a.description || a.tag || "",
+          evidence: a.evidence || null,
+        })),
         drivers: (Array.isArray(drivers) ? drivers : []).map(d => ({ name: d.name, license: d.licenseNumber, bus: d.busNumber || 'N/A', route: d.route || 'Unassigned', alerts: d.alertCount || 0, status: d.status })),
         routes: (Array.isArray(routes) ? routes : []).map(r => ({ name: r.name, buses: r.activeVehicles, drivers: r.activeVehicles, distance: `${r.distance}km`, riskAreas: r.safetyIncidents, efficiency: r.onTimePerformance })),
         compliance: { driverLicenseValidity: 100, vehicleInspections: 100, safetyTraining: Math.round(data.safetyScore), emergencyProtocols: 100, dataReporting: 100 }

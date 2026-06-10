@@ -346,10 +346,10 @@ export const generatePDFReport = async (reportData: ReportData) => {
         margin: { left: 14, right: 14 }
       });
     } else {
-      // Fallback or Safety Summary (alerts list)
+      // Safety Summary: grouped summary table first
       currentY = drawSectionHeader(currentY, "Safety Alerts Summary");
 
-      const tableBody = (data?.alerts || []).map((a: any) => [
+      const summaryTableBody = (data?.alerts || []).map((a: any) => [
         a.type,
         String(a.count),
         String(a.high),
@@ -361,11 +361,133 @@ export const generatePDFReport = async (reportData: ReportData) => {
       autoTable(doc, {
         startY: currentY,
         head: [["Alert Type", "Total Alerts", "High Risk", "Med Risk", "Low Risk", "Avg Response"]],
-        body: tableBody.length > 0 ? tableBody : [["No alert distribution data available", "", "", "", "", ""]],
+        body: summaryTableBody.length > 0 ? summaryTableBody : [["No alert distribution data available", "", "", "", "", ""]],
         theme: "striped",
         headStyles: { fillColor: primaryColor, fontStyle: "bold" },
         margin: { left: 14, right: 14 }
       });
+
+      // Detailed Alert Log (new page)
+      const alertDetails: any[] = data?.alertDetails || [];
+      if (alertDetails.length > 0) {
+        doc.addPage();
+        let detailY = 20;
+        detailY = drawSectionHeader(detailY, `Alert Log — ${alertDetails.length} Records`);
+
+        // Table of all alerts (no images first)
+        const detailRows = alertDetails.map((a: any, i: number) => [
+          String(i + 1),
+          a.driverName,
+          a.busNumber,
+          a.type,
+          (a.severity || "medium").toUpperCase(),
+          a.timestamp,
+          a.description || "-"
+        ]);
+
+        autoTable(doc, {
+          startY: detailY,
+          head: [["#", "Driver Name", "Bus No.", "Alert Type", "Severity", "Date & Time", "Description"]],
+          body: detailRows,
+          theme: "striped",
+          headStyles: { fillColor: primaryColor, fontStyle: "bold", fontSize: 8 },
+          bodyStyles: { fontSize: 7.5 },
+          columnStyles: {
+            0: { cellWidth: 8 },
+            1: { cellWidth: 32 },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 30 },
+            4: { cellWidth: 18 },
+            5: { cellWidth: 38 },
+            6: { cellWidth: 36 },
+          },
+          margin: { left: 14, right: 14 },
+          didParseCell: (hookData: any) => {
+            if (hookData.column.index === 4) {
+              const val = hookData.cell.raw as string;
+              if (val === "HIGH") hookData.cell.styles.textColor = [220, 38, 38];
+              else if (val === "MEDIUM") hookData.cell.styles.textColor = [217, 119, 6];
+              else hookData.cell.styles.textColor = [22, 163, 74];
+            }
+          }
+        });
+
+        // Evidence Photos section — embed images
+        const alertsWithEvidence = alertDetails.filter((a: any) => a.evidence && typeof a.evidence === "string" && a.evidence.startsWith("http"));
+
+        if (alertsWithEvidence.length > 0) {
+          doc.addPage();
+          let photoY = 20;
+          photoY = drawSectionHeader(photoY, "Evidence Photos");
+
+          for (let i = 0; i < alertsWithEvidence.length; i++) {
+            const alert = alertsWithEvidence[i];
+            if (photoY > 240) {
+              doc.addPage();
+              photoY = 20;
+            }
+
+            // Alert label
+            doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+            doc.rect(14, photoY, 182, 10, "F");
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.text(`${i + 1}. ${alert.type} — ${alert.driverName} | Bus: ${alert.busNumber} | ${alert.timestamp}`, 17, photoY + 6.5);
+            photoY += 12;
+
+            try {
+              // Fetch image and convert to base64 via canvas
+              const imgDataUrl: string = await new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.onload = () => {
+                  const canvas = document.createElement("canvas");
+                  canvas.width = img.naturalWidth;
+                  canvas.height = img.naturalHeight;
+                  const ctx = canvas.getContext("2d");
+                  if (ctx) { ctx.drawImage(img, 0, 0); resolve(canvas.toDataURL("image/jpeg", 0.8)); }
+                  else reject(new Error("canvas context null"));
+                };
+                img.onerror = reject;
+                img.src = alert.evidence;
+              });
+
+              // Scale image to fit width=100mm, max height=60mm
+              const maxW = 100;
+              const maxH = 60;
+              const tmpImg = new Image();
+              tmpImg.src = imgDataUrl;
+              const ratio = Math.min(maxW / (tmpImg.naturalWidth || 320), maxH / (tmpImg.naturalHeight || 240));
+              const imgW = Math.min((tmpImg.naturalWidth || 320) * ratio, maxW);
+              const imgH = Math.min((tmpImg.naturalHeight || 240) * ratio, maxH);
+
+              doc.addImage(imgDataUrl, "JPEG", 14, photoY, imgW, imgH);
+
+              // Severity badge beside image
+              const sevColor: [number, number, number] = alert.severity === "high" ? [220, 38, 38] : alert.severity === "medium" ? [217, 119, 6] : [22, 163, 74];
+              doc.setFillColor(sevColor[0], sevColor[1], sevColor[2]);
+              doc.roundedRect(120, photoY, 30, 8, 2, 2, "F");
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(8);
+              doc.setTextColor(255, 255, 255);
+              doc.text((alert.severity || "medium").toUpperCase(), 135, photoY + 5.5, { align: "center" });
+
+              photoY += imgH + 10;
+            } catch {
+              // Image failed to load — show placeholder
+              doc.setDrawColor(borderGray[0], borderGray[1], borderGray[2]);
+              doc.setFillColor(240, 240, 240);
+              doc.rect(14, photoY, 100, 40, "FD");
+              doc.setFont("helvetica", "italic");
+              doc.setFontSize(8);
+              doc.setTextColor(150, 150, 150);
+              doc.text("Evidence photo unavailable", 64, photoY + 21, { align: "center" });
+              photoY += 50;
+            }
+          }
+        }
+      }
     }
 
     // Save/Download the generated PDF
