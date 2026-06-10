@@ -204,12 +204,6 @@ export default function DriversPage() {
     }
   }
 
-  const getSafetyScoreColor = (score: number) => {
-    if (score >= 90) return "text-green-600 dark:text-green-400"
-    if (score >= 75) return "text-yellow-600 dark:text-yellow-400"
-    return "text-red-600 dark:text-red-400"
-  }
-
 
   const handleAddDriver = async () => {
     if (!newDriver.name || !newDriver.licenseNumber || !newDriver.phone || !newDriver.email) {
@@ -719,21 +713,8 @@ export default function DriversPage() {
                     </div>
                   </div>
 
-                  {/* Right Column: Stats + Actions */}
+                  {/* Right Column: Actions */}
                   <div className="flex items-center gap-6 flex-shrink-0 self-start sm:self-center mt-4 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end">
-                    <div className="flex gap-6 mr-2">
-                      <div className="text-right">
-                        <p className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider mb-0.5">Safety Score</p>
-                        <p className={`text-2xl font-bold ${getSafetyScoreColor(driver.safetyScore)} text-center`}>
-                          {driver.safetyScore}%
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider mb-0.5">Alerts</p>
-                        <p className="text-2xl font-bold text-foreground text-center">{driver.alertCount}</p>
-                      </div>
-                    </div>
-
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={() => setSelectedDriver(driver)} className="hidden sm:flex">
                         View Profile
@@ -917,94 +898,46 @@ export default function DriversPage() {
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Driver Details - {selectedDriver.name}</DialogTitle>
-                <DialogDescription>Complete driver information and performance history</DialogDescription>
+                <DialogDescription>Complete driver information</DialogDescription>
               </DialogHeader>
-              <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="profile">Profile</TabsTrigger>
-                  <TabsTrigger value="performance">Performance</TabsTrigger>
-                </TabsList>
-                <TabsContent value="profile" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Full Name</Label>
-                      <p className="font-medium">{selectedDriver.name}</p>
-                    </div>
-                    <div>
-                      <Label>License Number</Label>
-                      <p className="font-medium">{selectedDriver.licenseNumber}</p>
-                    </div>
-                    <div>
-                      <Label>Phone</Label>
-                      <p className="font-medium">{selectedDriver.phone}</p>
-                    </div>
-                    <div>
-                      <Label>Email</Label>
-                      <p className="font-medium">{selectedDriver.email}</p>
-                    </div>
-                    <div>
-                      <Label>Bus Number</Label>
-                      <p className="font-medium">{selectedDriver.busNumber}</p>
-                    </div>
-                    <div>
-                      <Label>Route</Label>
-                      <p className="font-medium">{selectedDriver.route}</p>
-                    </div>
-                    <div>
-                      <Label>Experience</Label>
-                      <p className="font-medium">{selectedDriver.experience}</p>
-                    </div>
-                    <div>
-                      <Label>Join Date</Label>
-                      <p className="font-medium">{selectedDriver.joinDate}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <Label>Address</Label>
-                      <p className="font-medium">{selectedDriver.address}</p>
-                    </div>
-                  </div>
-                </TabsContent>
-                <TabsContent value="performance" className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-sm text-muted-foreground">Safety Score</p>
-                        <p className={`text-3xl font-bold ${getSafetyScoreColor(selectedDriver.safetyScore)}`}>
-                          {selectedDriver.safetyScore}%
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-sm text-muted-foreground">Total Alerts</p>
-                        <p className="text-3xl font-bold">{selectedDriver.alertCount}</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <p className="text-sm text-muted-foreground">Status</p>
-                        <Badge variant={getStatusColor(selectedDriver.status)} className="mt-2">
-                          {selectedDriver.status.replace("_", " ").toUpperCase()}
-                        </Badge>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-                <TabsContent value="history" className="space-y-4">
-                  <div>
-                    <Label>Last Alert</Label>
-                    <p className="font-medium">{selectedDriver.lastAlert || "Never"}</p>
-                  </div>
-                  <div>
-                    <Label>Recent Activity</Label>
-                    <div className="space-y-2 mt-2">
-                      <p className="text-sm">• Completed route Colombo - Kandy (2 hours ago)</p>
-                      <p className="text-sm">• Safety training completed (1 week ago)</p>
-                      <p className="text-sm">• Vehicle inspection passed (2 weeks ago)</p>
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
+              <div className="grid grid-cols-2 gap-4 pt-4">
+                <div>
+                  <Label>Full Name</Label>
+                  <p className="font-medium">{selectedDriver.name}</p>
+                </div>
+                <div>
+                  <Label>License Number</Label>
+                  <p className="font-medium">{selectedDriver.licenseNumber}</p>
+                </div>
+                <div>
+                  <Label>Phone</Label>
+                  <p className="font-medium">{selectedDriver.phone}</p>
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <p className="font-medium">{selectedDriver.email}</p>
+                </div>
+                <div>
+                  <Label>Bus Number</Label>
+                  <p className="font-medium">{selectedDriver.busNumber || "N/A"}</p>
+                </div>
+                <div>
+                  <Label>Route</Label>
+                  <p className="font-medium">{selectedDriver.route || "N/A"}</p>
+                </div>
+                <div>
+                  <Label>Experience</Label>
+                  <p className="font-medium">{selectedDriver.experience || "N/A"}</p>
+                </div>
+                <div>
+                  <Label>Join Date</Label>
+                  <p className="font-medium">{selectedDriver.joinDate}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label>Address</Label>
+                  <p className="font-medium">{selectedDriver.address || "N/A"}</p>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         )
