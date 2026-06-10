@@ -214,14 +214,6 @@ export default function ReportsPage() {
       color: "text-rose-500",
       bg: "bg-rose-50 dark:bg-rose-950/30",
     },
-    {
-      id: "compliance",
-      title: t("regulatory_compliance_report") || "Compliance Audit Report",
-      desc: t("regulatory_desc") || "Audit trail for licenses, permits, and regulatory standards",
-      icon: Activity,
-      color: "text-amber-500",
-      bg: "bg-amber-50 dark:bg-amber-950/30",
-    },
   ]
 
   return (
