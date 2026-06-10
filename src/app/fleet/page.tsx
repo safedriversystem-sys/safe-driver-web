@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -47,7 +47,7 @@ import {
   Shield,
 } from "lucide-react"
 import type { Vehicle } from "@/lib/fleet-types"
-import { LiveTrackingDashboard } from "@/components/live-tracking-dashboard"
+
 import { useToast } from "@/hooks/use-toast"
 import { FleetMap } from "@/components/fleet-map"
 import { useLanguage } from "@/components/language-provider"
@@ -598,24 +598,16 @@ export default function FleetManagement() {
         </Card>
       </div>
 
-      <Tabs defaultValue="vehicles" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="vehicles">{t("vehicle_fleet")}</TabsTrigger>
-          <TabsTrigger value="tracking">{t("live_tracking")}</TabsTrigger>
-          <TabsTrigger value="analytics">{t("fleet_analytics")}</TabsTrigger>
-        </TabsList>
-
-        {/* Vehicle Fleet Tab */}
-        <TabsContent value="vehicles" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>{t("fleet_overview")}</CardTitle>
-                  <CardDescription>{t("fleet_overview_desc")}</CardDescription>
-                </div>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>{t("fleet_overview")}</CardTitle>
+                <CardDescription>{t("fleet_overview_desc")}</CardDescription>
               </div>
-            </CardHeader>
+            </div>
+          </CardHeader>
             <CardContent>
               {/* Filters */}
               <div className="flex gap-4 mb-6">
@@ -788,56 +780,7 @@ export default function FleetManagement() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Live Tracking Tab */}
-        <TabsContent value="tracking" className="mt-0">
-          <LiveTrackingDashboard vehicles={vehicles} />
-        </TabsContent>
-
-        {/* Fleet Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Vehicle Status Distribution</CardTitle>
-              <CardDescription>Current status of all vehicles in the fleet</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-                    {vehicles.filter((v) => v.status === "active").length}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Active Vehicles</p>
-                  <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mt-2">
-                    <div
-                      className="h-2 bg-green-500 rounded-full"
-                      style={{
-                        width: `${(vehicles.filter((v) => v.status === "active").length / vehicles.length) * 100}%`,
-                      }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-600 dark:text-gray-400 mb-2">
-                    {vehicles.filter((v) => v.status === "inactive").length}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Inactive</p>
-                  <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mt-2">
-                    <div
-                      className="h-2 bg-gray-500 dark:bg-gray-450 rounded-full"
-                      style={{
-                        width: `${vehicles.length > 0 ? (vehicles.filter((v) => v.status === "inactive").length / vehicles.length) * 100 : 0}%`,
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      </div>
 
       {/* Vehicle Details Modal */}
       {selectedVehicle && (
