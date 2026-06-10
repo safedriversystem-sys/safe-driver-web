@@ -459,8 +459,8 @@ export default function FleetManagement() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 mb-2">{t("fleet_management_system")}</h1>
-          <p className="text-neutral-600">{t("fleet_desc")}</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{t("fleet_management_system")}</h1>
+          <p className="text-muted-foreground">{t("fleet_desc")}</p>
         </div>
         <Dialog open={showAddVehicle} onOpenChange={setShowAddVehicle}>
           <DialogTrigger asChild>
@@ -498,7 +498,7 @@ export default function FleetManagement() {
                   required
                   maxLength={7}
                 />
-                <p className="text-xs text-gray-500 mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
+                <p className="text-xs text-muted-foreground mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
               </div>
               <div>
                 <Label htmlFor="deviceId">{t("device_id")}</Label>
@@ -508,7 +508,7 @@ export default function FleetManagement() {
                   onChange={(e) => setNewVehicle({ ...newVehicle, deviceId: e.target.value.toUpperCase() })}
                   placeholder="e.g., DEV-001"
                 />
-                <p className="text-xs text-gray-500 mt-1">GPS/Tracking device ID (optional)</p>
+                <p className="text-xs text-muted-foreground mt-1">GPS/Tracking device ID (optional)</p>
               </div>
               <div>
                 <Label htmlFor="model">{t("vehicle_model")}</Label>
@@ -600,7 +600,7 @@ export default function FleetManagement() {
             <p className="text-xs text-muted-foreground">
               {vehicles.filter((v) => v.status === "active").length} {t("active")}
             </p>
-            {loading && <p className="text-xs text-gray-400 mt-1">Loading...</p>}
+            {loading && <p className="text-xs text-muted-foreground/60 mt-1">Loading...</p>}
           </CardContent>
         </Card>
 
@@ -631,7 +631,7 @@ export default function FleetManagement() {
               <div className="flex gap-4 mb-6">
                 <div className="flex-1">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60 h-4 w-4" />
                     <Input
                       placeholder={t("search_fleet")}
                       value={searchTerm}
@@ -821,11 +821,11 @@ export default function FleetManagement() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-2">
+                  <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
                     {vehicles.filter((v) => v.status === "active").length}
                   </div>
-                  <p className="text-sm text-gray-600">Active Vehicles</p>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <p className="text-sm text-muted-foreground">Active Vehicles</p>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mt-2">
                     <div
                       className="h-2 bg-green-500 rounded-full"
                       style={{
@@ -836,13 +836,13 @@ export default function FleetManagement() {
                 </div>
 
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-600 mb-2">
+                  <div className="text-3xl font-bold text-gray-600 dark:text-gray-400 mb-2">
                     {vehicles.filter((v) => v.status === "inactive").length}
                   </div>
-                  <p className="text-sm text-gray-600">Inactive</p>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <p className="text-sm text-muted-foreground">Inactive</p>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 mt-2">
                     <div
-                      className="h-2 bg-gray-500 rounded-full"
+                      className="h-2 bg-gray-500 dark:bg-gray-450 rounded-full"
                       style={{
                         width: `${vehicles.length > 0 ? (vehicles.filter((v) => v.status === "inactive").length / vehicles.length) * 100 : 0}%`,
                       }}
@@ -869,8 +869,8 @@ export default function FleetManagement() {
               {/* Vehicle Status */}
               <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
                 <div className="text-center p-3 border rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{Math.round(selectedVehicle.speed)}</div>
-                  <div className="text-sm text-gray-600">Speed (km/h)</div>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{Math.round(selectedVehicle.speed)}</div>
+                  <div className="text-sm text-muted-foreground">Speed (km/h)</div>
                 </div>
               </div>
 
@@ -915,7 +915,7 @@ export default function FleetManagement() {
                   required
                   maxLength={7}
                 />
-                <p className="text-xs text-gray-500 mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
+                <p className="text-xs text-muted-foreground mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
               </div>
               {/* <div>
                 <Label htmlFor="edit-documentId">Document ID (Number Plate)</Label>
@@ -935,7 +935,7 @@ export default function FleetManagement() {
                   onChange={(e) => setEditingVehicle({ ...editingVehicle, deviceId: e.target.value.toUpperCase() })}
                   placeholder="e.g., DEV-001"
                 />
-                <p className="text-xs text-gray-500 mt-1">GPS/Tracking device ID (optional)</p>
+                <p className="text-xs text-muted-foreground mt-1">GPS/Tracking device ID (optional)</p>
               </div>
               {/* <div>
                 <Label htmlFor="edit-busNumber">Bus Number</Label>

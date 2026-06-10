@@ -239,7 +239,7 @@ export function HazardMonitoringMap() {
           <CardContent className="pt-6">
             {!newHazardPos ? (
               <div className="space-y-4">
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800 text-sm">
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-lg p-4 text-amber-800 dark:text-amber-300 text-sm">
                   <p className="font-bold mb-1">How to add a hazard:</p>
                   <ul className="list-disc list-inside space-y-1">
                     <li>Click anywhere on the map</li>
@@ -348,16 +348,16 @@ export function HazardMonitoringMap() {
 
       {/* Full-width Active Zones Row */}
       <div className="lg:col-span-4 mt-2">
-        <Card className="border-none shadow-sm bg-white overflow-hidden rounded-[2rem]">
+        <Card className="border border-border shadow-sm bg-card text-card-foreground overflow-hidden rounded-[2rem]">
           <CardHeader className="px-8 pt-8 pb-4">
             <div className="flex justify-between items-center">
-              <CardTitle className="text-xl font-black text-neutral-900 tracking-tight flex items-center gap-3">
-                <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+              <CardTitle className="text-xl font-black text-foreground tracking-tight flex items-center gap-3">
+                <div className="p-2 bg-amber-50 dark:bg-amber-950/20 text-amber-600 rounded-xl">
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 Active Safety Zones ({hazards.length})
               </CardTitle>
-              <Badge variant="outline" className="rounded-full px-4 py-1.5 font-bold border-neutral-200">
+              <Badge variant="outline" className="rounded-full px-4 py-1.5 font-bold border-border">
                 Network Status: Operational
               </Badge>
             </div>
@@ -367,7 +367,7 @@ export function HazardMonitoringMap() {
               {hazards.map((h) => (
                 <div 
                   key={h.id} 
-                  className="flex items-center justify-between p-4 rounded-2xl bg-neutral-50/50 border border-neutral-100 hover:bg-neutral-50 hover:border-amber-200 hover:shadow-md transition-all cursor-pointer group"
+                  className="flex items-center justify-between p-4 rounded-2xl bg-muted/30 border border-border hover:bg-muted/70 hover:border-amber-500/50 hover:shadow-md transition-all cursor-pointer group"
                   onClick={() => {
                     setSelectedHazard(h)
                     if (map) map.panTo({ lat: h.latitude, lng: h.longitude })
@@ -375,30 +375,30 @@ export function HazardMonitoringMap() {
                   }}
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl shadow-sm transition-transform group-hover:scale-110 ${h.type === 'accident' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600'}`}>
+                    <div className={`p-3 rounded-xl shadow-sm transition-transform group-hover:scale-110 ${h.type === 'accident' ? 'bg-red-50 dark:bg-red-950/20 text-red-500' : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600'}`}>
                       <AlertTriangle className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-sm font-black text-neutral-800">{h.name}</p>
-                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-0.5">
+                      <p className="text-sm font-black text-foreground">{h.name}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
                         {h.type === "other" && h.customType ? h.customType : h.type}
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end">
-                    <Badge variant="secondary" className="bg-white border-neutral-200 text-[10px] font-black rounded-lg">
+                    <Badge variant="secondary" className="bg-background border-border text-[10px] font-black rounded-lg">
                       {h.radius}m
                     </Badge>
                   </div>
                 </div>
               ))}
               {hazards.length === 0 && (
-                <div className="col-span-full py-12 text-center bg-neutral-50 rounded-[2rem] border border-dashed border-neutral-200">
-                  <div className="p-4 bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
-                    <MapPin className="h-8 w-8 text-neutral-200" />
+                <div className="col-span-full py-12 text-center bg-muted/20 rounded-[2rem] border border-dashed border-border">
+                  <div className="p-4 bg-background rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-sm border border-border">
+                    <MapPin className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <p className="text-neutral-400 font-bold">No safety zones have been marked yet.</p>
-                  <p className="text-xs text-neutral-300 mt-1">Click on the map above to start marking hazards.</p>
+                  <p className="text-muted-foreground font-bold">No safety zones have been marked yet.</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Click on the map above to start marking hazards.</p>
                 </div>
               )}
             </div>

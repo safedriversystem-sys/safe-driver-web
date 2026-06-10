@@ -187,26 +187,26 @@ export default function AlertsPage() {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "high":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 dark:bg-red-950/30 text-red-800 dark:text-red-400"
       case "medium":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 dark:bg-yellow-950/30 text-yellow-800 dark:text-yellow-400"
       case "low":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 dark:bg-blue-950/30 text-blue-800 dark:text-blue-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200"
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 dark:bg-red-950/30 text-red-800 dark:text-red-400"
       case "acknowledged":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 dark:bg-yellow-950/30 text-yellow-800 dark:text-yellow-400"
       case "resolved":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200"
     }
   }
 
@@ -221,7 +221,7 @@ export default function AlertsPage() {
       case "maintenance":
         return <Clock className="h-5 w-5 text-blue-500" />
       default:
-        return <AlertTriangle className="h-5 w-5 text-gray-500" />
+        return <AlertTriangle className="h-5 w-5 text-muted-foreground" />
     }
   }
 
@@ -267,16 +267,16 @@ export default function AlertsPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold mb-1">{t("live_alerts_title")}</h1>
           {error && (
-            <div className="mt-2 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm font-medium text-red-800 mb-2">{t("error_loading_alerts")}:</p>
-              <p className="text-sm text-red-600 font-semibold">{error.message}</p>
+            <div className="mt-2 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-md">
+              <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">{t("error_loading_alerts")}:</p>
+              <p className="text-sm text-red-600 dark:text-red-300 font-semibold">{error.message}</p>
               {error.message.includes("Permission denied") && (
-                <div className="mt-3 p-3 bg-white border border-red-300 rounded">
-                  <p className="text-xs font-semibold text-red-800 mb-2">🔧 {t("quick_fix")}:</p>
-                  <ol className="text-xs text-red-700 space-y-1 list-decimal list-inside">
+                <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-red-300 dark:border-red-900/50 rounded">
+                  <p className="text-xs font-semibold text-red-800 dark:text-red-400 mb-2">🔧 {t("quick_fix")}:</p>
+                  <ol className="text-xs text-red-700 dark:text-red-300 space-y-1 list-decimal list-inside">
                     <li>{t("go_to_firebase_rules").split(":")[0]}: <a href="https://console.firebase.google.com/project/safe-driver-system/database/safe-driver-system-default-rtdb/rules" target="_blank" rel="noopener noreferrer" className="underline font-medium">{t("go_to_firebase_rules").split(":")[1]}</a></li>
                     <li>{t("paste_rules")}
-                      <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-x-auto">{`{
+                      <pre className="mt-1 p-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200 rounded text-xs overflow-x-auto">{`{
   "rules": {
     "alerts": {
       ".read": true,
@@ -294,7 +294,7 @@ export default function AlertsPage() {
                   </ol>
                 </div>
               )}
-              <p className="text-xs text-red-500 mt-2">
+              <p className="text-xs text-red-500 dark:text-red-400 mt-2">
                 {t("check_console")}
               </p>
             </div>
@@ -358,7 +358,7 @@ export default function AlertsPage() {
                 <div className="text-center">
                   <RefreshCw className="mx-auto h-12 w-12 text-blue-500 animate-spin" />
                   <h3 className="mt-4 text-lg font-medium">Loading alerts...</h3>
-                  <p className="mt-2 text-sm text-gray-500">Connecting to Firebase Realtime Database</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Connecting to Firebase Realtime Database</p>
                 </div>
               </CardContent>
             </Card>
@@ -397,8 +397,8 @@ export default function AlertsPage() {
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center gap-2">
-                        <MapPin className={`h-4 w-4 ${alert.location === "Online" ? "text-green-500" : "text-gray-500"}`} />
-                        <span className={`text-sm ${alert.location === "Online" ? "text-green-600 font-medium" : ""}`}>{alert.location}</span>
+                        <MapPin className={`h-4 w-4 ${alert.location === "Online" ? "text-green-500" : "text-muted-foreground"}`} />
+                        <span className={`text-sm ${alert.location === "Online" ? "text-green-600 dark:text-green-400 font-medium" : ""}`}>{alert.location}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{t("route_label")}:</span>
@@ -418,31 +418,31 @@ export default function AlertsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => setExpandedImages(prev => ({ ...prev, [alert.id]: !prev[alert.id] }))}
-                          className="flex items-center gap-2 mb-2 bg-neutral-50 hover:bg-neutral-100 text-neutral-600 border-neutral-200"
+                          className="flex items-center gap-2 mb-2 bg-neutral-50 dark:bg-slate-800 hover:bg-neutral-100 dark:hover:bg-slate-700 text-neutral-600 dark:text-neutral-300 border-neutral-200 dark:border-slate-700"
                         >
                           {expandedImages[alert.id] ? (
                             <>
-                              <EyeOff className="h-4 w-4 text-neutral-500" />
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
                               Hide Image
                             </>
                           ) : (
                             <>
-                              <Eye className="h-4 w-4 text-neutral-500" />
+                              <Eye className="h-4 w-4 text-muted-foreground" />
                               Show Image
                             </>
                           )}
                         </Button>
                         
                         {expandedImages[alert.id] && (
-                          <div className="rounded-xl overflow-hidden border border-neutral-200 max-w-md bg-neutral-50 p-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                            <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest px-2 py-1 flex items-center gap-1.5 mb-1">
+                          <div className="rounded-xl overflow-hidden border border-neutral-200 dark:border-slate-800 max-w-md bg-neutral-50 dark:bg-slate-900 p-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest px-2 py-1 flex items-center gap-1.5 mb-1">
                               <AlertTriangle className="h-3 w-3 text-orange-500" />
                               Evidence Image
                             </div>
                             <img 
                               src={alert.evidence} 
                               alt="Alert Evidence" 
-                              className="w-full h-auto object-contain max-h-[500px] rounded-lg shadow-sm border border-neutral-100" 
+                              className="w-full h-auto object-contain max-h-[500px] rounded-lg shadow-sm border border-neutral-100 dark:border-slate-800" 
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';
                               }}
@@ -516,9 +516,9 @@ export default function AlertsPage() {
                 <Card>
                   <CardContent className="flex items-center justify-center p-6">
                     <div className="text-center max-w-md">
-                      <Bell className="mx-auto h-12 w-12 text-gray-400" />
+                      <Bell className="mx-auto h-12 w-12 text-muted-foreground/60" />
                       <h3 className="mt-2 text-lg font-medium">{t("no_alerts_found")}</h3>
-                      <p className="mt-1 text-sm text-gray-500">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {activeTab === "active"
                           ? t("no_alerts_moment")
                           : activeTab === "history"
@@ -526,21 +526,21 @@ export default function AlertsPage() {
                             : t("no_status_alerts", { status: activeTab })}
                       </p>
                       {!error && (
-                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-left">
-                          <p className="text-xs font-medium text-blue-800 mb-2">Debugging Steps:</p>
-                          <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 rounded-md text-left">
+                          <p className="text-xs font-medium text-blue-800 dark:text-blue-400 mb-2">Debugging Steps:</p>
+                          <ol className="text-xs text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
                             <li>Open browser console (F12) and check for Firebase connection messages</li>
-                            <li>Verify data exists in Firebase Console at: <code className="bg-blue-100 px-1 rounded">/alerts/{`<DEVICE_ID>`}/latest</code></li>
-                            <li>Check that the <code className="bg-blue-100 px-1 rounded">latest</code> node has: message, tag, time, type</li>
-                            <li>Verify database rules allow read access to <code className="bg-blue-100 px-1 rounded">/alerts</code></li>
+                            <li>Verify data exists in Firebase Console at: <code className="bg-blue-100 dark:bg-blue-950 px-1 rounded text-blue-900 dark:text-blue-200">/alerts/{`<DEVICE_ID>`}/latest</code></li>
+                            <li>Check that the <code className="bg-blue-100 dark:bg-blue-950 px-1 rounded text-blue-900 dark:text-blue-200">latest</code> node has: message, tag, time, type</li>
+                            <li>Verify database rules allow read access to <code className="bg-blue-100 dark:bg-blue-950 px-1 rounded text-blue-900 dark:text-blue-200">/alerts</code></li>
                           </ol>
                         </div>
                       )}
                       {error && (
-                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                          <p className="text-xs font-medium text-red-800 mb-1">Error:</p>
-                          <p className="text-xs text-red-600">{error.message}</p>
-                          <p className="mt-2 text-xs text-red-500">
+                        <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-md">
+                          <p className="text-xs font-medium text-red-800 dark:text-red-400 mb-1">Error:</p>
+                          <p className="text-xs text-red-600 dark:text-red-300">{error.message}</p>
+                          <p className="mt-2 text-xs text-red-500 dark:text-red-400">
                             Check browser console (F12) for detailed error messages
                           </p>
                         </div>

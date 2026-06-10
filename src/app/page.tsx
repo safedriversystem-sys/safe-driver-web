@@ -291,8 +291,8 @@ export default function HomePage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-gray-900">{t("dashboard_title")}</h1>
-        <p className="text-gray-600">{t("dashboard_desc")}</p>
+        <h1 className="text-3xl font-bold text-foreground">{t("dashboard_title")}</h1>
+        <p className="text-muted-foreground">{t("dashboard_desc")}</p>
       </div>
 
       {/* Key Metrics */}

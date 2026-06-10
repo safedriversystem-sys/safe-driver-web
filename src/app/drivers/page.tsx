@@ -985,13 +985,13 @@ export default function DriversPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <Card>
                       <CardContent className="p-4 text-center">
-                        <p className="text-sm text-gray-600">Total Alerts</p>
+                        <p className="text-sm text-muted-foreground">Total Alerts</p>
                         <p className="text-3xl font-bold">{selectedDriver.alertCount}</p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="p-4 text-center">
-                        <p className="text-sm text-gray-600">Status</p>
+                        <p className="text-sm text-muted-foreground">Status</p>
                         <Badge variant={getStatusColor(selectedDriver.status)} className="mt-2">
                           {selectedDriver.status.replace("_", " ").toUpperCase()}
                         </Badge>
@@ -1010,9 +1010,9 @@ export default function DriversPage() {
         filteredDrivers.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No drivers found</h3>
-              <p className="text-gray-600">No drivers match your current filters.</p>
+              <Users className="h-12 w-12 text-muted-foreground/60 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No drivers found</h3>
+              <p className="text-muted-foreground">No drivers match your current filters.</p>
             </CardContent>
           </Card>
         )

@@ -281,8 +281,8 @@ export default function ReportsPage() {
   if (initialLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
-        <p className="text-slate-500 font-medium animate-pulse">{t("loading_activities") || "Preparing analytics dashboard..."}</p>
+        <Loader2 className="h-12 w-12 text-primary animate-spin" />
+        <p className="text-muted-foreground font-medium animate-pulse">{t("loading_activities") || "Preparing analytics dashboard..."}</p>
       </div>
     )
   }
@@ -332,16 +332,16 @@ export default function ReportsPage() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="reports" className="space-y-8">
-        <TabsList className="bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border-2 shadow-sm inline-flex">
-          <TabsTrigger value="reports" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all">
+        <TabsList className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-md p-1.5 rounded-2xl border-2 dark:border-slate-800 shadow-sm inline-flex">
+          <TabsTrigger value="reports" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all text-muted-foreground dark:text-slate-400 data-[state=active]:text-white">
             <FileText className="h-4 w-4 mr-2" />
             {t("generate_reports") || "Reports"}
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all">
+          <TabsTrigger value="analytics" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all text-muted-foreground dark:text-slate-400 data-[state=active]:text-white">
             <BarChart3 className="h-4 w-4 mr-2" />
             {t("performance_analytics") || "Analytics"}
           </TabsTrigger>
-          <TabsTrigger value="insights" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all">
+          <TabsTrigger value="insights" className="rounded-xl px-8 py-2.5 data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all text-muted-foreground dark:text-slate-400 data-[state=active]:text-white">
             <TrendingUp className="h-4 w-4 mr-2" />
             {t("ai_insights") || "Insights"}
           </TabsTrigger>
@@ -351,23 +351,23 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Report Selection Sidebar */}
             <div className="lg:col-span-1 space-y-6">
-              <Card className="border-2 rounded-3xl shadow-xl bg-white/70 backdrop-blur-xl">
+              <Card className="border-2 dark:border-slate-800 rounded-3xl shadow-xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl">
                 <CardHeader>
                   <CardTitle className="text-xl">{t("report_config") || "Report Configuration"}</CardTitle>
                   <CardDescription>{t("report_params") || "Customize your report parameters"}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
-                    <label className="text-sm font-bold text-slate-700">{t("report_format") || "Format"}</label>
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">{t("report_format") || "Format"}</label>
                     <div className="grid grid-cols-3 gap-2">
-                      <Button variant="outline" className="rounded-xl border-2 bg-blue-50 border-blue-200 text-blue-700">PDF</Button>
+                      <Button variant="outline" className="rounded-xl border-2 bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/20 dark:border-blue-900/50 dark:text-blue-300">PDF</Button>
                       <Button variant="outline" className="rounded-xl border-2 opacity-50 cursor-not-allowed">XLS</Button>
                       <Button variant="outline" className="rounded-xl border-2 opacity-50 cursor-not-allowed">CSV</Button>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <label className="text-sm font-bold text-slate-700">Target Entity</label>
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Target Entity</label>
                     <Select 
                       value={reportEntity} 
                       onValueChange={(val) => {
@@ -375,7 +375,7 @@ export default function ReportsPage() {
                         setSelectedEntityId("all")
                       }}
                     >
-                      <SelectTrigger className="w-full bg-slate-50 border-2 rounded-xl p-3 h-auto">
+                      <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-900 border-2 dark:border-slate-800 rounded-xl p-3 h-auto text-foreground">
                         <SelectValue placeholder="Select target entity..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -388,12 +388,12 @@ export default function ReportsPage() {
 
                   {reportEntity === "driver" && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                      <label className="text-sm font-bold text-slate-700">Select Driver</label>
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Select Driver</label>
                       <Select 
                         value={selectedEntityId} 
                         onValueChange={setSelectedEntityId}
                       >
-                        <SelectTrigger className="w-full bg-slate-50 border-2 rounded-xl p-3 h-auto">
+                        <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-900 border-2 dark:border-slate-800 rounded-xl p-3 h-auto text-foreground">
                           <SelectValue placeholder="Select a driver..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -410,12 +410,12 @@ export default function ReportsPage() {
 
                   {reportEntity === "bus" && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                      <label className="text-sm font-bold text-slate-700">Select Bus</label>
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Select Bus</label>
                       <Select 
                         value={selectedEntityId} 
                         onValueChange={setSelectedEntityId}
                       >
-                        <SelectTrigger className="w-full bg-slate-50 border-2 rounded-xl p-3 h-auto">
+                        <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-900 border-2 dark:border-slate-800 rounded-xl p-3 h-auto text-foreground">
                           <SelectValue placeholder="Select a bus..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -431,12 +431,12 @@ export default function ReportsPage() {
                   )}
 
                   <div className="space-y-4">
-                    <label className="text-sm font-bold text-slate-700">{t("time_period") || "Time Period"}</label>
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">{t("time_period") || "Time Period"}</label>
                     <Select 
                       value={timePeriod} 
                       onValueChange={(val) => setTimePeriod(val as any)}
                     >
-                      <SelectTrigger className="w-full bg-slate-50 border-2 rounded-xl p-3 h-auto">
+                      <SelectTrigger className="w-full bg-slate-50 dark:bg-slate-900 border-2 dark:border-slate-800 rounded-xl p-3 h-auto text-foreground">
                         <SelectValue placeholder="Select time period..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -611,36 +611,36 @@ export default function ReportsPage() {
                 </div>
               </Card>
 
-              <Card className="border-2 rounded-3xl shadow-xl p-8 bg-white overflow-hidden group">
+              <Card className="border-2 dark:border-slate-800 rounded-3xl shadow-xl p-8 bg-card text-card-foreground overflow-hidden group">
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-1">Fleet Sync Status</p>
-                    <h2 className="text-4xl font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors">Optimal</h2>
+                    <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs mb-1">Fleet Sync Status</p>
+                    <h2 className="text-4xl font-extrabold text-foreground group-hover:text-blue-600 transition-colors">Optimal</h2>
                   </div>
-                  <div className="bg-slate-50 p-3 rounded-2xl">
-                    <Clock className="h-6 w-6 text-slate-400" />
+                  <div className="bg-muted p-3 rounded-2xl">
+                    <Clock className="h-6 w-6 text-muted-foreground" />
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm font-bold">
-                    <span className="text-slate-600">Active Duty Drivers</span>
+                    <span className="text-muted-foreground">Active Duty Drivers</span>
                     <span className="text-emerald-600">{data.activeDrivers} / {data.totalDrivers}</span>
                   </div>
                   <Progress value={(data.activeDrivers / data.totalDrivers) * 100} className="h-1.5 bg-slate-100" />
                 </div>
               </Card>
 
-              <Card className="border-2 rounded-3xl shadow-xl p-8 bg-white overflow-hidden group">
+              <Card className="border-2 dark:border-slate-800 rounded-3xl shadow-xl p-8 bg-card text-card-foreground overflow-hidden group">
                  <div className="flex justify-between items-start mb-6">
                   <div>
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-1">Alert Density</p>
-                    <h2 className="text-4xl font-extrabold text-slate-900 group-hover:text-rose-600 transition-colors">{data.alertDensity}</h2>
+                    <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs mb-1">Alert Density</p>
+                    <h2 className="text-4xl font-extrabold text-foreground group-hover:text-rose-600 transition-colors">{data.alertDensity}</h2>
                   </div>
-                  <div className="bg-slate-50 p-3 rounded-2xl">
-                    <AlertTriangle className="h-6 w-6 text-slate-400" />
+                  <div className="bg-muted p-3 rounded-2xl">
+                    <AlertTriangle className="h-6 w-6 text-muted-foreground" />
                   </div>
                 </div>
-                <p className="text-slate-500 text-sm mb-6">Average number of alerts per active vehicle in the fleet today.</p>
+                <p className="text-muted-foreground text-sm mb-6">Average number of alerts per active vehicle in the fleet today.</p>
               </Card>
            </div>
         </TabsContent>
