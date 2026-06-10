@@ -24,33 +24,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const isPublicPath = pathname === "/login"
-
-    // Fast path: Check if we have no session details at all on a fresh run
     const savedSandboxUser = localStorage.getItem("safedriver_sandbox_user")
     const hasLoggedInFlag = localStorage.getItem("safedriver_logged_in") === "true"
-
-    if (!savedSandboxUser && !hasLoggedInFlag) {
-      // No session at all — immediately go to login without showing loading screen
-      setLoading(false)
-      setUser(null)
-      if (!isPublicPath) {
-        router.replace("/login")
-      }
-      return
-    }
 
     if (savedSandboxUser) {
       try {
         setUser(JSON.parse(savedSandboxUser))
         setLoading(false)
-        return
       } catch (e) {
         localStorage.removeItem("safedriver_sandbox_user")
       }
+    } else if (!hasLoggedInFlag) {
+      // Synchronously set to unauthenticated on fresh run to avoid loading flicker
+      setUser(null)
+      setLoading(false)
     }
 
-    // Subscribe to Firebase Auth changes (only reached if hasLoggedInFlag is true)
+    // Subscribe to Firebase Auth changes
     let isResolved = false
     const unsubscribe = authService.onAuthStateChange((firebaseUser) => {
       isResolved = true
@@ -77,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeoutId)
       unsubscribe()
     }
-  }, [pathname, router])
+  }, [])
 
   // Guard routing based on authentication status
   useEffect(() => {
