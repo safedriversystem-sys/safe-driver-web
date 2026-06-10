@@ -79,24 +79,22 @@ export default function AlertsPage() {
   // Filter alerts based on active tab as derived state.
   const filteredAlerts = useMemo(() => {
     if (activeTab === "history") {
-      // Show only today's alerts in history (combine today's live alerts and today's history alerts)
-      const todayLiveAlerts = alerts.filter((alert) => isToday(alert.timestamp))
-      const todayHistoryAlerts = historyAlerts.filter((alert) => isToday(alert.timestamp))
+      // Combine all live alerts and all history alerts
+      const combinedAlerts = [...alerts, ...historyAlerts]
 
       // Combine and remove duplicates based on alert ID
-      const combinedTodayAlerts = [...todayLiveAlerts, ...todayHistoryAlerts]
-      const uniqueTodayAlerts = combinedTodayAlerts.filter((alert, index, self) =>
+      const uniqueAlerts = combinedAlerts.filter((alert, index, self) =>
         index === self.findIndex((a) => a.id === alert.id)
       )
 
       // Sort by timestamp (newest first)
-      uniqueTodayAlerts.sort((a, b) => {
+      uniqueAlerts.sort((a, b) => {
         const timeA = a.timestamp ? (typeof a.timestamp === "string" ? new Date(a.timestamp).getTime() : a.timestamp) : 0
         const timeB = b.timestamp ? (typeof b.timestamp === "string" ? new Date(b.timestamp).getTime() : b.timestamp) : 0
         return timeB - timeA
       })
 
-      return uniqueTodayAlerts
+      return uniqueAlerts
     }
 
     return alerts.filter((alert) => alert.status === activeTab)
