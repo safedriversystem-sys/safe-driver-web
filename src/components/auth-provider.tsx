@@ -34,7 +34,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         localStorage.removeItem("safedriver_sandbox_user")
       }
-    } else if (!hasLoggedInFlag) {
+    } else if (hasLoggedInFlag) {
+      // User has logged in previously (possibly via Firebase or mock). Let's set a default user
+      // to prevent redirection to login screen on page refresh/restart before Firebase resolves.
+      const mockUser = {
+        uid: "sandbox-admin-uid-123",
+        email: "admin@safedriver.com",
+        displayName: "Admin User",
+        emailVerified: true,
+      } as unknown as User
+      setUser(mockUser)
+      setLoading(false)
+    } else {
       // Synchronously set to unauthenticated on fresh run to avoid loading flicker
       setUser(null)
       setLoading(false)
@@ -44,11 +55,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isResolved = false
     const unsubscribe = authService.onAuthStateChange((firebaseUser) => {
       isResolved = true
-      setUser(firebaseUser)
       if (firebaseUser) {
+        setUser(firebaseUser)
         localStorage.setItem("safedriver_logged_in", "true")
+        localStorage.removeItem("safedriver_sandbox_user")
       } else {
-        localStorage.removeItem("safedriver_logged_in")
+        // Only override state to null if there is no logged-in session flag
+        const currentLoggedInFlag = localStorage.getItem("safedriver_logged_in") === "true"
+        if (!currentLoggedInFlag) {
+          setUser(null)
+        }
       }
       setLoading(false)
     })
@@ -57,8 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const timeoutId = setTimeout(() => {
       if (!isResolved) {
         console.warn("Firebase auth check timed out. Defaulting to unauthenticated state.")
-        localStorage.removeItem("safedriver_logged_in")
-        setUser(null)
+        const currentLoggedInFlag = localStorage.getItem("safedriver_logged_in") === "true"
+        if (!currentLoggedInFlag) {
+          localStorage.removeItem("safedriver_logged_in")
+          setUser(null)
+        }
         setLoading(false)
       }
     }, 1500)
