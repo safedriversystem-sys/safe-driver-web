@@ -98,6 +98,7 @@ export default function RouteMonitoring() {
     totalVehicles: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [updatingStatusIds, setUpdatingStatusIds] = useState<Set<string>>(new Set())
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null)
   const [modalTab, setModalTab] = useState<"map" | "hazards">("map")
   const [selectedHazardInfo, setSelectedHazardInfo] = useState<HazardZone | null>(null)
@@ -232,6 +233,26 @@ export default function RouteMonitoring() {
       setStats(data)
     } catch (error) {
       console.error("Error fetching stats:", error)
+    }
+  }
+
+  // Update route status inline
+  const updateRouteStatus = async (id: string, status: string) => {
+    setUpdatingStatusIds(prev => new Set(prev).add(id))
+    try {
+      const response = await fetch(`/api/routes/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!response.ok) throw new Error("Failed to update status")
+      setRoutes(prev => prev.map(r => r.id === id ? { ...r, status: status as any } : r))
+      fetchStats()
+      toast({ title: "Status Updated", description: `Route status changed to ${status}.` })
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } finally {
+      setUpdatingStatusIds(prev => { const s = new Set(prev); s.delete(id); return s })
     }
   }
 
@@ -681,6 +702,47 @@ export default function RouteMonitoring() {
                       <Activity className="h-4 w-4 mr-1" />
                       Edit
                     </Button>
+                    <Select
+                      value={route.status}
+                      disabled={updatingStatusIds.has(route.id)}
+                      onValueChange={(value) => {
+                        if (route.id) updateRouteStatus(route.id, value)
+                      }}
+                    >
+                      <SelectTrigger className={`h-8 text-xs w-[120px] flex-shrink-0 ${updatingStatusIds.has(route.id) ? "opacity-50 cursor-not-allowed" : ""}`}>
+                        <div className="flex items-center gap-2">
+                          {updatingStatusIds.has(route.id) ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <div className={`h-2 w-2 rounded-full ${
+                              route.status === 'active' ? 'bg-green-500' :
+                              route.status === 'maintenance' ? 'bg-amber-500' : 'bg-gray-400'
+                            }`} />
+                          )}
+                          <SelectValue />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-green-500" />
+                            {t("active")}
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="inactive">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-gray-400" />
+                            {t("inactive")}
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="maintenance">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-amber-500" />
+                            {t("route_maintenance")}
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button
                       size="sm"
                       variant="destructive"
