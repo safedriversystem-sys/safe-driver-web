@@ -397,11 +397,7 @@ export default function RouteMonitoring() {
 
   return (
     <div className="container mx-auto px-4 py-8 bg-background text-foreground min-h-screen">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex justify-between items-center mb-8"
-      >
+      <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             {t("route_monitoring")}
@@ -475,231 +471,202 @@ export default function RouteMonitoring() {
             </DialogContent>
           </Dialog>
 
-      </motion.div>
+      </div>
 
 
       {/* Route Statistics */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-8"
-      >
-        {[
-          {
-            title: t("active_routes"),
-            value: stats.active,
-            context: t("routes_total_context", { total: stats.total }),
-            icon: RouteIcon,
-            color: "text-blue-600",
-            bg: "bg-blue-50",
-          },
-          {
-            title: t("vehicles_on_routes"),
-            value: stats.totalVehicles,
-            context: t("currently_operating"),
-            icon: Bus,
-            color: "text-indigo-600",
-            bg: "bg-indigo-50",
-          },
-        ].map((stat, idx) => (
-          <motion.div key={idx} variants={itemVariants}>
-            <Card className="shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group relative bg-card text-card-foreground border border-border">
-              <div className={`absolute top-0 left-0 w-1.5 h-full ${stat.bg.replace("bg-", "bg-opacity-100 bg-")}`} />
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                  {stat.title}
-                </CardTitle>
-                <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color} group-hover:scale-110 transition-transform shadow-sm`}>
-                  <stat.icon className="h-5 w-5" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className={`text-3xl font-bold ${stat.color} mb-1 tracking-tight`}>{stat.value}</div>
-                <p className="text-sm text-muted-foreground font-semibold">{stat.context}</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </motion.div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Routes</CardTitle>
+            <RouteIcon className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("active")}</CardTitle>
+            <RouteIcon className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-500">{stats.active}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("inactive")}</CardTitle>
+            <RouteIcon className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-500">{stats.inactive}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("vehicles_on_routes")}</CardTitle>
+            <Bus className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-500">{stats.totalVehicles}</div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Filters Section */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="mb-8"
-      >
-        <Card className="shadow-sm bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl border border-border">
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative group">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 group-focus-within:text-blue-500 transition-colors" />
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Filter Routes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 items-center">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={t("search_routes")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-12 h-12 border-input focus:border-blue-500 focus:ring-blue-500 rounded-2xl bg-background shadow-inner"
+                  className="pl-10"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-56 h-12 border-input rounded-2xl bg-background font-semibold">
-                  <SelectValue placeholder={t("status")} />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl border-border shadow-xl p-2">
-                  <SelectItem value="all" className="rounded-xl">{t("all_routes")}</SelectItem>
-                  <SelectItem value="active" className="rounded-xl">{t("active")}</SelectItem>
-                  <SelectItem value="inactive" className="rounded-xl">{t("inactive")}</SelectItem>
-                  <SelectItem value="maintenance" className="rounded-xl">{t("route_maintenance")}</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder={t("status")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("all_routes")}</SelectItem>
+                <SelectItem value="active">{t("active")}</SelectItem>
+                <SelectItem value="inactive">{t("inactive")}</SelectItem>
+                <SelectItem value="maintenance">{t("route_maintenance")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Routes Grid */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center p-24 bg-card text-card-foreground rounded-[2rem] shadow-sm border border-border">
-          <Loader2 className="h-20 w-20 text-blue-500 mb-8 animate-spin" />
-          <h3 className="text-2xl font-bold text-foreground mb-2">{t("loading_routes")}</h3>
-          <p className="text-muted-foreground font-medium text-lg">{t("wait_fetching")}</p>
-        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Loader2 className="h-12 w-12 text-muted-foreground/60 mx-auto mb-4 animate-spin" />
+            <h3 className="text-lg font-medium text-foreground mb-2">{t("loading_routes")}</h3>
+            <p className="text-muted-foreground">{t("wait_fetching")}</p>
+          </CardContent>
+        </Card>
       ) : filteredRoutes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-24 bg-card text-card-foreground rounded-[2rem] shadow-sm border border-border">
-          <div className="p-10 bg-muted rounded-full mb-8 shadow-inner">
-            <RouteIcon className="h-20 w-20 text-muted-foreground animate-pulse" />
-          </div>
-          <h3 className="text-2xl font-bold text-foreground mb-2">{t("no_routes_found")}</h3>
-          <p className="text-muted-foreground font-medium text-lg">{t("no_routes_match")}</p>
-        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <RouteIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">{t("no_routes_found")}</h3>
+            <p className="text-muted-foreground">{t("no_routes_match")}</p>
+          </CardContent>
+        </Card>
       ) : (
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12"
-        >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredRoutes.map((route) => (
-            <motion.div key={route.id} variants={itemVariants}>
-              <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 border border-border shadow-lg overflow-hidden bg-card text-card-foreground rounded-[2rem] relative">
-                <div className={`h-2.5 w-full ${route.status === "active" ? "bg-emerald-500" : "bg-neutral-300"}`} />
-                <CardHeader className="pb-6 pt-8 px-8">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <CardTitle className="text-3xl font-bold text-foreground group-hover:text-blue-600 transition-colors tracking-tight flex items-baseline gap-2">
-                          {route.name}
-                          <span className="text-sm font-medium text-muted-foreground">
-                            ({route.startPoint.replace(/ Bus Stop/i, "")} - {route.endPoint.replace(/ Bus Stop/i, "")})
-                          </span>
-                        </CardTitle>
-                        <Badge
-                          variant={route.status === "active" ? "success" : "secondary"}
-                          className="rounded-full px-4 py-1.5 text-[11px] uppercase font-bold tracking-widest shadow-sm"
-                        >
-                          {t(route.status as any)}
-                        </Badge>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="icon" className="rounded-2xl hover:bg-muted border-border shadow-sm h-12 w-12 shrink-0">
-                      <Maximize2 className="h-6 w-6" />
-                    </Button>
+            <Card key={route.id} className="hover:shadow-lg transition-shadow overflow-visible">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-lg">{route.name}
+                      {route.busNumber && <span className="text-sm font-normal text-muted-foreground ml-2">({route.startPoint.replace(/ Bus Stop/i, "")} – {route.endPoint.replace(/ Bus Stop/i, "")})</span>}
+                    </CardTitle>
+                    <CardDescription className="flex flex-col gap-1">
+                      {!route.busNumber && (
+                        <span className="flex items-center gap-1">
+                          {route.startPoint.replace(/ Bus Stop/i, "")} → {route.endPoint.replace(/ Bus Stop/i, "")}
+                        </span>
+                      )}
+                      {route.busNumber && (
+                        <span>Route No: {route.busNumber}</span>
+                      )}
+                    </CardDescription>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-8 pb-10 px-8">
+                  <Badge variant={route.status === "active" ? "success" : "secondary"}>
+                    {t(route.status as any)}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
                   {/* Route Journey */}
-                  <div className="flex items-center justify-between bg-muted/40 p-5 rounded-[1.5rem] border border-border">
+                  <div className="flex items-center justify-between bg-muted/40 p-4 rounded-lg border border-border">
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Terminal A</p>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-emerald-500" />
-                        <span className="font-bold text-foreground">{route.startPoint}</span>
+                        <span className="font-semibold text-sm text-foreground">{route.startPoint}</span>
                       </div>
                     </div>
-                    <div className="flex-1 flex items-center justify-center px-4 opacity-50">
-                      <div className="h-[2px] w-full max-w-[40px] bg-border rounded-full" />
-                      <ArrowRightLeft className="h-4 w-4 text-muted-foreground mx-2" />
-                      <div className="h-[2px] w-full max-w-[40px] bg-border rounded-full" />
-                    </div>
+                    <ArrowRightLeft className="h-4 w-4 text-muted-foreground mx-2" />
                     <div className="space-y-1 text-right">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Terminal B</p>
                       <div className="flex items-center justify-end gap-2">
-                        <span className="font-bold text-foreground">{route.endPoint}</span>
+                        <span className="font-semibold text-sm text-foreground">{route.endPoint}</span>
                         <MapPin className="h-4 w-4 text-rose-500" />
                       </div>
                     </div>
                   </div>
-                  {/* Assigned Buses Section */}
-                  <div className="mt-2 bg-muted/30 p-4 sm:p-6 rounded-[1.5rem] border border-border shadow-inner">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-3">
-                      <Bus className="h-5 w-5 text-emerald-500" />
-                      Assigned Buses
-                    </h3>
+
+                  {/* Assigned Buses */}
+                  <div className="text-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Bus className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-muted-foreground">Assigned Buses</span>
+                    </div>
                     {route.vehicles && route.vehicles.length > 0 ? (
-                      <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-wrap gap-2">
                         {route.vehicles.map((vehicleId: string, idx: number) => (
                           <Dialog key={idx}>
                             <DialogTrigger asChild>
-                              <button className="flex items-center gap-2 bg-background px-4 py-3 rounded-2xl border border-border shadow-sm transition-transform hover:-translate-y-1 hover:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                                <Bus className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-bold text-sm text-foreground">{vehicleId}</span>
-                                <Badge className="ml-1 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-full text-[10px] pointer-events-none">On Route</Badge>
+                              <button className="flex items-center gap-1.5 bg-background px-3 py-1.5 rounded-lg border border-border text-sm hover:border-primary transition-colors">
+                                <Bus className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="font-medium text-foreground">{vehicleId}</span>
+                                <Badge className="ml-1 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-[10px] pointer-events-none">On Route</Badge>
                               </button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-md rounded-[2rem] border border-border shadow-2xl">
+                            <DialogContent className="sm:max-w-md">
                               <DialogHeader>
-                                <DialogTitle className="flex items-center gap-3 text-2xl font-bold">
-                                  <div className="p-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500 rounded-xl">
-                                    <Bus className="h-6 w-6" />
-                                  </div>
+                                <DialogTitle className="flex items-center gap-2">
+                                  <Bus className="h-5 w-5" />
                                   Bus {vehicleId}
                                 </DialogTitle>
-                                <DialogDescription className="font-medium text-muted-foreground">
+                                <DialogDescription>
                                   Live tracking and metrics for this bus on {route.name}.
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="grid grid-cols-2 gap-4 py-4">
-                                <div className="col-span-2 bg-emerald-50 dark:bg-emerald-950/20 p-5 rounded-[1.5rem] border border-emerald-100 dark:border-emerald-900/30">
-                                  <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Status</p>
-                                  <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">Active</p>
+                                <div className="col-span-2 bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-1">Status</p>
+                                  <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">Active</p>
                                 </div>
-                                <div className="col-span-2 bg-muted/50 p-5 rounded-[1.5rem] border border-border">
-                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Current Location</p>
-                                  <div className="flex items-center gap-3 bg-background p-3 rounded-xl shadow-sm border border-border">
-                                    <div className="p-2 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-lg">
-                                      <MapPin className="h-5 w-5" />
-                                    </div>
-                                    <span className="font-bold text-foreground">En route to next stop</span>
+                                <div className="col-span-2 bg-muted/50 p-4 rounded-lg border border-border">
+                                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Current Location</p>
+                                  <div className="flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-rose-500" />
+                                    <span className="font-medium text-foreground">En route to next stop</span>
                                   </div>
                                 </div>
-                              </div>
-                              <div className="pt-2">
-                                <Button className="w-full h-12 rounded-2xl font-bold">
-                                  View Full Tracking
-                                </Button>
                               </div>
                             </DialogContent>
                           </Dialog>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-4 text-neutral-400 font-bold text-sm">
-                        No buses currently assigned.
-                      </div>
+                      <p className="text-muted-foreground text-sm">No buses currently assigned.</p>
                     )}
                   </div>
+
                   {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-4 pt-4 border-t border-border">
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl border-border h-14 px-8 hover:bg-muted transition-all font-bold text-sm uppercase tracking-wider"
-                      onClick={() => setSelectedRoute(route)}
-                    >
-                      <MapPin className="h-5 w-5 mr-3" />
+                  <div className="flex gap-2 pt-2 flex-wrap items-center">
+                    <Button size="sm" variant="outline" onClick={() => setSelectedRoute(route)} className="flex-shrink-0">
+                      <Eye className="h-4 w-4 mr-1" />
                       View Map
                     </Button>
-
-                    <Button variant="ghost" className="rounded-2xl h-14 px-6 text-muted-foreground font-bold text-sm uppercase tracking-wider hover:text-foreground hover:bg-muted"
+                    <Button size="sm" variant="outline" className="flex-shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditingRouteId(route.id);
@@ -711,20 +678,24 @@ export default function RouteMonitoring() {
                         setShowAddRoute(true);
                       }}
                     >
+                      <Activity className="h-4 w-4 mr-1" />
                       Edit
                     </Button>
-                    <Button variant="ghost" className="rounded-2xl h-14 px-6 text-rose-500 font-bold text-sm uppercase tracking-wider hover:text-rose-600 hover:bg-rose-50/10"
+                    <Button
+                      size="sm"
+                      variant="destructive"
                       onClick={(e) => handleDeleteRoute(route.id, e)}
+                      className="bg-red-600 hover:bg-red-700 text-white flex-shrink-0"
                     >
-                      <Trash2 className="h-5 w-5 mr-3" />
+                      <Trash2 className="h-4 w-4 mr-1" />
                       Delete
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                </div>
+              </CardContent>
+            </Card>
           ))}
-        </motion.div>
+        </div>
       )}
 
 
