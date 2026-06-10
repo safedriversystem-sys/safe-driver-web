@@ -629,7 +629,7 @@ export default function DriversPage() {
       </div>
 
       {/* Drivers Statistics */}
-      <div className="grid grid-cols-1 gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t("total_drivers")}</CardTitle>
@@ -637,9 +637,33 @@ export default function DriversPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.onDuty} {t("on_duty")} • {stats.onBreak} {t("on_break")} • {stats.offDuty} {t("off_duty")} • {stats.suspended} {t("suspended")}
-            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("on_duty")}</CardTitle>
+            <Activity className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-500">{stats.onDuty}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("off_duty")}</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-muted-foreground">{stats.offDuty}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{t("suspended")}</CardTitle>
+            <Users className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-500">{stats.suspended}</div>
           </CardContent>
         </Card>
       </div>
