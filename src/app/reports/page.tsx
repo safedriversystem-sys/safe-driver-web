@@ -30,6 +30,15 @@ import {
 import { useLanguage } from "@/components/language-provider"
 import { generatePDFReport } from "@/lib/pdf-generator"
 import { useLiveAlerts, isToday, isWithinLast24Hours, isWithinLast30Days } from "@/hooks/use-live-alerts"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts"
 
 export default function ReportsPage() {
   const { t } = useLanguage()
@@ -85,6 +94,22 @@ export default function ReportsPage() {
     const alertSummary = Object.entries(alertTypesCounts).map(([type, count]) => ({
       type, count, high: Math.round(count * 0.4), medium: Math.round(count * 0.4), low: Math.round(count * 0.2), avgResponse: "1m"
     }))
+    const drowsinessCount = todayAlertsList.filter(a => a.type === 'drowsiness' || a.type.toLowerCase().includes('drowsi') || a.tag?.toLowerCase().includes('yawn')).length
+    const phoneCount = todayAlertsList.filter(a => a.type === 'phone_usage' || a.type.toLowerCase().includes('phone')).length
+    const distractionCount = todayAlertsList.filter(a => a.type === 'distraction' || a.type.toLowerCase().includes('distraction')).length
+    const smokingCount = todayAlertsList.filter(a => a.type === 'smoking' || a.type.toLowerCase().includes('smoke')).length
+    const drinkingCount = todayAlertsList.filter(a => a.type === 'drinking' || a.type.toLowerCase().includes('drink')).length
+    const totalObjectDetection = phoneCount + smokingCount + drinkingCount
+
+    const chartData = [
+      { name: "Drowsiness", count: drowsinessCount, fill: "#EF4444" },
+      { name: "Distraction", count: distractionCount, fill: "#F59E0B" },
+      { name: "Object Detection", count: totalObjectDetection, fill: "#2563EB" },
+      { name: "  • Mobile Phone", count: phoneCount, fill: "#3B82F6" },
+      { name: "  • Smoking", count: smokingCount, fill: "#475569" },
+      { name: "  • Drinking", count: drinkingCount, fill: "#6366F1" },
+    ]
+
     const alertDensity = activeVehicles > 0 ? (todayAlertsList.length / activeVehicles).toFixed(2) : "0"
     const totalDrivers = drivers.length || 1
     const activeDrivers = drivers.filter(d => d.status === "on_duty").length
@@ -96,6 +121,7 @@ export default function ReportsPage() {
       totalDrivers,
       activeVehicles,
       totalVehicles: fleet.length,
+      chartData,
     }
   }, [liveAlerts, historyAlerts, fleet, drivers])
 
@@ -112,16 +138,37 @@ export default function ReportsPage() {
       let entityName = "Entire Fleet"
       if (reportEntity === "driver" && selectedEntityId !== "all") {
         const driver = drivers.find(d => d.id === selectedEntityId || d.licenseNumber === selectedEntityId)
-        filteredAlerts = filteredAlerts.filter(a => a.driverId === selectedEntityId || a.driverName === driver?.name)
+        filteredAlerts = filteredAlerts.filter(a => 
+          a.driverId === selectedEntityId || 
+          a.driverName === driver?.name ||
+          (driver && driver.busNumber && (
+            driver.busNumber.split(",").includes(a.busNumber) ||
+            driver.busNumber.split(",").includes(a.number_plate)
+          ))
+        )
         entityName = `Driver: ${driver?.name || selectedEntityId}`
       } else if (reportEntity === "bus" && selectedEntityId !== "all") {
-        filteredAlerts = filteredAlerts.filter(a => a.busNumber === selectedEntityId || a.deviceId === selectedEntityId || a.number_plate === selectedEntityId)
-        entityName = `Bus: ${selectedEntityId}`
+        const vehicle = fleet.find(v => v.id === selectedEntityId || v.busNumberPlate === selectedEntityId || v.busNumber === selectedEntityId)
+        filteredAlerts = filteredAlerts.filter(a => 
+          a.busNumber === selectedEntityId || 
+          a.deviceId === selectedEntityId || 
+          a.number_plate === selectedEntityId ||
+          (vehicle && (
+            a.busNumber === vehicle.busNumber ||
+            a.busNumber === vehicle.busNumberPlate ||
+            a.number_plate === vehicle.busNumberPlate ||
+            a.deviceId === vehicle.deviceId ||
+            a.deviceId === vehicle.id
+          ))
+        )
+        entityName = `Bus: ${vehicle?.busNumberPlate || vehicle?.busNumber || selectedEntityId}`
       }
-      const drowsinessCount = filteredAlerts.filter(a => a.type.toLowerCase().includes('drowsi')).length
+      const drowsinessCount = filteredAlerts.filter(a => a.type === 'drowsiness' || a.type.toLowerCase().includes('drowsi') || a.tag?.toLowerCase().includes('yawn')).length
       const yawnCount = filteredAlerts.filter(a => a.tag?.toLowerCase().includes('yawn')).length
-      const phoneCount = filteredAlerts.filter(a => a.type.toLowerCase().includes('phone')).length
-      const distractionCount = filteredAlerts.filter(a => a.type.toLowerCase().includes('distraction')).length
+      const phoneCount = filteredAlerts.filter(a => a.type === 'phone_usage' || a.type.toLowerCase().includes('phone')).length
+      const distractionCount = filteredAlerts.filter(a => a.type === 'distraction' || a.type.toLowerCase().includes('distraction')).length
+      const smokingCount = filteredAlerts.filter(a => a.type === 'smoking' || a.type.toLowerCase().includes('smoke')).length
+      const drinkingCount = filteredAlerts.filter(a => a.type === 'drinking' || a.type.toLowerCase().includes('drink')).length
       const alertTypesCounts: Record<string, number> = {}
       filteredAlerts.forEach(a => { alertTypesCounts[a.type] = (alertTypesCounts[a.type] || 0) + 1 })
       const dynamicAlertSummary = Object.entries(alertTypesCounts).map(([type, count]) => ({
@@ -134,15 +181,40 @@ export default function ReportsPage() {
       })
       if (reportEntity === "driver" && selectedEntityId !== "all") {
         const driver = drivers.find(d => d.id === selectedEntityId || d.licenseNumber === selectedEntityId)
-        filteredFeedbacks = filteredFeedbacks.filter(f => f.driverId === selectedEntityId || f.driverName === driver?.name)
+        filteredFeedbacks = filteredFeedbacks.filter(f => 
+          f.driverId === selectedEntityId || 
+          f.driverName === driver?.name ||
+          (driver && driver.busNumber && (
+            driver.busNumber.split(",").includes(f.busNumber) ||
+            driver.busNumber.split(",").includes(f.vehicleId)
+          ))
+        )
       } else if (reportEntity === "bus" && selectedEntityId !== "all") {
-        filteredFeedbacks = filteredFeedbacks.filter(f => f.busNumber === selectedEntityId || f.vehicleId === selectedEntityId)
+        const vehicle = fleet.find(v => v.id === selectedEntityId || v.busNumberPlate === selectedEntityId || v.busNumber === selectedEntityId)
+        filteredFeedbacks = filteredFeedbacks.filter(f => 
+          f.busNumber === selectedEntityId || 
+          f.vehicleId === selectedEntityId ||
+          (vehicle && (
+            f.busNumber === vehicle.busNumber ||
+            f.busNumber === vehicle.busNumberPlate ||
+            f.vehicleId === vehicle.busNumberPlate ||
+            f.vehicleId === vehicle.id
+          ))
+        )
       }
       const getRatingValue = (f: any) => typeof f.rating === 'object' ? (f.rating?.overall || 5) : (Number(f.rating) || 5)
       const avgFeedbackRating = filteredFeedbacks.length > 0 ? (filteredFeedbacks.reduce((sum, f) => sum + getRatingValue(f), 0) / filteredFeedbacks.length).toFixed(1) : "N/A"
       const reportData: any = {
         entityName, timePeriod: timePeriod.toUpperCase(),
-        counts: { total: filteredAlerts.length, drowsiness: drowsinessCount, yawn: yawnCount, phone: phoneCount, distraction: distractionCount },
+        counts: { 
+          total: filteredAlerts.length, 
+          drowsiness: drowsinessCount, 
+          yawn: yawnCount, 
+          phone: phoneCount, 
+          distraction: distractionCount,
+          smoking: smokingCount,
+          drinking: drinkingCount
+        },
         feedbacks: {
           total: filteredFeedbacks.length, averageRating: avgFeedbackRating,
           recent: filteredFeedbacks.slice(0, 10).map(f => ({
@@ -165,7 +237,22 @@ export default function ReportsPage() {
           description: a.description || a.tag || "",
           evidence: a.evidence || null,
         })),
-        drivers: (Array.isArray(drivers) ? drivers : []).map(d => ({ name: d.name, license: d.licenseNumber, bus: d.busNumber || 'N/A', route: d.route || 'Unassigned', alerts: d.alertCount || 0, status: d.status })),
+        drivers: (Array.isArray(drivers) ? drivers : []).map(d => {
+          const assignedBuses = d.busNumber ? d.busNumber.split(",") : []
+          const driverAlerts = filteredAlerts.filter(a => 
+            a.driverId === d.id || 
+            a.driverName === d.name ||
+            (assignedBuses.length > 0 && (assignedBuses.includes(a.number_plate || "") || assignedBuses.includes(a.busNumber || "")))
+          )
+          return {
+            name: d.name,
+            license: d.licenseNumber,
+            bus: d.busNumber || 'N/A',
+            route: d.route || 'Unassigned',
+            alerts: driverAlerts.length,
+            status: d.status
+          }
+        }),
         routes: (Array.isArray(routes) ? routes : []).map(r => ({ name: r.name, buses: r.activeVehicles, drivers: r.activeVehicles, distance: `${r.distance}km`, riskAreas: r.safetyIncidents, efficiency: r.onTimePerformance })),
         compliance: { driverLicenseValidity: 100, vehicleInspections: 100, safetyTraining: 100, emergencyProtocols: 100, dataReporting: 100 }
       }
@@ -387,14 +474,15 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Analytics Overview */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Fleet Analytics Overview</CardTitle>
-          <CardDescription>Live metrics from the active fleet and driver data</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Fleet Analytics Overview & Safety Incident Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Left: Analytics Overview (col-span-1) */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>Fleet Analytics Overview</CardTitle>
+            <CardDescription>Live metrics from the active fleet and driver data</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
             {/* Active Drivers */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
@@ -416,9 +504,52 @@ export default function ReportsPage() {
               </div>
               <Progress value={data.totalVehicles > 0 ? (data.activeVehicles / data.totalVehicles) * 100 : 0} className="h-2" />
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Right: Safety Incident Summary Chart (col-span-2) */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Today's Incident Summary</CardTitle>
+            <CardDescription>Breakdown of safety incidents and object detections</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[220px]">
+            {data.uniqueTodayAlerts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center">
+                <BarChart3 className="h-10 w-10 text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground font-medium">No safety alerts logged today.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={data.chartData}
+                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={150}
+                    tick={{ fontSize: 11, fontWeight: "bold" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "transparent" }}
+                    formatter={(value: any) => [`${value} incidents`, "Count"]}
+                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={12}>
+                    {data.chartData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
 
     </div>

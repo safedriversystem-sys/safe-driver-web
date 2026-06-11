@@ -75,12 +75,13 @@ export default function DriversPage() {
     )
     
     return drivers.map(driver => {
-      // Find alerts for this driver's assigned buses
-      if (!driver.busNumber) return { ...driver, alertCount: 0 }
-      
-      const assignedBuses = driver.busNumber.split(",")
+      const assignedBuses = driver.busNumber ? driver.busNumber.split(",") : []
       const count = activeOrTodayAlerts.filter(alert => 
-        assignedBuses.includes(alert.number_plate || "") || assignedBuses.includes(alert.busNumber || "")
+        alert.driverId === driver.id ||
+        alert.driverName === driver.name ||
+        (assignedBuses.length > 0 && (
+          assignedBuses.includes(alert.number_plate || "") || assignedBuses.includes(alert.busNumber || "")
+        ))
       ).length
       
       return { ...driver, alertCount: count }

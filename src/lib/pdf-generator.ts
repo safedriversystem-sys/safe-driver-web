@@ -51,6 +51,7 @@ export const generatePDFReport = async (reportData: ReportData) => {
   try {
     const { jsPDF } = await import("jspdf");
     const { default: autoTable } = await import("jspdf-autotable");
+    const { generateIncidentBarChart } = await import("./chart-generator");
 
     const doc = new jsPDF({
       orientation: "portrait",
@@ -202,34 +203,65 @@ export const generatePDFReport = async (reportData: ReportData) => {
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.text(`Target Entity:  ${data?.entityName || "Entire Fleet"}`, 18, currentY + 9);
 
-
-
       currentY += 22;
 
-      // Table for Infraction Breakdown
+      // Generate and embed Incident Bar Chart
+      try {
+        const counts = {
+          drowsiness: data?.counts?.drowsiness || 0,
+          distraction: data?.counts?.distraction || 0,
+          phone: data?.counts?.phone || 0,
+          smoking: data?.counts?.smoking || 0,
+          drinking: data?.counts?.drinking || 0,
+        };
+        const chartDataUrl = await generateIncidentBarChart(counts);
+        doc.addImage(chartDataUrl, "PNG", 14, currentY, 182, 91);
+        currentY += 101;
+      } catch (chartErr) {
+        console.error("Failed to generate or embed chart:", chartErr);
+      }
+
+      // Table for Alert Log
+      const alertDetails: any[] = data?.alertDetails || [];
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
-      doc.text("Infraction Breakdown", 14, currentY);
+      doc.text(`Alert Log — ${alertDetails.length} Records`, 14, currentY);
       currentY += 4;
 
-      const infractionRows = [
-        ["Drowsiness (Critical)", String(data?.counts?.drowsiness ?? 0)],
-        ["Yawning (Warning)", String(data?.counts?.yawn ?? 0)],
-        ["Phone Usage (High Risk)", String(data?.counts?.phone ?? 0)],
-        ["Distracted Driving", String(data?.counts?.distraction ?? 0)]
-      ];
+      const detailRows = alertDetails.map((a: any, i: number) => [
+        String(i + 1),
+        a.driverName,
+        a.busNumber,
+        a.type,
+        a.timestamp,
+        a.description || "-"
+      ]);
 
       autoTable(doc, {
         startY: currentY,
-        head: [["Violation Type", "Count"]],
-        body: infractionRows,
+        head: [["#", "Driver Name", "Bus No.", "Alert Type", "Date & Time", "Description"]],
+        body: detailRows,
         theme: "striped",
-        headStyles: { fillColor: primaryColor, fontStyle: "bold" },
+        headStyles: { fillColor: primaryColor, fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 7.5 },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 35 },
+          4: { cellWidth: 40 },
+          5: { cellWidth: 37 },
+        },
         margin: { left: 14, right: 14 }
       });
 
-      // Feedback Summary
       let finalY = (doc as any).lastAutoTable.finalY + 12;
+
+      // Feedback Summary
+      if (finalY > 250) {
+        doc.addPage();
+        finalY = 20;
+      }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -247,19 +279,23 @@ export const generatePDFReport = async (reportData: ReportData) => {
       doc.setTextColor(100, 116, 139);
       doc.text(`Average Rating based on ${data?.feedbacks?.total ?? 0} passenger comments`, 50, finalY + 10);
 
+      finalY += 26;
+
       // Comments section (limit to fit page cleanly or add new page if needed)
       if (data?.feedbacks?.recent?.length > 0) {
-        doc.addPage();
-        let commentY = 20;
-        commentY = drawSectionHeader(commentY, "Passenger Feedback Details");
+        if (finalY > 230) {
+          doc.addPage();
+          finalY = 20;
+        }
+        finalY = drawSectionHeader(finalY, "Passenger Feedback Details");
         
         data.feedbacks.recent.forEach((f: any, idx: number) => {
-          if (commentY > 260) {
+          if (finalY > 260) {
             doc.addPage();
-            commentY = 20;
+            finalY = 20;
           }
-           doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
-          doc.rect(14, commentY, 182, 22, "F");
+          doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+          doc.rect(14, finalY, 182, 22, "F");
           doc.setFont("helvetica", "bold");
           doc.setFontSize(9);
           doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -267,18 +303,87 @@ export const generatePDFReport = async (reportData: ReportData) => {
           const cleanTitle = translateTextForPDF(f.title || "Passenger Comment");
           const cleanComment = translateTextForPDF(f.comment || "No comment");
 
-          doc.text(`${cleanTitle} - ${f.rating} Stars`, 18, commentY + 6);
+          doc.text(`${cleanTitle} - ${f.rating} Stars`, 18, finalY + 6);
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
           doc.setTextColor(100, 116, 139);
-          doc.text(`By ${f.userName || "Anonymous"} | Bus: ${f.busNumber || "N/A"} | Date: ${f.date}`, 18, commentY + 11);
+          doc.text(`By ${f.userName || "Anonymous"} | Bus: ${f.busNumber || "N/A"} | Date: ${f.date}`, 18, finalY + 11);
           
           doc.setFont("helvetica", "italic");
           doc.setFontSize(9);
           doc.setTextColor(51, 65, 85);
-          doc.text(`"${cleanComment}"`, 18, commentY + 17);
-          commentY += 26;
+          doc.text(`"${cleanComment}"`, 18, finalY + 17);
+          finalY += 26;
         });
+      }
+
+      // Evidence Photos section
+      const alertsWithEvidence = alertDetails.filter((a: any) => a.evidence && typeof a.evidence === "string" && a.evidence.startsWith("http"));
+
+      if (alertsWithEvidence.length > 0) {
+        const evidencePromises = alertsWithEvidence.map(async (alert) => {
+          try {
+            const imgDataUrl: string = await new Promise((resolve, reject) => {
+              const img = new Image();
+              img.crossOrigin = "anonymous";
+              img.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                  ctx.drawImage(img, 0, 0);
+                  resolve(canvas.toDataURL("image/jpeg", 0.8));
+                } else {
+                  reject(new Error("canvas context null"));
+                }
+              };
+              img.onerror = reject;
+              img.src = alert.evidence;
+            });
+            return { ...alert, imgDataUrl };
+          } catch (err) {
+            console.warn(`Skipping alert evidence for ${alert.id} because the image could not be loaded:`, err);
+            return null;
+          }
+        });
+
+        const resolvedAlerts = await Promise.all(evidencePromises);
+        const alertsWithValidEvidence = resolvedAlerts.filter((a): a is any => a !== null);
+
+        if (alertsWithValidEvidence.length > 0) {
+          doc.addPage();
+          let photoY = 20;
+          photoY = drawSectionHeader(photoY, "Evidence Photos");
+
+          for (let i = 0; i < alertsWithValidEvidence.length; i++) {
+            const alert = alertsWithValidEvidence[i];
+            if (photoY > 240) {
+              doc.addPage();
+              photoY = 20;
+            }
+
+            doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+            doc.rect(14, photoY, 182, 10, "F");
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.text(`${i + 1}. ${alert.type} — ${alert.driverName} | Bus: ${alert.busNumber} | ${alert.timestamp}`, 17, photoY + 6.5);
+            photoY += 12;
+
+            const imgDataUrl = alert.imgDataUrl;
+            const maxW = 100;
+            const maxH = 60;
+            const tmpImg = new Image();
+            tmpImg.src = imgDataUrl;
+            const ratio = Math.min(maxW / (tmpImg.naturalWidth || 320), maxH / (tmpImg.naturalHeight || 240));
+            const imgW = Math.min((tmpImg.naturalWidth || 320) * ratio, maxW);
+            const imgH = Math.min((tmpImg.naturalHeight || 240) * ratio, maxH);
+
+            doc.addImage(imgDataUrl, "JPEG", 14, photoY, imgW, imgH);
+            photoY += imgH + 10;
+          }
+        }
       }
     } else if (type === "driver-performance") {
       // Drivers Performance
@@ -364,6 +469,27 @@ export const generatePDFReport = async (reportData: ReportData) => {
         margin: { left: 14, right: 14 }
       });
 
+      let nextY = (doc as any).lastAutoTable.finalY + 12;
+
+      // Generate and embed Incident Bar Chart
+      try {
+        if (nextY > 170) {
+          doc.addPage();
+          nextY = 20;
+        }
+        const counts = {
+          drowsiness: data?.counts?.drowsiness || 0,
+          distraction: data?.counts?.distraction || 0,
+          phone: data?.counts?.phone || 0,
+          smoking: data?.counts?.smoking || 0,
+          drinking: data?.counts?.drinking || 0,
+        };
+        const chartDataUrl = await generateIncidentBarChart(counts);
+        doc.addImage(chartDataUrl, "PNG", 14, nextY, 182, 91);
+      } catch (chartErr) {
+        console.error("Failed to generate or embed chart in summary:", chartErr);
+      }
+
       // Detailed Alert Log (new page)
       const alertDetails: any[] = data?.alertDetails || [];
       if (alertDetails.length > 0) {
@@ -377,36 +503,26 @@ export const generatePDFReport = async (reportData: ReportData) => {
           a.driverName,
           a.busNumber,
           a.type,
-          (a.severity || "medium").toUpperCase(),
           a.timestamp,
           a.description || "-"
         ]);
 
         autoTable(doc, {
           startY: detailY,
-          head: [["#", "Driver Name", "Bus No.", "Alert Type", "Severity", "Date & Time", "Description"]],
+          head: [["#", "Driver Name", "Bus No.", "Alert Type", "Date & Time", "Description"]],
           body: detailRows,
           theme: "striped",
           headStyles: { fillColor: primaryColor, fontStyle: "bold", fontSize: 8 },
           bodyStyles: { fontSize: 7.5 },
           columnStyles: {
-            0: { cellWidth: 8 },
-            1: { cellWidth: 32 },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 30 },
-            4: { cellWidth: 18 },
-            5: { cellWidth: 38 },
-            6: { cellWidth: 36 },
+            0: { cellWidth: 10 },
+            1: { cellWidth: 35 },
+            2: { cellWidth: 25 },
+            3: { cellWidth: 35 },
+            4: { cellWidth: 40 },
+            5: { cellWidth: 37 },
           },
-          margin: { left: 14, right: 14 },
-          didParseCell: (hookData: any) => {
-            if (hookData.column.index === 4) {
-              const val = hookData.cell.raw as string;
-              if (val === "HIGH") hookData.cell.styles.textColor = [220, 38, 38];
-              else if (val === "MEDIUM") hookData.cell.styles.textColor = [217, 119, 6];
-              else hookData.cell.styles.textColor = [22, 163, 74];
-            }
-          }
+          margin: { left: 14, right: 14 }
         });
 
         // Evidence Photos section — embed images
@@ -414,8 +530,7 @@ export const generatePDFReport = async (reportData: ReportData) => {
 
         if (alertsWithEvidence.length > 0) {
           // Pre-filter to only include those that load successfully
-          const alertsWithValidEvidence: any[] = [];
-          for (const alert of alertsWithEvidence) {
+          const evidencePromises = alertsWithEvidence.map(async (alert) => {
             try {
               const imgDataUrl: string = await new Promise((resolve, reject) => {
                 const img = new Image();
@@ -435,15 +550,15 @@ export const generatePDFReport = async (reportData: ReportData) => {
                 img.onerror = reject;
                 img.src = alert.evidence;
               });
-              
-              alertsWithValidEvidence.push({
-                ...alert,
-                imgDataUrl
-              });
+              return { ...alert, imgDataUrl };
             } catch (err) {
               console.warn(`Skipping alert evidence for ${alert.id} because the image could not be loaded:`, err);
+              return null;
             }
-          }
+          });
+
+          const resolvedAlerts = await Promise.all(evidencePromises);
+          const alertsWithValidEvidence = resolvedAlerts.filter((a): a is any => a !== null);
 
           if (alertsWithValidEvidence.length > 0) {
             doc.addPage();
@@ -477,16 +592,6 @@ export const generatePDFReport = async (reportData: ReportData) => {
               const imgH = Math.min((tmpImg.naturalHeight || 240) * ratio, maxH);
 
               doc.addImage(imgDataUrl, "JPEG", 14, photoY, imgW, imgH);
-
-              // Severity badge beside image
-              const sevColor: [number, number, number] = alert.severity === "high" ? [220, 38, 38] : alert.severity === "medium" ? [217, 119, 6] : [22, 163, 74];
-              doc.setFillColor(sevColor[0], sevColor[1], sevColor[2]);
-              doc.roundedRect(120, photoY, 30, 8, 2, 2, "F");
-              doc.setFont("helvetica", "bold");
-              doc.setFontSize(8);
-              doc.setTextColor(255, 255, 255);
-              doc.text((alert.severity || "medium").toUpperCase(), 135, photoY + 5.5, { align: "center" });
-
               photoY += imgH + 10;
             }
           }

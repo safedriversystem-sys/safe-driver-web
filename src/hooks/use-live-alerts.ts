@@ -139,6 +139,12 @@ const mapAlertType = (type: string, tag: string): string => {
   if (lowerType.includes("phone") || lowerTag.includes("phone")) {
     return "phone_usage"
   }
+  if (lowerType.includes("smoke") || lowerTag.includes("smoke") || lowerType.includes("smoking") || lowerTag.includes("smoking")) {
+    return "smoking"
+  }
+  if (lowerType.includes("drink") || lowerTag.includes("drink") || lowerType.includes("drinking") || lowerTag.includes("drinking")) {
+    return "drinking"
+  }
   if (lowerType.includes("speed") || lowerTag.includes("speed")) {
     return "speeding"
   }
@@ -157,7 +163,7 @@ const getSeverity = (type: string, tag: string): "high" | "medium" | "low" => {
   if (lowerType.includes("drowsy") || lowerTag.includes("critical") || lowerTag.includes("distraction")) {
     return "high"
   }
-  if (lowerType.includes("phone") || lowerType.includes("speed")) {
+  if (lowerType.includes("phone") || lowerType.includes("speed") || lowerType.includes("smoke") || lowerType.includes("drink") || lowerType.includes("smoking") || lowerType.includes("drinking")) {
     return "medium"
   }
   return "low"
@@ -183,7 +189,15 @@ interface DeviceInfo {
 }
 
 // Transform Firebase alert to UI alert format
-const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: DeviceInfo, id?: string, firestoreVehicles: Vehicle[] = [], firestoreRoutes: any[] = []): Alert => {
+const transformAlert = (
+  deviceId: string,
+  alert: FirebaseAlert,
+  deviceInfo?: DeviceInfo,
+  id?: string,
+  firestoreVehicles: Vehicle[] = [],
+  firestoreRoutes: any[] = [],
+  firestoreDrivers: any[] = []
+): Alert => {
   const alertType = mapAlertType(alert.type, alert.tag)
   const severity = getSeverity(alert.type, alert.tag)
 
@@ -197,8 +211,28 @@ const transformAlert = (deviceId: string, alert: FirebaseAlert, deviceInfo?: Dev
   // Extract device info from actual Firebase structure or Firestore fallback
   const number_plate = alert.number_plate || deviceInfo?.number_plate || deviceInfo?.vehicle_reg_no?.trim() || matchedVehicle?.documentId || ""
   const busNumber = number_plate || deviceInfo?.busNumber || matchedVehicle?.busNumber || ""
-  const driverName = deviceInfo?.driverName || matchedVehicle?.driver || `Driver ${deviceId.substring(0, 8)}`
-  const driverId = deviceInfo?.driverId || `DRV-${deviceId.substring(0, 8)}`
+
+  // Resolve driver info: prioritize the Firestore document's driver ID
+  const dbDriverId = (alert as any).driver || ""
+  const matchedDriver = dbDriverId ? firestoreDrivers.find(d => d.id === dbDriverId) : null
+
+  // If no driver in the alert document, look up via the matched vehicle's driver assignment
+  let vehicleDriverId = ""
+  let vehicleDriverName = ""
+  if (!dbDriverId && matchedVehicle) {
+    if (matchedVehicle.driverId) {
+      vehicleDriverId = matchedVehicle.driverId
+      const d = firestoreDrivers.find(d => d.id === matchedVehicle.driverId)
+      vehicleDriverName = d?.name || matchedVehicle.driverName || ""
+    } else if (matchedVehicle.driver) {
+      vehicleDriverName = matchedVehicle.driver
+      const d = firestoreDrivers.find(d => d.name?.toLowerCase() === matchedVehicle.driver.toLowerCase())
+      vehicleDriverId = d?.id || ""
+    }
+  }
+
+  const driverId = matchedDriver?.id || dbDriverId || vehicleDriverId || deviceInfo?.driverId || `DRV-${deviceId.substring(0, 8)}`
+  const driverName = matchedDriver?.name || vehicleDriverName || deviceInfo?.driverName || matchedVehicle?.driver || `Driver ${deviceId.substring(0, 8)}`
   
   const rawRoute = deviceInfo?.route || matchedVehicle?.route || "Unknown Route"
   
@@ -276,6 +310,7 @@ export function useLiveAlerts() {
   const [devices, setDevices] = useState<Record<string, DeviceInfo>>({})
   const [firestoreVehicles, setFirestoreVehicles] = useState<Vehicle[]>([])
   const [firestoreRoutes, setFirestoreRoutes] = useState<any[]>([])
+  const [firestoreDrivers, setFirestoreDrivers] = useState<any[]>([])
   const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved">>({})
   const [availableDeviceIds, setAvailableDeviceIds] = useState<string[]>([])
   const historyAlertsMapRef = useRef<Map<string, Alert>>(new Map())
@@ -375,6 +410,38 @@ export function useLiveAlerts() {
     }
   }, [])
 
+  // Subscribe to Firestore drivers for driver names lookup in alerts
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    try {
+      const dbInstance = getFirebaseFirestore()
+      if (!dbInstance) return
+
+      console.log("👤 Subscribing to Firestore drivers...")
+      const driversRef = collection(dbInstance, "drivers")
+      
+      const unsubscribe = onSnapshot(
+        driversRef,
+        (snapshot) => {
+          const driversList = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          console.log(`👤 Firestore drivers updated: ${driversList.length} drivers`)
+          setFirestoreDrivers(driversList)
+        },
+        (error) => {
+          console.error("Error subscribing to drivers:", error)
+        }
+      )
+
+      return () => unsubscribe()
+    } catch (err) {
+      console.error("Error setting up drivers listener:", err)
+    }
+  }, [])
+
   // Initialize Firebase and listen to devices for device information
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -466,7 +533,7 @@ export function useLiveAlerts() {
               Object.keys(history).forEach((historyKey) => {
                 const historyAlert = history[historyKey] as FirebaseAlert
                 if (historyAlert && historyAlert.message && historyAlert.time) {
-                  const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey, firestoreVehicles, firestoreRoutes)
+                  const alert = transformAlert(deviceId, historyAlert, deviceInfo, historyKey, firestoreVehicles, firestoreRoutes, firestoreDrivers)
                   
                   // Use raw status from database
                   alert.status = (historyAlert as any).status || "active"
@@ -486,7 +553,7 @@ export function useLiveAlerts() {
             if (deviceAlert && deviceAlert.latest) {
               const latest = deviceAlert.latest
               if (latest.message && latest.time) {
-                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, `latest-${latest.time}`, firestoreVehicles, firestoreRoutes)
+                const alert = transformAlert(deviceId, latest as FirebaseAlert, deviceInfo, `latest-${latest.time}`, firestoreVehicles, firestoreRoutes, firestoreDrivers)
                 
                 // Use raw status from database
                 alert.status = (latest as any).status || "active"
@@ -553,7 +620,7 @@ export function useLiveAlerts() {
       setError(err instanceof Error ? err : new Error("Failed to set up alerts listener"))
       setIsLoading(false)
     }
-  }, [devices, firestoreVehicles, firestoreRoutes])
+  }, [devices, firestoreVehicles, firestoreRoutes, firestoreDrivers])
 
   // Dynamically merge alertStatuses with rawAlerts
   const alerts = useMemo(() => {
@@ -647,7 +714,7 @@ export function useLiveAlerts() {
                     
                     if (alertData && alertData.message && alertData.tag && alertData.time && alertData.type) {
                       const deviceInfo = devices[deviceId]
-                      const alert = transformAlert(deviceId, alertData, deviceInfo, undefined, firestoreVehicles, firestoreRoutes)
+                      const alert = transformAlert(deviceId, alertData, deviceInfo, undefined, firestoreVehicles, firestoreRoutes, firestoreDrivers)
                       alert.status = "resolved"
                       alert.id = `${deviceId}-${date}-${doc.id}-${alertData.time}`
                       
@@ -683,7 +750,7 @@ export function useLiveAlerts() {
     } catch (err) {
       console.error("❌ Error setting up history alerts real-time listeners:", err)
     }
-  }, [devices, availableDeviceIds, firestoreVehicles, firestoreRoutes])
+  }, [devices, availableDeviceIds, firestoreVehicles, firestoreRoutes, firestoreDrivers])
 
   return { alerts, historyAlerts, isLoading, error }
 }
