@@ -777,30 +777,13 @@ export default function FleetManagement() {
       {/* Vehicle Details Modal */}
       {selectedVehicle && (
         <Dialog open={!!selectedVehicle} onOpenChange={() => setSelectedVehicle(null)}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{selectedVehicle.busNumberPlate || selectedVehicle.busNumber || "N/A"} - Detailed Information</DialogTitle>
               <DialogDescription>
                 {selectedVehicle.model} ({selectedVehicle.year})
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-6">
-              {/* Vehicle Status */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{Math.round(selectedVehicle.speed)}</div>
-                  <div className="text-sm text-muted-foreground">Speed (km/h)</div>
-                </div>
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{selectedVehicle.batteryLevel || 0}%</div>
-                  <div className="text-sm text-muted-foreground">Battery Level</div>
-                </div>
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{selectedVehicle.mileage || 0} km</div>
-                  <div className="text-sm text-muted-foreground">Mileage</div>
-                </div>
-              </div>
-            </div>
           </DialogContent>
         </Dialog>
       )}

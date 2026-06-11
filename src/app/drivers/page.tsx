@@ -31,11 +31,14 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit, MoreHorizontal, Bus, Route } from "lucide-react"
+import { Users, Phone, Mail, Activity, Plus, Search, Eye, Trash2, Loader2, Edit, MoreHorizontal, Bus, ChevronDown } from "lucide-react"
 import type { Driver } from "@/lib/driver-types"
+import type { Vehicle } from "@/lib/fleet-types"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/components/language-provider"
 import { useLiveAlerts, isToday } from "@/hooks/use-live-alerts"
@@ -44,6 +47,22 @@ import { useMemo } from "react"
 export default function DriversPage() {
   const { t } = useLanguage()
   const [drivers, setDrivers] = useState<Driver[]>([])
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [loadingVehicles, setLoadingVehicles] = useState(true)
+
+  const fetchVehicles = async () => {
+    try {
+      setLoadingVehicles(true)
+      const response = await fetch("/api/fleet")
+      if (!response.ok) throw new Error("Failed to fetch vehicles")
+      const data = await response.json()
+      setVehicles(data)
+    } catch (error) {
+      console.error("Error fetching vehicles:", error)
+    } finally {
+      setLoadingVehicles(false)
+    }
+  }
   
   // Real-time alerts integration
   const { alerts: liveAlerts } = useLiveAlerts()
@@ -56,11 +75,12 @@ export default function DriversPage() {
     )
     
     return drivers.map(driver => {
-      // Find alerts for this driver's assigned bus
+      // Find alerts for this driver's assigned buses
       if (!driver.busNumber) return { ...driver, alertCount: 0 }
       
+      const assignedBuses = driver.busNumber.split(",")
       const count = activeOrTodayAlerts.filter(alert => 
-        (alert.number_plate === driver.busNumber || alert.busNumber === driver.busNumber)
+        assignedBuses.includes(alert.number_plate) || assignedBuses.includes(alert.busNumber)
       ).length
       
       return { ...driver, alertCount: count }
@@ -92,7 +112,6 @@ export default function DriversPage() {
     phone: "",
     email: "",
     busNumber: "",
-    route: "",
     address: "",
     experience: "",
   })
@@ -176,6 +195,7 @@ export default function DriversPage() {
   useEffect(() => {
     // Initial load
     fetchDrivers()
+    fetchVehicles()
   }, [])
 
   // Refetch when filters change with debounce
@@ -273,7 +293,6 @@ export default function DriversPage() {
         phone: "",
         email: "",
         busNumber: "",
-        route: "",
         address: "",
         experience: "",
       })
@@ -441,7 +460,6 @@ export default function DriversPage() {
           phone: editingDriver.phone,
           email: editingDriver.email,
           busNumber: editingDriver.busNumber || "",
-          route: editingDriver.route || "",
           address: editingDriver.address || "",
           experience: editingDriver.experience || "",
           status: editingDriver.status,
@@ -574,22 +592,59 @@ export default function DriversPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="bus">Bus Number</Label>
-                <Input
-                  id="bus"
-                  value={newDriver.busNumber}
-                  onChange={(e) => setNewDriver({ ...newDriver, busNumber: e.target.value })}
-                  placeholder="NB-1234"
-                />
-              </div>
-              <div>
-                <Label htmlFor="route">Route</Label>
-                <Input
-                  id="route"
-                  value={newDriver.route}
-                  onChange={(e) => setNewDriver({ ...newDriver, route: e.target.value })}
-                  placeholder="Colombo - Kandy"
-                />
+                <Label htmlFor="bus">Bus Number(s)</Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between font-normal text-left h-auto min-h-[40px] py-2 px-3">
+                      <span className="truncate max-w-[90%] whitespace-normal">
+                        {newDriver.busNumber
+                          ? newDriver.busNumber
+                              .split(",")
+                              .map((plate) => {
+                                const v = vehicles.find((veh) => veh.busNumberPlate === plate)
+                                return v ? `${plate}${v.busNumber ? ` (${v.busNumber})` : ""}` : plate
+                              })
+                              .join(", ")
+                          : "Select registered buses"}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[350px] max-h-[300px] overflow-y-auto">
+                    <DropdownMenuLabel>Select Buses</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={!newDriver.busNumber}
+                      onCheckedChange={() => setNewDriver({ ...newDriver, busNumber: "" })}
+                    >
+                      Unassigned
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuSeparator />
+                    {vehicles.map((v) => {
+                      const plate = v.busNumberPlate || ""
+                      const assignedBuses = newDriver.busNumber ? newDriver.busNumber.split(",") : []
+                      const isChecked = assignedBuses.includes(plate)
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={v.id}
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            let updatedBuses
+                            if (checked) {
+                              updatedBuses = [...assignedBuses, plate]
+                            } else {
+                              updatedBuses = assignedBuses.filter((b) => b !== plate)
+                            }
+                            const uniqueBuses = Array.from(new Set(updatedBuses)).filter(Boolean)
+                            setNewDriver({ ...newDriver, busNumber: uniqueBuses.join(",") })
+                          }}
+                        >
+                          {v.busNumberPlate || "Unknown"} {v.busNumber ? `(${v.busNumber})` : ""}
+                        </DropdownMenuCheckboxItem>
+                      )
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div>
                 <Label htmlFor="experience">Experience</Label>
@@ -737,15 +792,25 @@ export default function DriversPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Bus and Route assigned info */}
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  {/* Bus assigned info */}
+                  <div className="text-sm">
                     <div className="flex items-center gap-2">
-                      <Bus className="h-4 w-4 text-muted-foreground" />
-                      <span className="truncate">{driver.busNumber || "No Bus Assigned"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Route className="h-4 w-4 text-muted-foreground" />
-                      <span className="truncate">{driver.route || "No Route Assigned"}</span>
+                      <Bus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate" title={(() => {
+                        if (!driver.busNumber) return "No Bus Assigned"
+                        return driver.busNumber.split(",").map((busPlate) => {
+                          const v = vehicles.find((veh) => veh.busNumberPlate === busPlate)
+                          return v ? `${v.busNumberPlate}${v.busNumber ? ` (${v.busNumber})` : ""}` : busPlate
+                        }).join(", ")
+                      })()}>
+                        {(() => {
+                          if (!driver.busNumber) return "No Bus Assigned"
+                          return driver.busNumber.split(",").map((busPlate) => {
+                            const v = vehicles.find((veh) => veh.busNumberPlate === busPlate)
+                            return v ? `${v.busNumberPlate}${v.busNumber ? ` (${v.busNumber})` : ""}` : busPlate
+                          }).join(", ")
+                        })()}
+                      </span>
                     </div>
                   </div>
 
@@ -881,22 +946,59 @@ export default function DriversPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit-bus">Bus Number</Label>
-                  <Input
-                    id="edit-bus"
-                    value={editingDriver.busNumber || ""}
-                    onChange={(e) => setEditingDriver({ ...editingDriver, busNumber: e.target.value })}
-                    placeholder="NB-1234"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-route">Route</Label>
-                  <Input
-                    id="edit-route"
-                    value={editingDriver.route || ""}
-                    onChange={(e) => setEditingDriver({ ...editingDriver, route: e.target.value })}
-                    placeholder="Colombo - Kandy"
-                  />
+                  <Label htmlFor="edit-bus">Bus Number(s)</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between font-normal text-left h-auto min-h-[40px] py-2 px-3">
+                        <span className="truncate max-w-[90%] whitespace-normal">
+                          {editingDriver.busNumber
+                            ? editingDriver.busNumber
+                                .split(",")
+                                .map((plate) => {
+                                  const v = vehicles.find((veh) => veh.busNumberPlate === plate)
+                                  return v ? `${plate}${v.busNumber ? ` (${v.busNumber})` : ""}` : plate
+                                })
+                                .join(", ")
+                            : "Select registered buses"}
+                        </span>
+                        <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[350px] max-h-[300px] overflow-y-auto">
+                      <DropdownMenuLabel>Select Buses</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuCheckboxItem
+                        checked={!editingDriver.busNumber}
+                        onCheckedChange={() => setEditingDriver({ ...editingDriver, busNumber: "" })}
+                      >
+                        Unassigned
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuSeparator />
+                      {vehicles.map((v) => {
+                        const plate = v.busNumberPlate || ""
+                        const assignedBuses = editingDriver.busNumber ? editingDriver.busNumber.split(",") : []
+                        const isChecked = assignedBuses.includes(plate)
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={v.id}
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              let updatedBuses
+                              if (checked) {
+                                updatedBuses = [...assignedBuses, plate]
+                              } else {
+                                updatedBuses = assignedBuses.filter((b) => b !== plate)
+                              }
+                              const uniqueBuses = Array.from(new Set(updatedBuses)).filter(Boolean)
+                              setEditingDriver({ ...editingDriver, busNumber: uniqueBuses.join(",") })
+                            }}
+                          >
+                            {v.busNumberPlate || "Unknown"} {v.busNumber ? `(${v.busNumber})` : ""}
+                          </DropdownMenuCheckboxItem>
+                        )
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div>
                   <Label htmlFor="edit-experience">Experience</Label>
@@ -988,12 +1090,16 @@ export default function DriversPage() {
                   <p className="font-medium">{selectedDriver.email}</p>
                 </div>
                 <div>
-                  <Label>Bus Number</Label>
-                  <p className="font-medium">{selectedDriver.busNumber || "N/A"}</p>
-                </div>
-                <div>
-                  <Label>Route</Label>
-                  <p className="font-medium">{selectedDriver.route || "N/A"}</p>
+                  <Label>Bus Number(s)</Label>
+                  <p className="font-medium">
+                    {(() => {
+                      if (!selectedDriver.busNumber) return "N/A"
+                      return selectedDriver.busNumber.split(",").map((busPlate) => {
+                        const v = vehicles.find((veh) => veh.busNumberPlate === busPlate)
+                        return v ? `${v.busNumberPlate}${v.busNumber ? ` (${v.busNumber})` : ""}` : busPlate
+                      }).join(", ")
+                    })()}
+                  </p>
                 </div>
                 <div>
                   <Label>Experience</Label>
