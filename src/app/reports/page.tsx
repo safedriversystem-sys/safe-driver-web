@@ -85,7 +85,7 @@ export default function ReportsPage() {
     const alertSummary = Object.entries(alertTypesCounts).map(([type, count]) => ({
       type, count, high: Math.round(count * 0.4), medium: Math.round(count * 0.4), low: Math.round(count * 0.2), avgResponse: "1m"
     }))
-    const alertDensity = fleet.length > 0 ? (todayAlertsList.length / fleet.length).toFixed(2) : "0"
+    const alertDensity = activeVehicles > 0 ? (todayAlertsList.length / activeVehicles).toFixed(2) : "0"
     const totalDrivers = drivers.length || 1
     const activeDrivers = drivers.filter(d => d.status === "on_duty").length
     return {
