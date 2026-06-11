@@ -240,7 +240,7 @@ export const generatePDFReport = async (reportData: ReportData) => {
       autoTable(doc, {
         startY: currentY,
         head: [["#", "Driver Name", "Bus No.", "Alert Type", "Date & Time", "Description"]],
-        body: detailRows,
+        body: detailRows.length > 0 ? detailRows : [["No records found", "", "", "", "", ""]],
         theme: "striped",
         headStyles: { fillColor: primaryColor, fontStyle: "bold", fontSize: 8 },
         bodyStyles: { fontSize: 7.5 },
@@ -510,7 +510,7 @@ export const generatePDFReport = async (reportData: ReportData) => {
         autoTable(doc, {
           startY: detailY,
           head: [["#", "Driver Name", "Bus No.", "Alert Type", "Date & Time", "Description"]],
-          body: detailRows,
+          body: detailRows.length > 0 ? detailRows : [["No records found", "", "", "", "", ""]],
           theme: "striped",
           headStyles: { fillColor: primaryColor, fontStyle: "bold", fontSize: 8 },
           bodyStyles: { fontSize: 7.5 },

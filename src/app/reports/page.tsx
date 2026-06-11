@@ -139,12 +139,8 @@ export default function ReportsPage() {
       if (reportEntity === "driver" && selectedEntityId !== "all") {
         const driver = drivers.find(d => d.id === selectedEntityId || d.licenseNumber === selectedEntityId)
         filteredAlerts = filteredAlerts.filter(a => 
-          a.driverId === selectedEntityId || 
-          a.driverName === driver?.name ||
-          (driver && driver.busNumber && (
-            driver.busNumber.split(",").includes(a.busNumber) ||
-            driver.busNumber.split(",").includes(a.number_plate)
-          ))
+          (a.driverId && (a.driverId === selectedEntityId || (driver && a.driverId === driver.id))) || 
+          (a.driverName && driver && a.driverName.toLowerCase().trim() === driver.name.toLowerCase().trim())
         )
         entityName = `Driver: ${driver?.name || selectedEntityId}`
       } else if (reportEntity === "bus" && selectedEntityId !== "all") {
@@ -182,12 +178,8 @@ export default function ReportsPage() {
       if (reportEntity === "driver" && selectedEntityId !== "all") {
         const driver = drivers.find(d => d.id === selectedEntityId || d.licenseNumber === selectedEntityId)
         filteredFeedbacks = filteredFeedbacks.filter(f => 
-          f.driverId === selectedEntityId || 
-          f.driverName === driver?.name ||
-          (driver && driver.busNumber && (
-            driver.busNumber.split(",").includes(f.busNumber) ||
-            driver.busNumber.split(",").includes(f.vehicleId)
-          ))
+          (f.driverId && (f.driverId === selectedEntityId || (driver && f.driverId === driver.id))) || 
+          (f.driverName && driver && f.driverName.toLowerCase().trim() === driver.name.toLowerCase().trim())
         )
       } else if (reportEntity === "bus" && selectedEntityId !== "all") {
         const vehicle = fleet.find(v => v.id === selectedEntityId || v.busNumberPlate === selectedEntityId || v.busNumber === selectedEntityId)
@@ -237,22 +229,27 @@ export default function ReportsPage() {
           description: a.description || a.tag || "",
           evidence: a.evidence || null,
         })),
-        drivers: (Array.isArray(drivers) ? drivers : []).map(d => {
-          const assignedBuses = d.busNumber ? d.busNumber.split(",") : []
-          const driverAlerts = filteredAlerts.filter(a => 
-            a.driverId === d.id || 
-            a.driverName === d.name ||
-            (assignedBuses.length > 0 && (assignedBuses.includes(a.number_plate || "") || assignedBuses.includes(a.busNumber || "")))
-          )
-          return {
-            name: d.name,
-            license: d.licenseNumber,
-            bus: d.busNumber || 'N/A',
-            route: d.route || 'Unassigned',
-            alerts: driverAlerts.length,
-            status: d.status
-          }
-        }),
+        drivers: (Array.isArray(drivers) ? drivers : [])
+          .filter(d => {
+            if (reportEntity === "driver" && selectedEntityId !== "all") {
+              return d.id === selectedEntityId || d.licenseNumber === selectedEntityId
+            }
+            return true
+          })
+          .map(d => {
+            const driverAlerts = filteredAlerts.filter(a => 
+              (a.driverId && a.driverId === d.id) || 
+              (a.driverName && a.driverName.toLowerCase().trim() === d.name.toLowerCase().trim())
+            )
+            return {
+              name: d.name,
+              license: d.licenseNumber,
+              bus: d.busNumber || 'N/A',
+              route: d.route || 'Unassigned',
+              alerts: driverAlerts.length,
+              status: d.status
+            }
+          }),
         routes: (Array.isArray(routes) ? routes : []).map(r => ({ name: r.name, buses: r.activeVehicles, drivers: r.activeVehicles, distance: `${r.distance}km`, riskAreas: r.safetyIncidents, efficiency: r.onTimePerformance })),
         compliance: { driverLicenseValidity: 100, vehicleInspections: 100, safetyTraining: 100, emergencyProtocols: 100, dataReporting: 100 }
       }
