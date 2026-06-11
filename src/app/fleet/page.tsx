@@ -504,15 +504,7 @@ export default function FleetManagement() {
                   placeholder="2024"
                 />
               </div>
-              <div>
-                <Label htmlFor="driver">{t("assigned_driver")}</Label>
-                <Input
-                  id="driver"
-                  value={newVehicle.driverName}
-                  onChange={(e) => setNewVehicle({ ...newVehicle, driverName: e.target.value })}
-                  placeholder="Driver name"
-                />
-              </div>
+
               <div>
                 <Label htmlFor="route">{t("route_label")}</Label>
                 <Select
@@ -879,15 +871,7 @@ export default function FleetManagement() {
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="edit-driverName">Assigned Driver</Label>
-                <Input
-                  id="edit-driverName"
-                  value={editingVehicle.driverName || ""}
-                  onChange={(e) => setEditingVehicle({ ...editingVehicle, driverName: e.target.value })}
-                  placeholder="Driver name"
-                />
-              </div>
+
               <div>
                 <Label htmlFor="edit-route">Route</Label>
                 <Select
