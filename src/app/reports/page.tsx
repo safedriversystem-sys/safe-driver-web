@@ -251,6 +251,49 @@ export default function ReportsPage() {
             }
           }),
         routes: (Array.isArray(routes) ? routes : []).map(r => ({ name: r.name, buses: r.activeVehicles, drivers: r.activeVehicles, distance: `${r.distance}km`, riskAreas: r.safetyIncidents, efficiency: r.onTimePerformance })),
+        buses: (Array.isArray(fleet) ? fleet : []).map(v => {
+          // Prepare normalized keys for matching
+          const vPlate = (v.busNumberPlate || v.busNumber || v.id || '').toLowerCase().trim()
+          const vDeviceId = (v.deviceId || '').toLowerCase().trim()
+          const vDriverId = (v.driverId || '').trim()
+          const vDriverName = (v.driverName || '').toLowerCase().trim()
+
+          // Use all combined alerts (live + history) for bus counts, applying time filter
+          const busAlerts = combinedAlerts.filter(a => {
+            const alertTime = new Date(a.timestamp || Date.now()).getTime()
+            if ((now - alertTime) > timeMs) return false
+
+            const aPlate = (a.number_plate || '').toLowerCase().trim()
+            const aBusNum = (a.busNumber || '').toLowerCase().trim()
+            const aDeviceId = (a.deviceId || '').toLowerCase().trim()
+            const aDriverId = (a.driverId || '').trim()
+            const aDriverName = (a.driverName || '').toLowerCase().trim()
+
+            // Match by bus plate (most reliable)
+            if (vPlate && (aBusNum === vPlate || aPlate === vPlate)) return true
+            // Match by device ID
+            if (vDeviceId && aDeviceId && aDeviceId === vDeviceId) return true
+            // Match by assigned driver ID
+            if (vDriverId && aDriverId && aDriverId === vDriverId) return true
+            // Match by assigned driver name (case-insensitive)
+            if (vDriverName && aDriverName && aDriverName === vDriverName) return true
+
+            return false
+          })
+          return {
+            busNumberPlate: v.busNumberPlate || v.busNumber || v.id || 'N/A',
+            model: v.model || 'N/A',
+            driver: v.driverName || v.driverId || 'Unassigned',
+            route: v.route || 'Unassigned',
+            alerts: busAlerts.length,
+            status: v.status || 'inactive'
+          }
+        }),
+        fleetSummary: {
+          total: fleet.length,
+          active: fleet.filter(v => v.status === 'active').length,
+          totalAlerts: filteredAlerts.length
+        },
         compliance: { driverLicenseValidity: 100, vehicleInspections: 100, safetyTraining: 100, emergencyProtocols: 100, dataReporting: 100 }
       }
       await generatePDFReport({

@@ -128,15 +128,13 @@ export const generatePDFReport = async (reportData: ReportData) => {
         { label: "Total Driver Alerts", value: driverAlerts, color: accentColor }
       ];
     } else if (type === "fleet-analytics") {
-      const activeBuses = data?.routes?.reduce((sum: number, r: any) => sum + (Number(r.buses) || 0), 0) ?? 0;
-      const totalRoutes = data?.routes?.length ?? 0;
-      const avgEfficiency = data?.routes?.length > 0
-        ? `${(data.routes.reduce((sum: number, r: any) => sum + parseFloat(r.efficiency || 0), 0) / data.routes.length).toFixed(0)}%`
-        : "100%";
+      const totalBuses = data?.fleetSummary?.total ?? (data?.buses?.length ?? 0);
+      const activeBuses = data?.fleetSummary?.active ?? 0;
+      const totalAlerts = data?.fleetSummary?.totalAlerts ?? data?.buses?.reduce((sum: number, b: any) => sum + (Number(b.alerts) || 0), 0) ?? 0;
       summaryCards = [
-        { label: "Active Routes Monitored", value: totalRoutes, color: secondaryColor },
-        { label: "Active Buses Dispatched", value: activeBuses, color: [16, 185, 129] as [number, number, number] },
-        { label: "Schedule Efficiency", value: avgEfficiency, color: [79, 70, 229] as [number, number, number] }
+        { label: "Total Buses in Fleet", value: totalBuses, color: secondaryColor },
+        { label: "Active Buses", value: activeBuses, color: [16, 185, 129] as [number, number, number] },
+        { label: "Total Bus Alerts", value: totalAlerts, color: accentColor }
       ];
     } else if (type === "compliance") {
       summaryCards = [
@@ -407,22 +405,21 @@ export const generatePDFReport = async (reportData: ReportData) => {
         margin: { left: 14, right: 14 }
       });
     } else if (type === "fleet-analytics") {
-      // Fleet Analytics
-      currentY = drawSectionHeader(currentY, "Fleet Operations & Safety");
+      // Fleet Analytics — Bus Performance Table (mirrors Driver Performance)
+      currentY = drawSectionHeader(currentY, "Bus Fleet Performance");
 
-      const tableBody = (data?.routes || []).map((r: any) => [
-        r.name,
-        String(r.buses),
-        String(r.drivers),
-        r.distance,
-        String(r.riskAreas),
-        `${r.efficiency}%`
+      const tableBody = (data?.buses || []).map((b: any) => [
+        b.busNumberPlate,
+        b.model,
+        b.route,
+        String(b.alerts),
+        b.status === "active" ? "Active" : "Inactive"
       ]);
 
       autoTable(doc, {
         startY: currentY,
-        head: [["Route Name", "Active Buses", "Active Drivers", "Distance", "Incidents", "On-Time %"]],
-        body: tableBody.length > 0 ? tableBody : [["No fleet telemetry data available", "", "", "", "", ""]],
+        head: [["Bus No.", "Model", "Route", "Alerts", "Status"]],
+        body: tableBody.length > 0 ? tableBody : [["No fleet data available", "", "", "", ""]],
         theme: "striped",
         headStyles: { fillColor: primaryColor, fontStyle: "bold" },
         margin: { left: 14, right: 14 }
