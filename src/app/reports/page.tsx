@@ -30,7 +30,6 @@ import {
 import { useLanguage } from "@/components/language-provider"
 import { generatePDFReport } from "@/lib/pdf-generator"
 import { useLiveAlerts, isToday, isWithinLast24Hours, isWithinLast30Days } from "@/hooks/use-live-alerts"
-import { calculateSafetyScore, getRiskLevelDetails } from "@/lib/safety-score"
 
 export default function ReportsPage() {
   const { t } = useLanguage()
@@ -78,9 +77,6 @@ export default function ReportsPage() {
     const todayAlertsList = uniqueAlerts.filter(
       (alert) => isToday(alert.timestamp) || isWithinLast24Hours(alert.timestamp)
     )
-    const alertsLast24Hours = uniqueAlerts.filter((alert) => isWithinLast24Hours(alert.timestamp))
-    const safetyScore = calculateSafetyScore(alertsLast24Hours)
-    const riskDetails = getRiskLevelDetails(safetyScore)
     const activeVehicles = fleet.filter(v => v.status === "active").length
     const alertTypesCounts: Record<string, number> = {}
     todayAlertsList.forEach(a => {
@@ -94,8 +90,6 @@ export default function ReportsPage() {
     const activeDrivers = drivers.filter(d => d.status === "on_duty").length
     return {
       uniqueTodayAlerts: todayAlertsList,
-      safetyScore,
-      riskLevel: riskDetails.level,
       alertSummary,
       alertDensity,
       activeDrivers,
@@ -133,7 +127,6 @@ export default function ReportsPage() {
       const dynamicAlertSummary = Object.entries(alertTypesCounts).map(([type, count]) => ({
         type, count, high: Math.round(count * 0.4), medium: Math.round(count * 0.4), low: Math.round(count * 0.2), avgResponse: "1m"
       }))
-      const safetyScore = calculateSafetyScore(filteredAlerts)
       let filteredFeedbacks = feedbacks.filter(f => {
         if (!f.timestamp && !f.createdAt) return false
         const feedbackTime = new Date((f.timestamp || f.createdAt) as string).getTime()
@@ -148,7 +141,7 @@ export default function ReportsPage() {
       const getRatingValue = (f: any) => typeof f.rating === 'object' ? (f.rating?.overall || 5) : (Number(f.rating) || 5)
       const avgFeedbackRating = filteredFeedbacks.length > 0 ? (filteredFeedbacks.reduce((sum, f) => sum + getRatingValue(f), 0) / filteredFeedbacks.length).toFixed(1) : "N/A"
       const reportData: any = {
-        entityName, timePeriod: timePeriod.toUpperCase(), safetyScore,
+        entityName, timePeriod: timePeriod.toUpperCase(),
         counts: { total: filteredAlerts.length, drowsiness: drowsinessCount, yawn: yawnCount, phone: phoneCount, distraction: distractionCount },
         feedbacks: {
           total: filteredFeedbacks.length, averageRating: avgFeedbackRating,
@@ -174,7 +167,7 @@ export default function ReportsPage() {
         })),
         drivers: (Array.isArray(drivers) ? drivers : []).map(d => ({ name: d.name, license: d.licenseNumber, bus: d.busNumber || 'N/A', route: d.route || 'Unassigned', alerts: d.alertCount || 0, status: d.status })),
         routes: (Array.isArray(routes) ? routes : []).map(r => ({ name: r.name, buses: r.activeVehicles, drivers: r.activeVehicles, distance: `${r.distance}km`, riskAreas: r.safetyIncidents, efficiency: r.onTimePerformance })),
-        compliance: { driverLicenseValidity: 100, vehicleInspections: 100, safetyTraining: Math.round(data.safetyScore), emergencyProtocols: 100, dataReporting: 100 }
+        compliance: { driverLicenseValidity: 100, vehicleInspections: 100, safetyTraining: 100, emergencyProtocols: 100, dataReporting: 100 }
       }
       await generatePDFReport({
         type: type === 'custom' ? 'custom-dynamic' : type,
@@ -237,25 +230,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Safety Score</CardTitle>
-            <Shield className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{data.safetyScore.toFixed(1)}%</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Risk Level</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-500">{data.riskLevel}</div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today&apos;s Alerts</CardTitle>
@@ -419,7 +394,7 @@ export default function ReportsPage() {
           <CardDescription>Live metrics from the active fleet and driver data</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Active Drivers */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
@@ -440,17 +415,6 @@ export default function ReportsPage() {
                 <span className="text-sm font-bold text-primary">{data.activeVehicles} / {data.totalVehicles}</span>
               </div>
               <Progress value={data.totalVehicles > 0 ? (data.activeVehicles / data.totalVehicles) * 100 : 0} className="h-2" />
-            </div>
-
-            {/* Safety Score */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Shield className="h-4 w-4" /> Safety Score
-                </span>
-                <span className="text-sm font-bold text-amber-500">{data.safetyScore.toFixed(1)}%</span>
-              </div>
-              <Progress value={data.safetyScore} className="h-2" />
             </div>
           </div>
         </CardContent>

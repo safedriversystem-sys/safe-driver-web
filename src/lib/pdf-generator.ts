@@ -124,8 +124,7 @@ export const generatePDFReport = async (reportData: ReportData) => {
       const driverAlerts = data?.drivers?.reduce((sum: number, d: any) => sum + (Number(d.alerts) || 0), 0) ?? 0;
       summaryCards = [
         { label: "Total Drivers", value: data?.drivers?.length ?? 0, color: secondaryColor },
-        { label: "Total Driver Alerts", value: driverAlerts, color: accentColor },
-        { label: "Avg Safety Score", value: `${Math.round(data?.safetyScore ?? 95)}%`, color: [16, 185, 129] as [number, number, number] }
+        { label: "Total Driver Alerts", value: driverAlerts, color: accentColor }
       ];
     } else if (type === "fleet-analytics") {
       const activeBuses = data?.routes?.reduce((sum: number, r: any) => sum + (Number(r.buses) || 0), 0) ?? 0;
@@ -203,9 +202,7 @@ export const generatePDFReport = async (reportData: ReportData) => {
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.text(`Target Entity:  ${data?.entityName || "Entire Fleet"}`, 18, currentY + 9);
 
-      const safetyScore = data?.safetyScore ?? 0;
-      doc.setFont("helvetica", "bold");
-      doc.text(`AI Safety Score:  ${safetyScore.toFixed(1)}%`, 130, currentY + 9);
+
 
       currentY += 22;
 
@@ -416,28 +413,10 @@ export const generatePDFReport = async (reportData: ReportData) => {
         const alertsWithEvidence = alertDetails.filter((a: any) => a.evidence && typeof a.evidence === "string" && a.evidence.startsWith("http"));
 
         if (alertsWithEvidence.length > 0) {
-          doc.addPage();
-          let photoY = 20;
-          photoY = drawSectionHeader(photoY, "Evidence Photos");
-
-          for (let i = 0; i < alertsWithEvidence.length; i++) {
-            const alert = alertsWithEvidence[i];
-            if (photoY > 240) {
-              doc.addPage();
-              photoY = 20;
-            }
-
-            // Alert label
-            doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
-            doc.rect(14, photoY, 182, 10, "F");
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(9);
-            doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            doc.text(`${i + 1}. ${alert.type} — ${alert.driverName} | Bus: ${alert.busNumber} | ${alert.timestamp}`, 17, photoY + 6.5);
-            photoY += 12;
-
+          // Pre-filter to only include those that load successfully
+          const alertsWithValidEvidence: any[] = [];
+          for (const alert of alertsWithEvidence) {
             try {
-              // Fetch image and convert to base64 via canvas
               const imgDataUrl: string = await new Promise((resolve, reject) => {
                 const img = new Image();
                 img.crossOrigin = "anonymous";
@@ -446,13 +425,48 @@ export const generatePDFReport = async (reportData: ReportData) => {
                   canvas.width = img.naturalWidth;
                   canvas.height = img.naturalHeight;
                   const ctx = canvas.getContext("2d");
-                  if (ctx) { ctx.drawImage(img, 0, 0); resolve(canvas.toDataURL("image/jpeg", 0.8)); }
-                  else reject(new Error("canvas context null"));
+                  if (ctx) {
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL("image/jpeg", 0.8));
+                  } else {
+                    reject(new Error("canvas context null"));
+                  }
                 };
                 img.onerror = reject;
                 img.src = alert.evidence;
               });
+              
+              alertsWithValidEvidence.push({
+                ...alert,
+                imgDataUrl
+              });
+            } catch (err) {
+              console.warn(`Skipping alert evidence for ${alert.id} because the image could not be loaded:`, err);
+            }
+          }
 
+          if (alertsWithValidEvidence.length > 0) {
+            doc.addPage();
+            let photoY = 20;
+            photoY = drawSectionHeader(photoY, "Evidence Photos");
+
+            for (let i = 0; i < alertsWithValidEvidence.length; i++) {
+              const alert = alertsWithValidEvidence[i];
+              if (photoY > 240) {
+                doc.addPage();
+                photoY = 20;
+              }
+
+              // Alert label
+              doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+              doc.rect(14, photoY, 182, 10, "F");
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(9);
+              doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+              doc.text(`${i + 1}. ${alert.type} — ${alert.driverName} | Bus: ${alert.busNumber} | ${alert.timestamp}`, 17, photoY + 6.5);
+              photoY += 12;
+
+              const imgDataUrl = alert.imgDataUrl;
               // Scale image to fit width=100mm, max height=60mm
               const maxW = 100;
               const maxH = 60;
@@ -474,16 +488,6 @@ export const generatePDFReport = async (reportData: ReportData) => {
               doc.text((alert.severity || "medium").toUpperCase(), 135, photoY + 5.5, { align: "center" });
 
               photoY += imgH + 10;
-            } catch {
-              // Image failed to load — show placeholder
-              doc.setDrawColor(borderGray[0], borderGray[1], borderGray[2]);
-              doc.setFillColor(240, 240, 240);
-              doc.rect(14, photoY, 100, 40, "FD");
-              doc.setFont("helvetica", "italic");
-              doc.setFontSize(8);
-              doc.setTextColor(150, 150, 150);
-              doc.text("Evidence photo unavailable", 64, photoY + 21, { align: "center" });
-              photoY += 50;
             }
           }
         }

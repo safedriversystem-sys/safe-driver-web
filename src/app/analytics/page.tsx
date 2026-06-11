@@ -33,7 +33,6 @@ import {
 } from "lucide-react"
 import { useLanguage } from "@/components/language-provider"
 import { useLiveAlerts, isToday } from "@/hooks/use-live-alerts"
-import { calculateSafetyScore } from "@/lib/safety-score"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -128,8 +127,7 @@ export default function AnalyticsPage() {
       latencyValue = "Awaiting"
     }
 
-    // 2. Performance KPIs
-    const safetyScore = calculateSafetyScore(uniqueTodayAlerts)
+
     
     const totalVehicles = fleetVehicles.length || 1
     const activeVehicles = fleetVehicles.filter(v => v.status === "active").length
@@ -188,7 +186,6 @@ export default function AnalyticsPage() {
     return {
       activeNodes,
       latencyValue,
-      safetyScore,
       fleetActivity,
       resolutionRate,
       highRiskZones,
@@ -275,7 +272,7 @@ export default function AnalyticsPage() {
           </TabsTrigger>
           <TabsTrigger value="risk" className="rounded-xl px-10 py-2.5 data-[state=active]:bg-white data-[state=active]:text-slate-900 dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100 data-[state=active]:shadow-md transition-all font-bold shrink-0">
             <AlertTriangle className="h-4 w-4 mr-2 text-rose-600" />
-            {t("risk_level") || "Risk Analysis"}
+            Risk Analysis
           </TabsTrigger>
         </TabsList>
 
@@ -309,7 +306,6 @@ export default function AnalyticsPage() {
             <div className="space-y-6">
               {[
                 { label: "Fleet Activity", value: data.fleetActivity, color: "bg-blue-500", icon: Activity },
-                { label: "Safety Compliance", value: Math.round(data.safetyScore), color: "bg-emerald-500", icon: Shield },
                 { label: "Resolution Rate", value: data.resolutionRate, color: "bg-indigo-500", icon: Target },
               ].map((kpi, i) => (
                 <Card key={i} className="border-2 rounded-3xl shadow-lg hover:translate-x-2 transition-transform duration-300">
