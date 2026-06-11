@@ -126,16 +126,29 @@ export const isWithinPrevious24Hours = (timestamp: string | number | undefined):
 }
 
 // Map Firebase alert types to UI alert types
-const mapAlertType = (type: string, tag: string): string => {
+const mapAlertType = (type: string, tag: string, message?: string): string => {
   const lowerType = type.toLowerCase()
   const lowerTag = tag.toLowerCase()
+  const lowerMessage = (message || "").toLowerCase()
 
-  if (lowerType.includes("head") || lowerType.includes("turn") || lowerTag.includes("distraction")) {
-    return "distraction"
+  // First, check message content for mobile phone, smoking, drinking, or drowsiness to bypass generic categorization
+  if (lowerMessage.includes("phone") || lowerMessage.includes("mobile")) {
+    return "phone_usage"
   }
-  if (lowerType.includes("drowsy") || lowerTag.includes("drowsiness")) {
+  if (lowerMessage.includes("smoke") || lowerMessage.includes("smoking")) {
+    return "smoking"
+  }
+  if (lowerMessage.includes("drink") || lowerMessage.includes("drinking")) {
+    return "drinking"
+  }
+  if (lowerMessage.includes("drowsy") || lowerMessage.includes("yawn") || lowerMessage.includes("sleep") || lowerMessage.includes("closur") || lowerMessage.includes("micro")) {
     return "drowsiness"
   }
+  if (lowerMessage.includes("distract") || lowerMessage.includes("look away")) {
+    return "distraction"
+  }
+
+  // Fallback to type/tag matches
   if (lowerType.includes("phone") || lowerTag.includes("phone")) {
     return "phone_usage"
   }
@@ -144,6 +157,12 @@ const mapAlertType = (type: string, tag: string): string => {
   }
   if (lowerType.includes("drink") || lowerTag.includes("drink") || lowerType.includes("drinking") || lowerTag.includes("drinking")) {
     return "drinking"
+  }
+  if (lowerType.includes("drowsy") || lowerTag.includes("drowsiness")) {
+    return "drowsiness"
+  }
+  if (lowerType.includes("head") || lowerType.includes("turn") || lowerTag.includes("distraction")) {
+    return "distraction"
   }
   if (lowerType.includes("speed") || lowerTag.includes("speed")) {
     return "speeding"
@@ -156,14 +175,13 @@ const mapAlertType = (type: string, tag: string): string => {
 
 
 // Map alert type to severity
-const getSeverity = (type: string, tag: string): "high" | "medium" | "low" => {
-  const lowerType = type.toLowerCase()
-  const lowerTag = tag.toLowerCase()
+const getSeverity = (alertType: string, originalTag: string): "high" | "medium" | "low" => {
+  const lowerTag = originalTag.toLowerCase()
 
-  if (lowerType.includes("drowsy") || lowerTag.includes("critical") || lowerTag.includes("distraction")) {
+  if (alertType === "drowsiness" || alertType === "distraction" || lowerTag.includes("critical")) {
     return "high"
   }
-  if (lowerType.includes("phone") || lowerType.includes("speed") || lowerType.includes("smoke") || lowerType.includes("drink") || lowerType.includes("smoking") || lowerType.includes("drinking")) {
+  if (alertType === "phone_usage" || alertType === "speeding" || alertType === "smoking" || alertType === "drinking") {
     return "medium"
   }
   return "low"
@@ -198,8 +216,8 @@ const transformAlert = (
   firestoreRoutes: any[] = [],
   firestoreDrivers: any[] = []
 ): Alert => {
-  const alertType = mapAlertType(alert.type, alert.tag)
-  const severity = getSeverity(alert.type, alert.tag)
+  const alertType = mapAlertType(alert.type, alert.tag, alert.message)
+  const severity = getSeverity(alertType, alert.tag)
 
   // 1. First, try to find matching vehicle in Firestore data for more accurate info
   const matchedVehicle = firestoreVehicles.find(v => 
