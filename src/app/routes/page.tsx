@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Circle } from "@react-google-maps/api"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -105,13 +104,73 @@ export default function RouteMonitoring() {
   const [routeHazards, setRouteHazards] = useState<HazardZone[]>([])
   const [hazardsLoading, setHazardsLoading] = useState(false)
 
-  const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
-  const { isLoaded: isMapLoaded } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-  })
+  const [leafletLoaded, setLeafletLoaded] = useState(false)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const [mapRef, setMapRef] = useState<any>(null)
+  const layersRef = useRef<any[]>([])
+  const hazardMarkersRef = useRef<{ [key: string]: any }>({})
 
-  const [mapRef, setMapRef] = useState<google.maps.Map | null>(null)
+  // Load Leaflet dynamically
+  useEffect(() => {
+    const loadLeaflet = async () => {
+      if (typeof window === "undefined") return
+
+      if (!document.querySelector('link[href*="leaflet"]')) {
+        const link = document.createElement("link")
+        link.rel = "stylesheet"
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        document.head.appendChild(link)
+      }
+
+      if (!(window as any).L) {
+        const script = document.createElement("script")
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        script.onload = () => setLeafletLoaded(true)
+        document.body.appendChild(script)
+      } else {
+        setLeafletLoaded(true)
+      }
+    }
+    loadLeaflet()
+  }, [])
+
+  // Initialize Map
+  useEffect(() => {
+    if (!leafletLoaded || modalTab !== "hazards" || !mapContainerRef.current || !(window as any).L || mapRef) return
+
+    const L = (window as any).L
+    const map = L.map(mapContainerRef.current).setView([hazardMapCenter.lat, hazardMapCenter.lng], 8)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map)
+
+    setMapRef(map)
+  }, [leafletLoaded, modalTab, mapRef])
+
+  // Clean up map when modalTab changes, route changes or unmounts
+  useEffect(() => {
+    if (modalTab !== "hazards" && mapRef) {
+      mapRef.remove()
+      setMapRef(null)
+    }
+  }, [modalTab, mapRef])
+
+  useEffect(() => {
+    if (!selectedRoute && mapRef) {
+      mapRef.remove()
+      setMapRef(null)
+    }
+  }, [selectedRoute, mapRef])
+
+  useEffect(() => {
+    return () => {
+      if (mapRef) {
+        mapRef.remove()
+        setMapRef(null)
+      }
+    }
+  }, [mapRef])
 
   // Fetch ALL hazards (no proximity filter — user placed them, they're all relevant)
   useEffect(() => {
@@ -119,7 +178,6 @@ export default function RouteMonitoring() {
     const fetchHazards = async () => {
       setHazardsLoading(true)
       setSelectedHazardInfo(null)
-      setMapRef(null)
       try {
         const all = await hazardService.getAllHazards()
         setRouteHazards(all)
@@ -132,43 +190,112 @@ export default function RouteMonitoring() {
     fetchHazards()
   }, [modalTab, selectedRoute])
 
-  // Fit map bounds to show all hazards + route stop coords when map loads
-  const onHazardMapLoad = (map: google.maps.Map) => {
-    setMapRef(map)
-    if (!selectedRoute) return
-    const bounds = new window.google.maps.LatLngBounds()
+  // Draw layers
+  useEffect(() => {
+    if (!mapRef || !leafletLoaded || !(window as any).L) return
+
+    const L = (window as any).L
+
+    // Clear old layers
+    layersRef.current.forEach(layer => mapRef.removeLayer(layer))
+    layersRef.current = []
+    hazardMarkersRef.current = {}
+
+    const newLayers: any[] = []
+
+    // Draw existing hazards
+    routeHazards.forEach(hazard => {
+      const position: [number, number] = [hazard.latitude, hazard.longitude]
+      const color = hazard.type === "accident" ? "#ef4444" : hazard.type === "school" ? "#eab308" : "#f59e0b"
+
+      const circle = L.circle(position, {
+        radius: hazard.radius,
+        fillColor: color,
+        fillOpacity: 0.15,
+        color: color,
+        weight: 1.5,
+      }).addTo(mapRef)
+      newLayers.push(circle)
+
+      const icon = L.divIcon({
+        className: "custom-hazard-marker",
+        html: `
+          <div style="position: relative; width: 32px; height: 32px;">
+            <svg viewBox="0 0 24 24" width="32" height="32" style="display: block; filter: drop-shadow(0px 3px 3px rgba(0,0,0,0.35));">
+              <path fill="${color}" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+              <circle cx="12" cy="9" r="3.5" fill="rgba(0, 0, 0, 0.4)"/>
+            </svg>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32],
+      })
+
+      const marker = L.marker(position, { icon }).addTo(mapRef)
+
+      const popupContent = `
+        <div class="p-2" style="min-width: 180px; font-family: sans-serif;">
+          <h3 class="font-bold text-sm mb-1" style="margin: 0 0 4px 0; font-weight: 700; font-size: 14px; color: #1f2937;">${hazard.name}</h3>
+          <p class="text-xs text-muted-foreground capitalize" style="margin: 0 0 4px 0; color: #6b7280;">
+            Type: ${hazard.type === "other" && hazard.customType ? hazard.customType : hazard.type}
+          </p>
+          ${hazard.location ? `<p class="text-xs text-muted-foreground" style="margin: 0 0 8px 0; color: #9ca3af;">📍 ${hazard.location}</p>` : ''}
+          <div style="display: inline-block; background: #fef3c7; color: #92400e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 9999px;">
+            ${hazard.radius}m radius
+          </div>
+        </div>
+      `
+      marker.bindPopup(popupContent)
+
+      marker.on("click", () => {
+        setSelectedHazardInfo(hazard)
+      })
+
+      if (hazard.id) {
+        hazardMarkersRef.current[hazard.id] = marker
+      }
+
+      newLayers.push(marker)
+    })
+
+    // Fit bounds automatically when routeHazards or selectedRoute changes
+    const bounds = L.latLngBounds()
     let hasPoints = false
 
-    // Add all hazard positions
     routeHazards.forEach(h => {
-      bounds.extend({ lat: h.latitude, lng: h.longitude })
+      bounds.extend([h.latitude, h.longitude])
       hasPoints = true
     })
 
-    // Add route stop positions
-    selectedRoute.stops.forEach(s => {
-      if (s.latitude && s.longitude) {
-        bounds.extend({ lat: s.latitude, lng: s.longitude })
-        hasPoints = true
-      }
-    })
+    if (selectedRoute) {
+      selectedRoute.stops.forEach(s => {
+        if (s.latitude && s.longitude) {
+          bounds.extend([s.latitude, s.longitude])
+          hasPoints = true
+        }
+      })
+    }
 
     if (hasPoints) {
-      map.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 })
-    } else {
-      // Fall back to Sri Lanka center
-      map.setCenter({ lat: 7.8731, lng: 80.7718 })
-      map.setZoom(8)
+      mapRef.fitBounds(bounds, { padding: [50, 50] })
     }
-  }
 
-  // Recenter map when a hazard card is clicked
+    layersRef.current = newLayers
+  }, [routeHazards, selectedRoute, mapRef, leafletLoaded])
+
+  // Recenter map when selectedHazardInfo changes
+  useEffect(() => {
+    if (!mapRef || !selectedHazardInfo) return
+    const marker = hazardMarkersRef.current[selectedHazardInfo.id!]
+    if (marker) {
+      marker.openPopup()
+      mapRef.setView([selectedHazardInfo.latitude, selectedHazardInfo.longitude], 14)
+    }
+  }, [selectedHazardInfo, mapRef])
+
   const panToHazard = (h: HazardZone) => {
     setSelectedHazardInfo(h)
-    if (mapRef) {
-      mapRef.panTo({ lat: h.latitude, lng: h.longitude })
-      mapRef.setZoom(14)
-    }
   }
 
   const hazardMapCenter = { lat: 7.8731, lng: 80.7718 }
@@ -842,7 +969,7 @@ export default function RouteMonitoring() {
                   <div className="space-y-4">
                     {/* Hazard map */}
                     <div className="w-full h-[400px] rounded-2xl overflow-hidden border border-border bg-muted shadow-inner relative">
-                      {!isMapLoaded || hazardsLoading ? (
+                      {!leafletLoaded || hazardsLoading ? (
                         <div className="h-full flex flex-col items-center justify-center gap-3">
                           <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
                           <p className="text-sm font-bold text-muted-foreground">Loading hazard data...</p>
@@ -856,86 +983,7 @@ export default function RouteMonitoring() {
                           <p className="text-sm text-muted-foreground font-medium">Go to Hazard Monitoring to mark hazards on the map.</p>
                         </div>
                       ) : (
-                        <GoogleMap
-                          mapContainerStyle={{ width: "100%", height: "100%" }}
-                          center={hazardMapCenter}
-                          zoom={8}
-                          onLoad={onHazardMapLoad}
-                          options={{
-                            disableDefaultUI: false,
-                            zoomControl: true,
-                            mapTypeControl: true,
-                            mapTypeControlOptions: {
-                              style: 2, // DROPDOWN_MENU
-                              position: 3, // TOP_RIGHT
-                            },
-                            streetViewControl: false,
-                            fullscreenControl: true,
-                            gestureHandling: "cooperative",
-                            styles: [
-                              { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
-                              { featureType: "transit", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-                            ],
-                          }}
-                        >
-                          {routeHazards.map((hazard, i) => (
-                            <div key={hazard.id ?? i}>
-                              <Marker
-                                position={{ lat: hazard.latitude, lng: hazard.longitude }}
-                                title={hazard.name}
-                                icon={{
-                                  url: hazard.type === "accident"
-                                    ? "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
-                                    : hazard.type === "school"
-                                    ? "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
-                                    : hazard.type === "speed"
-                                    ? "https://maps.google.com/mapfiles/ms/icons/orange-dot.png"
-                                    : "https://maps.google.com/mapfiles/ms/icons/orange-dot.png",
-                                  scaledSize: new window.google.maps.Size(40, 40),
-                                }}
-                                onClick={() => panToHazard(hazard)}
-                                animation={selectedHazardInfo?.id === hazard.id ? window.google.maps.Animation.BOUNCE : undefined}
-                              />
-                              <Circle
-                                center={{ lat: hazard.latitude, lng: hazard.longitude }}
-                                radius={hazard.radius}
-                                options={{
-                                  fillColor: hazard.type === "accident" ? "#ef4444"
-                                    : hazard.type === "school" ? "#eab308"
-                                    : "#f59e0b",
-                                  fillOpacity: 0.15,
-                                  strokeColor: hazard.type === "accident" ? "#dc2626"
-                                    : hazard.type === "school" ? "#ca8a04"
-                                    : "#d97706",
-                                  strokeWeight: 2.5,
-                                  strokeOpacity: 0.9,
-                                }}
-                              />
-                            </div>
-                          ))}
-                          {selectedHazardInfo && (
-                            <InfoWindow
-                              position={{ lat: selectedHazardInfo.latitude, lng: selectedHazardInfo.longitude }}
-                              onCloseClick={() => setSelectedHazardInfo(null)}
-                              options={{ pixelOffset: new window.google.maps.Size(0, -40) }}
-                            >
-                              <div style={{ padding: "8px", minWidth: "180px", fontFamily: "system-ui" }}>
-                                <p style={{ fontWeight: 900, fontSize: "14px", marginBottom: "4px", color: "#111" }}>{selectedHazardInfo.name}</p>
-                                <p style={{ fontSize: "11px", color: "#666", textTransform: "capitalize", marginBottom: "6px" }}>
-                                  {selectedHazardInfo.type === "other" && selectedHazardInfo.customType
-                                    ? selectedHazardInfo.customType
-                                    : selectedHazardInfo.type}
-                                </p>
-                                {selectedHazardInfo.location && (
-                                  <p style={{ fontSize: "11px", color: "#888", marginBottom: "6px" }}>📍 {selectedHazardInfo.location}</p>
-                                )}
-                                <div style={{ display: "inline-block", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "9999px" }}>
-                                  {selectedHazardInfo.radius}m radius
-                                </div>
-                              </div>
-                            </InfoWindow>
-                          )}
-                        </GoogleMap>
+                        <div ref={mapContainerRef} className="w-full h-full" style={{ zIndex: 0 }} />
                       )}
                     </div>
 

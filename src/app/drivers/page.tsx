@@ -80,7 +80,7 @@ export default function DriversPage() {
       
       const assignedBuses = driver.busNumber.split(",")
       const count = activeOrTodayAlerts.filter(alert => 
-        assignedBuses.includes(alert.number_plate) || assignedBuses.includes(alert.busNumber)
+        assignedBuses.includes(alert.number_plate || "") || assignedBuses.includes(alert.busNumber || "")
       ).length
       
       return { ...driver, alertCount: count }
@@ -92,7 +92,6 @@ export default function DriversPage() {
     onDuty: 0,
     offDuty: 0,
     suspended: 0,
-    onBreak: 0,
   })
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
