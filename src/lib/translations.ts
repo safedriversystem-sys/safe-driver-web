@@ -147,6 +147,7 @@ export const translations = {
         "history": "History",
         "acknowledge": "Acknowledge",
         "contact_driver": "Contact Driver",
+        "archived": "Archived",
         "historical_archived": "Historical alert - archived",
         "no_alerts_moment": "There are no alerts at the moment.",
         "no_history_found": "No historical alerts found.",
