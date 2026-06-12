@@ -16,7 +16,7 @@ export const translations = {
         "live_alerts": "Live Alerts",
         "reports": "Reports & Analytics",
         "analytics": "Performance Analytics",
-        "compliance": "Compliance",
+        "compliance": "Feedbacks",
         "hazards": "Hazards Monitoring",
         "help_support": "Help & Support",
         "main_navigation": "Main Navigation",

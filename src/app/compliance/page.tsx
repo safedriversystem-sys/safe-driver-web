@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -13,9 +14,11 @@ import {
   Bus,
   Calendar,
   ThumbsUp,
+  RefreshCw,
 } from "lucide-react"
 import type { Feedback } from "@/lib/feedback-service"
 import { useLanguage } from "@/components/language-provider"
+import { cn } from "@/lib/utils"
 
 export default function CompliancePage() {
   const { t } = useLanguage()
@@ -27,28 +30,25 @@ export default function CompliancePage() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [dateFilter, setDateFilter] = useState<string>("all")
 
-  // Fetch feedback
-  useEffect(() => {
-    const fetchFeedback = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch(`/api/feedback?limit=100`)
-        if (response.ok) {
-          const data = await response.json()
-          setFeedback(data)
-        }
-      } catch (error) {
-        console.error("Error fetching feedback:", error)
-      } finally {
-        setLoading(false)
+  const fetchFeedback = useCallback(async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/feedback?limit=100`)
+      if (response.ok) {
+        const data = await response.json()
+        setFeedback(data)
       }
+    } catch (error) {
+      console.error("Error fetching feedback:", error)
+    } finally {
+      setLoading(false)
     }
-
-    fetchFeedback()
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchFeedback, 30000)
-    return () => clearInterval(interval)
   }, [])
+
+  // Fetch feedback initially
+  useEffect(() => {
+    fetchFeedback()
+  }, [fetchFeedback])
 
   // Apply filters
   useEffect(() => {
@@ -171,9 +171,15 @@ export default function CompliancePage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 pt-20 space-y-4">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t("feedback_management")}</h1>
-        <p className="text-sm text-muted-foreground">{t("feedback_desc")}</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">{t("feedback_management")}</h1>
+          <p className="text-sm text-muted-foreground">{t("feedback_desc")}</p>
+        </div>
+        <Button onClick={fetchFeedback} disabled={loading} variant="outline" className="w-full md:w-auto">
+          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+          {t("refresh_data") || "Refresh"}
+        </Button>
       </div>
 
       {/* Statistics Cards */}
