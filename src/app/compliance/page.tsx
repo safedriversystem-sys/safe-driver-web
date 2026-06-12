@@ -53,19 +53,19 @@ export default function CompliancePage() {
   // Apply filters
   useEffect(() => {
     let filtered = [...feedback]
-    
+
     if (typeFilter !== "all") {
       filtered = filtered.filter((f) => f.type === typeFilter)
     }
-    
+
     if (priorityFilter !== "all") {
       filtered = filtered.filter((f) => f.priority === priorityFilter)
     }
-    
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
-      filtered = filtered.filter((f) => 
-        (f.title && f.title.toLowerCase().includes(term)) || 
+      filtered = filtered.filter((f) =>
+        (f.title && f.title.toLowerCase().includes(term)) ||
         (f.description && f.description.toLowerCase().includes(term)) ||
         (f.comment && f.comment.toLowerCase().includes(term)) ||
         (f.busNumber && f.busNumber.toLowerCase().includes(term)) ||
@@ -91,7 +91,7 @@ export default function CompliancePage() {
         return true;
       });
     }
-    
+
     setFilteredFeedback(filtered)
   }, [feedback, typeFilter, priorityFilter, searchTerm, dateFilter])
 
@@ -185,7 +185,7 @@ export default function CompliancePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">{t("all_feedback") || "All feedback items"}</p>
+            <p className="text-xs text-muted-foreground">{t("All Feedback") || "All feedback items"}</p>
           </CardContent>
         </Card>
 
@@ -196,7 +196,7 @@ export default function CompliancePage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.averageRating.toFixed(1)}</div>
-            <p className="text-xs text-muted-foreground">{t("out_of_5") || "Out of 5.0"}</p>
+            <p className="text-xs text-muted-foreground">{t("Out of 5") || "Out of 5.0"}</p>
           </CardContent>
         </Card>
       </div>
@@ -258,7 +258,7 @@ export default function CompliancePage() {
       {/* Feedback List */}
       <Card>
         <CardHeader>
-          <CardTitle>{t("recent_passenger_comments") || "Recent Passenger Comments"}</CardTitle>
+          <CardTitle>{t("Recent Passenger Comments") || "Recent Passenger Comments"}</CardTitle>
           <CardDescription>{t("feedback_items_desc") || "Review and manage comments and feedback from passengers."}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -323,10 +323,10 @@ export default function CompliancePage() {
                       {((item.mediaUrls && item.mediaUrls.length > 0) || (item.images && item.images.length > 0)) && (
                         <div className="mt-4 flex flex-wrap gap-2">
                           {(item.mediaUrls || item.images || []).map((imgUrl, idx) => (
-                            <a 
-                              key={idx} 
-                              href={typeof imgUrl === 'string' ? imgUrl : (imgUrl.url || '#')} 
-                              target="_blank" 
+                            <a
+                              key={idx}
+                              href={typeof imgUrl === 'string' ? imgUrl : (imgUrl.url || '#')}
+                              target="_blank"
                               rel="noopener noreferrer"
                               className="relative h-24 w-24 md:h-32 md:w-32 rounded-md overflow-hidden border border-border hover:opacity-90 transition-opacity"
                             >
