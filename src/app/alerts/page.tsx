@@ -14,6 +14,7 @@ import { useLanguage } from "@/components/language-provider"
 export default function AlertsPage() {
   // Use live alerts from Firebase Realtime Database
   const { alerts: liveAlerts, historyAlerts, isLoading: isLoadingAlerts, error } = useLiveAlerts()
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   const { t } = useLanguage()
 
   // Track alert statuses (acknowledged/resolved) in local state
@@ -183,9 +184,11 @@ export default function AlertsPage() {
   }, [alerts])
 
   const refreshAlerts = () => {
-    // Alerts are automatically refreshed via Firebase Realtime Database listener
-    // This function can be used to manually trigger a refresh if needed
-    console.log("Alerts are automatically updated in real-time from Firebase")
+    setIsManualRefreshing(true)
+    // Alerts are automatically refreshed, but this provides a manual override to completely refresh data
+    setTimeout(() => {
+      window.location.reload()
+    }, 400)
   }
 
   const handleAcknowledgeAlert = (alertId: string) => {
@@ -350,12 +353,12 @@ export default function AlertsPage() {
             variant="outline"
             size="sm"
             onClick={refreshAlerts}
-            disabled={isLoadingAlerts}
+            disabled={isLoadingAlerts || isManualRefreshing}
             className="flex items-center gap-2"
-            title="Alerts update automatically in real-time"
+            title="Refresh connection"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoadingAlerts ? "animate-spin" : ""}`} />
-            {isLoadingAlerts ? t("loading") : t("live")}
+            <RefreshCw className={`h-4 w-4 ${isLoadingAlerts || isManualRefreshing ? "animate-spin" : ""}`} />
+            {isLoadingAlerts || isManualRefreshing ? t("loading") : t("live")}
           </Button>
         </div>
       </div>
