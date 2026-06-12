@@ -32,37 +32,10 @@ export default function CompliancePage() {
     const fetchFeedback = async () => {
       try {
         setLoading(true)
-        const params = new URLSearchParams()
-        if (typeFilter !== "all") params.append("type", typeFilter)
-        if (priorityFilter !== "all") params.append("priority", priorityFilter)
-        if (searchTerm) params.append("search", searchTerm)
-        params.append("limit", "100")
-
-        const response = await fetch(`/api/feedback?${params.toString()}`)
+        const response = await fetch(`/api/feedback?limit=100`)
         if (response.ok) {
           const data = await response.json()
-          
-          let filtered = data
-          if (dateFilter !== "all") {
-             const now = new Date();
-             filtered = filtered.filter((f: Feedback) => {
-               if (!f.timestamp && !f.createdAt) return false;
-               const fDate = new Date((f.timestamp || f.createdAt) as string);
-               if (dateFilter === "today") {
-                 return fDate.toDateString() === now.toDateString();
-               } else if (dateFilter === "week") {
-                 const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                 return fDate >= weekAgo;
-               } else if (dateFilter === "month") {
-                 const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-                 return fDate >= monthAgo;
-               }
-               return true;
-             });
-          }
-          
           setFeedback(data)
-          setFilteredFeedback(filtered)
         }
       } catch (error) {
         console.error("Error fetching feedback:", error)
@@ -75,19 +48,64 @@ export default function CompliancePage() {
     // Refresh every 30 seconds
     const interval = setInterval(fetchFeedback, 30000)
     return () => clearInterval(interval)
-  }, [typeFilter, priorityFilter, searchTerm, dateFilter])
+  }, [])
+
+  // Apply filters
+  useEffect(() => {
+    let filtered = [...feedback]
+    
+    if (typeFilter !== "all") {
+      filtered = filtered.filter((f) => f.type === typeFilter)
+    }
+    
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter((f) => f.priority === priorityFilter)
+    }
+    
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter((f) => 
+        (f.title && f.title.toLowerCase().includes(term)) || 
+        (f.description && f.description.toLowerCase().includes(term)) ||
+        (f.comment && f.comment.toLowerCase().includes(term)) ||
+        (f.busNumber && f.busNumber.toLowerCase().includes(term)) ||
+        (f.userName && f.userName.toLowerCase().includes(term)) ||
+        (f.driverName && f.driverName.toLowerCase().includes(term))
+      )
+    }
+
+    if (dateFilter !== "all") {
+      const now = new Date();
+      filtered = filtered.filter((f: Feedback) => {
+        if (!f.timestamp && !f.createdAt) return false;
+        const fDate = new Date((f.timestamp || f.createdAt) as string);
+        if (dateFilter === "today") {
+          return fDate.toDateString() === now.toDateString();
+        } else if (dateFilter === "week") {
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          return fDate >= weekAgo;
+        } else if (dateFilter === "month") {
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          return fDate >= monthAgo;
+        }
+        return true;
+      });
+    }
+    
+    setFilteredFeedback(filtered)
+  }, [feedback, typeFilter, priorityFilter, searchTerm, dateFilter])
 
   // Calculate stats
   const stats = {
-    total: feedback.length,
-    submitted: feedback.filter((f) => f.status === "submitted").length,
-    resolved: feedback.filter((f) => f.status === "resolved").length,
-    positive: feedback.filter((f) => f.type === "positive").length,
-    negative: feedback.filter((f) => f.type === "negative" || f.type === "complaint").length,
+    total: filteredFeedback.length,
+    submitted: filteredFeedback.filter((f) => f.status === "submitted").length,
+    resolved: filteredFeedback.filter((f) => f.status === "resolved").length,
+    positive: filteredFeedback.filter((f) => f.type === "positive").length,
+    negative: filteredFeedback.filter((f) => f.type === "negative" || f.type === "complaint").length,
     averageRating:
-      feedback.length > 0
+      filteredFeedback.length > 0
         ? Math.round(
-          (feedback.reduce((sum, f) => sum + (f.rating?.overall || 0), 0) / feedback.length) * 10,
+          (filteredFeedback.reduce((sum, f) => sum + (f.rating?.overall || 0), 0) / filteredFeedback.length) * 10,
         ) / 10
         : 0,
   }
@@ -302,6 +320,25 @@ export default function CompliancePage() {
                           </div>
                         )}
                       </div>
+                      {((item.mediaUrls && item.mediaUrls.length > 0) || (item.images && item.images.length > 0)) && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {(item.mediaUrls || item.images || []).map((imgUrl, idx) => (
+                            <a 
+                              key={idx} 
+                              href={typeof imgUrl === 'string' ? imgUrl : (imgUrl.url || '#')} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="relative h-24 w-24 md:h-32 md:w-32 rounded-md overflow-hidden border border-border hover:opacity-90 transition-opacity"
+                            >
+                              <img
+                                src={typeof imgUrl === 'string' ? imgUrl : (imgUrl.url || '')}
+                                alt={`Evidence ${idx + 1}`}
+                                className="object-cover w-full h-full"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
                       {item.response && (
                         <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900/30">
                           <p className="text-xs font-medium text-blue-900 dark:text-blue-300 mb-1">{t("response")}:</p>
