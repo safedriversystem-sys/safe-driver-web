@@ -143,15 +143,7 @@ export default function FleetManagement() {
     }
   }
 
-  // Refetch when filters change
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchVehicles(true)
-    }, 300)
 
-    return () => clearTimeout(timeoutId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -636,6 +628,9 @@ export default function FleetManagement() {
                   <SelectItem value="inactive">{t("inactive")}</SelectItem>
                 </SelectContent>
               </Select>
+              <Button onClick={() => fetchVehicles(true)} className="px-6">
+                Search
+              </Button>
             </div>
 
             {/* Vehicle Grid */}

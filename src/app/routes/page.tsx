@@ -391,15 +391,7 @@ export default function RouteMonitoring() {
     fetchVehicles()
   }, [])
 
-  // Refetch when filters change
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchRoutes()
-    }, 300) // Debounce search
 
-    return () => clearTimeout(timeoutId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter])
 
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
 
@@ -681,6 +673,9 @@ export default function RouteMonitoring() {
                 <SelectItem value="maintenance">{t("route_maintenance")}</SelectItem>
               </SelectContent>
             </Select>
+            <Button onClick={fetchRoutes} className="px-6">
+              Search
+            </Button>
           </div>
         </CardContent>
       </Card>

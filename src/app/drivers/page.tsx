@@ -194,16 +194,7 @@ export default function DriversPage() {
     fetchVehicles()
   }, [])
 
-  // Refetch when filters change with debounce
-  useEffect(() => {
-    // Skip if this is the initial mount (already handled above)
-    const timeoutId = setTimeout(() => {
-      fetchDrivers()
-    }, 300) // Debounce search
 
-    return () => clearTimeout(timeoutId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter])
 
   // Filter is now handled server-side, but we can do client-side filtering for instant feedback
   const filteredDrivers = drivers
@@ -745,6 +736,9 @@ export default function DriversPage() {
                 <SelectItem value="suspended">{t("suspended")}</SelectItem>
               </SelectContent>
             </Select>
+            <Button onClick={fetchDrivers} className="px-6">
+              Search
+            </Button>
           </div>
         </CardContent>
       </Card >
