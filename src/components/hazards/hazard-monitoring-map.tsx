@@ -17,6 +17,20 @@ const center = {
   lng: 80.7718,
 }
 
+const formatHazardType = (type: string, customType?: string) => {
+  if (type === "other" && customType) return customType;
+  switch (type) {
+    case "accident": return "Accident Prone Zone";
+    case "dangerous_bend": return "Dangerous Bend";
+    case "mountain_descent": return "Mountain Descent";
+    case "slippery_road": return "Slippery Road";
+    case "narrow_road": return "Narrow Road";
+    case "school": return "School Zone";
+    case "speed": return "Speed Zone";
+    default: return type.replace(/_/g, ' ');
+  }
+}
+
 export function HazardMonitoringMap() {
   const mapRef = useRef<HTMLDivElement>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
@@ -190,7 +204,7 @@ export function HazardMonitoringMap() {
       const popupContent = `
         <div class="p-2" style="min-width: 180px; font-family: sans-serif;">
           <h3 class="font-bold text-sm mb-1" style="margin: 0 0 4px 0; font-weight: 700; font-size: 14px; color: #1f2937;">${hazard.name}</h3>
-          <p class="text-xs text-muted-foreground capitalize" style="margin: 0 0 8px 0; color: #6b7280;">Type: ${hazard.type}</p>
+          <p class="text-xs text-muted-foreground capitalize" style="margin: 0 0 8px 0; color: #6b7280;">Type: ${formatHazardType(hazard.type, hazard.customType)}</p>
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="background: #f3f4f6; color: #374151; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px;">${hazard.radius}m</span>
             <button
@@ -387,7 +401,11 @@ export function HazardMonitoringMap() {
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="accident">Accident Prone</SelectItem>
+                      <SelectItem value="accident">Accident Prone Zone</SelectItem>
+                      <SelectItem value="dangerous_bend">Dangerous Bend</SelectItem>
+                      <SelectItem value="mountain_descent">Mountain Descent</SelectItem>
+                      <SelectItem value="slippery_road">Slippery Road</SelectItem>
+                      <SelectItem value="narrow_road">Narrow Road</SelectItem>
                       <SelectItem value="other">Other Danger</SelectItem>
                     </SelectContent>
                   </Select>
@@ -452,9 +470,6 @@ export function HazardMonitoringMap() {
                     Save
                   </Button>
                 </div>
-                <p className="text-[10px] text-center text-muted-foreground mt-2">
-                  Routes passing within 2km will be automatically notified.
-                </p>
               </div>
             )}
           </CardContent>
@@ -497,7 +512,7 @@ export function HazardMonitoringMap() {
                     <div>
                       <p className="text-sm font-black text-foreground">{h.name}</p>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                        {h.type === "other" && h.customType ? h.customType : h.type}
+                        {formatHazardType(h.type, h.customType)}
                       </p>
                     </div>
                   </div>
