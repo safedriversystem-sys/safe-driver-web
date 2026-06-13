@@ -11,6 +11,17 @@ import { hazardService } from "@/lib/hazard-service"
 
 import type { HazardZone, HazardType } from "@/lib/route-types"
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Edit } from "lucide-react"
 
 const center = {
   lat: 7.8731, // Sri Lanka center
@@ -50,6 +61,9 @@ export function HazardMonitoringMap() {
     location: "",
     customType: "",
   })
+
+  const [editingHazardId, setEditingHazardId] = useState<string | null>(null)
+  const [hazardToDelete, setHazardToDelete] = useState<HazardZone | null>(null)
 
   const { toast } = useToast()
 
@@ -126,8 +140,9 @@ export function HazardMonitoringMap() {
       const { lat, lng } = e.latlng
       setNewHazardPos({ lat, lng })
       setSelectedHazard(null)
+      setEditingHazardId(null)
       setHazardDetails({
-        name: `Hazard at ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        name: "",
         type: "other",
         radius: 500,
         location: "Detected Location",
@@ -149,6 +164,10 @@ export function HazardMonitoringMap() {
       await hazardService.deleteHazard(id)
       toast({ title: "Success", description: "Hazard zone deleted." })
       setSelectedHazard(null)
+      if (editingHazardId === id) {
+        setNewHazardPos(null)
+        setEditingHazardId(null)
+      }
       fetchData()
     } catch (error) {
       toast({ title: "Error", description: "Failed to delete hazard zone", variant: "destructive" })
@@ -309,7 +328,7 @@ export function HazardMonitoringMap() {
 
     setSaving(true)
     try {
-      await hazardService.saveHazard({
+      const hazardData = {
         name: hazardDetails.name,
         type: hazardDetails.type,
         radius: hazardDetails.radius,
@@ -319,9 +338,18 @@ export function HazardMonitoringMap() {
         ...(hazardDetails.type === "other" && hazardDetails.customType
           ? { customType: hazardDetails.customType }
           : {}),
-      })
-      toast({ title: "Success", description: "Hazard zone saved and associated with routes." })
+      }
+
+      if (editingHazardId) {
+        await hazardService.updateHazard(editingHazardId, hazardData)
+        toast({ title: "Success", description: "Hazard zone updated successfully." })
+      } else {
+        await hazardService.saveHazard(hazardData)
+        toast({ title: "Success", description: "Hazard zone saved and associated with routes." })
+      }
+      
       setNewHazardPos(null)
+      setEditingHazardId(null)
       fetchData()
     } catch (error) {
       toast({ title: "Error", description: "Failed to save hazard zone", variant: "destructive" })
@@ -330,8 +358,30 @@ export function HazardMonitoringMap() {
     }
   }
 
-  const handleDeleteHazardConfirmed = async (id: string) => {
-    await handleDeleteHazard(id)
+  const handleDeleteHazardConfirmed = async () => {
+    if (!hazardToDelete || !hazardToDelete.id) return
+    await handleDeleteHazard(hazardToDelete.id)
+    setHazardToDelete(null)
+  }
+
+  const handleCancelEdit = () => {
+    setNewHazardPos(null)
+    setEditingHazardId(null)
+  }
+
+  const handleEditHazard = (h: HazardZone, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingHazardId(h.id!)
+    setNewHazardPos({ lat: h.latitude, lng: h.longitude })
+    setHazardDetails({
+      name: h.name,
+      type: h.type,
+      radius: h.radius,
+      location: h.location || "",
+      customType: h.customType || "",
+    })
+    if (mapInstance) mapInstance.panTo([h.latitude, h.longitude])
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
@@ -363,7 +413,7 @@ export function HazardMonitoringMap() {
           <CardHeader className="bg-primary/5">
             <CardTitle className="text-lg flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
-              {newHazardPos ? "New Hazard Details" : "Hazard Monitoring"}
+              {newHazardPos ? (editingHazardId ? "Edit Hazard Details" : "New Hazard Details") : "Hazard Monitoring"}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
@@ -389,6 +439,25 @@ export function HazardMonitoringMap() {
                     placeholder="e.g. Dangerous Bend - Kottawa"
                     className="h-9"
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase">Latitude</label>
+                    <Input
+                      value={newHazardPos.lat.toFixed(4)}
+                      disabled
+                      className="h-9 bg-muted/50 font-mono text-xs cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase">Longitude</label>
+                    <Input
+                      value={newHazardPos.lng.toFixed(4)}
+                      disabled
+                      className="h-9 bg-muted/50 font-mono text-xs cursor-not-allowed"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -453,7 +522,7 @@ export function HazardMonitoringMap() {
                   <Button
                     variant="outline"
                     className="flex-1 h-10 font-bold"
-                    onClick={() => setNewHazardPos(null)}
+                    onClick={handleCancelEdit}
                   >
                     <X className="h-4 w-4 mr-2" /> Cancel
                   </Button>
@@ -467,7 +536,7 @@ export function HazardMonitoringMap() {
                     ) : (
                       <Save className="h-4 w-4 mr-2" />
                     )}
-                    Save
+                    {editingHazardId ? "Update" : "Save"}
                   </Button>
                 </div>
               </div>
@@ -516,10 +585,21 @@ export function HazardMonitoringMap() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end">
+                  <div className="flex flex-col items-end gap-2">
                     <Badge variant="secondary" className="bg-background border-border text-[10px] font-black rounded-lg">
                       {h.radius}m
                     </Badge>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-primary hover:bg-primary/10" onClick={(e) => handleEditHazard(h, e)}>
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-600" onClick={(e) => {
+                        e.stopPropagation()
+                        setHazardToDelete(h)
+                      }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -536,6 +616,24 @@ export function HazardMonitoringMap() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={!!hazardToDelete} onOpenChange={(open) => !open && setHazardToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the hazard "{hazardToDelete?.name}" and remove it from all associated routes. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteHazardConfirmed} className="bg-red-500 hover:bg-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <style jsx global>{`
         .custom-hazard-marker { background: transparent; border: none; }
         .custom-hazard-draft-marker { background: transparent; border: none; }
