@@ -63,23 +63,23 @@ export default function DriversPage() {
       setLoadingVehicles(false)
     }
   }
-  
+
   // Real-time alerts integration
   const { alerts: liveAlerts } = useLiveAlerts()
-  
+
   // Calculate real-time alert counts for each driver
   const driversWithAlertCounts = useMemo(() => {
     // Include active/acknowledged alerts (unresolved risks) and today's alerts
-    const activeOrTodayAlerts = liveAlerts.filter(alert => 
+    const activeOrTodayAlerts = liveAlerts.filter(alert =>
       alert.status === "active" || alert.status === "acknowledged" || isToday(alert.timestamp)
     )
-    
+
     return drivers.map(driver => {
-      const count = activeOrTodayAlerts.filter(alert => 
+      const count = activeOrTodayAlerts.filter(alert =>
         (alert.driverId && alert.driverId === driver.id) ||
         (alert.driverName && alert.driverName.toLowerCase().trim() === driver.name.toLowerCase().trim())
       ).length
-      
+
       return { ...driver, alertCount: count }
     })
   }, [drivers, liveAlerts])
@@ -110,6 +110,7 @@ export default function DriversPage() {
     busNumber: "",
     address: "",
     experience: "",
+    languages: "",
   })
 
   // Calculate stats from drivers data (client-side to avoid extra API call)
@@ -282,6 +283,7 @@ export default function DriversPage() {
         busNumber: "",
         address: "",
         experience: "",
+        languages: "",
       })
       setIsAddDialogOpen(false)
 
@@ -449,6 +451,7 @@ export default function DriversPage() {
           busNumber: editingDriver.busNumber || "",
           address: editingDriver.address || "",
           experience: editingDriver.experience || "",
+          languages: editingDriver.languages || "",
           status: editingDriver.status,
         }),
       })
@@ -586,12 +589,12 @@ export default function DriversPage() {
                       <span className="truncate max-w-[90%] whitespace-normal">
                         {newDriver.busNumber
                           ? newDriver.busNumber
-                              .split(",")
-                              .map((plate) => {
-                                const v = vehicles.find((veh) => veh.busNumberPlate === plate)
-                                return v ? `${plate}${v.busNumber ? ` (${v.busNumber})` : ""}` : plate
-                              })
-                              .join(", ")
+                            .split(",")
+                            .map((plate) => {
+                              const v = vehicles.find((veh) => veh.busNumberPlate === plate)
+                              return v ? `${plate}${v.busNumber ? ` (${v.busNumber})` : ""}` : plate
+                            })
+                            .join(", ")
                           : "Select registered buses"}
                       </span>
                       <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
@@ -641,6 +644,44 @@ export default function DriversPage() {
                   onChange={(e) => setNewDriver({ ...newDriver, experience: e.target.value })}
                   placeholder="5 years"
                 />
+              </div>
+              <div>
+                <Label htmlFor="languages">Languages</Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between font-normal text-left h-auto min-h-[40px] py-2 px-3">
+                      <span className="truncate max-w-[90%] whitespace-normal">
+                        {newDriver.languages || "Select languages"}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[350px]">
+
+                    <DropdownMenuSeparator />
+                    {["SINHALA", "ENGLISH", "TAMIL"].map((lang) => {
+                      const assignedLangs = newDriver.languages ? newDriver.languages.split(", ") : []
+                      const isChecked = assignedLangs.includes(lang)
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={lang}
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            let updatedLangs
+                            if (checked) {
+                              updatedLangs = [...assignedLangs, lang]
+                            } else {
+                              updatedLangs = assignedLangs.filter((l) => l !== lang)
+                            }
+                            setNewDriver({ ...newDriver, languages: updatedLangs.join(", ") })
+                          }}
+                        >
+                          {lang}
+                        </DropdownMenuCheckboxItem>
+                      )
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div>
                 <Label htmlFor="address">Address</Label>
@@ -774,8 +815,8 @@ export default function DriversPage() {
                   <div className="flex gap-2">
                     <Badge variant={getStatusColor(driver.status)}>
                       {driver.status === 'on_duty' ? t('on_duty') :
-                       driver.status === 'off_duty' ? t('off_duty') :
-                       driver.status === 'suspended' ? t('suspended') : 'UNKNOWN'}
+                        driver.status === 'off_duty' ? t('off_duty') :
+                          driver.status === 'suspended' ? t('suspended') : 'UNKNOWN'}
                     </Badge>
                   </div>
                 </div>
@@ -832,43 +873,42 @@ export default function DriversPage() {
                       {t("edit")}
                     </Button>
                     <Select
-                       value={driver.status}
-                       onValueChange={(value: Driver["status"]) => {
-                         if (driver.id) {
-                           updateDriverStatus(driver.id, value)
-                         }
-                       }}
-                     >
-                       <SelectTrigger className="h-8 text-xs w-[120px] flex-shrink-0">
-                         <div className="flex items-center gap-2">
-                           <div className={`h-2 w-2 rounded-full ${
-                             driver.status === 'on_duty' ? 'bg-green-500' :
-                             driver.status === 'suspended' ? 'bg-red-500' : 'bg-gray-400'
-                           }`} />
-                           <SelectValue />
-                         </div>
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="on_duty">
-                           <div className="flex items-center gap-2">
-                             <div className="h-2 w-2 rounded-full bg-green-500" />
-                             {t("on_duty")}
-                           </div>
-                         </SelectItem>
-                         <SelectItem value="off_duty">
-                           <div className="flex items-center gap-2">
-                             <div className="h-2 w-2 rounded-full bg-gray-400" />
-                             {t("off_duty")}
-                           </div>
-                         </SelectItem>
-                         <SelectItem value="suspended">
-                           <div className="flex items-center gap-2">
-                             <div className="h-2 w-2 rounded-full bg-red-500" />
-                             {t("suspended")}
-                           </div>
-                         </SelectItem>
-                       </SelectContent>
-                     </Select>
+                      value={driver.status}
+                      onValueChange={(value: Driver["status"]) => {
+                        if (driver.id) {
+                          updateDriverStatus(driver.id, value)
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs w-[120px] flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <div className={`h-2 w-2 rounded-full ${driver.status === 'on_duty' ? 'bg-green-500' :
+                            driver.status === 'suspended' ? 'bg-red-500' : 'bg-gray-400'
+                            }`} />
+                          <SelectValue />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="on_duty">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-green-500" />
+                            {t("on_duty")}
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="off_duty">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-gray-400" />
+                            {t("off_duty")}
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="suspended">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-red-500" />
+                            {t("suspended")}
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button
                       size="sm"
                       variant="destructive"
@@ -948,12 +988,12 @@ export default function DriversPage() {
                         <span className="truncate max-w-[90%] whitespace-normal">
                           {editingDriver.busNumber
                             ? editingDriver.busNumber
-                                .split(",")
-                                .map((plate) => {
-                                  const v = vehicles.find((veh) => veh.busNumberPlate === plate)
-                                  return v ? `${plate}${v.busNumber ? ` (${v.busNumber})` : ""}` : plate
-                                })
-                                .join(", ")
+                              .split(",")
+                              .map((plate) => {
+                                const v = vehicles.find((veh) => veh.busNumberPlate === plate)
+                                return v ? `${plate}${v.busNumber ? ` (${v.busNumber})` : ""}` : plate
+                              })
+                              .join(", ")
                             : "Select registered buses"}
                         </span>
                         <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
@@ -1003,6 +1043,44 @@ export default function DriversPage() {
                     onChange={(e) => setEditingDriver({ ...editingDriver, experience: e.target.value })}
                     placeholder="5 years"
                   />
+                </div>
+                <div>
+                  <Label htmlFor="edit-languages">Languages</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between font-normal text-left h-auto min-h-[40px] py-2 px-3">
+                        <span className="truncate max-w-[90%] whitespace-normal">
+                          {editingDriver.languages || "Select languages"}
+                        </span>
+                        <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[350px]">
+                      <DropdownMenuLabel>Select Languages</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {["SINHALA", "ENGLISH", "TAMIL"].map((lang) => {
+                        const assignedLangs = editingDriver.languages ? editingDriver.languages.split(", ") : []
+                        const isChecked = assignedLangs.includes(lang)
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={lang}
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              let updatedLangs
+                              if (checked) {
+                                updatedLangs = [...assignedLangs, lang]
+                              } else {
+                                updatedLangs = assignedLangs.filter((l) => l !== lang)
+                              }
+                              setEditingDriver({ ...editingDriver, languages: updatedLangs.join(", ") })
+                            }}
+                          >
+                            {lang}
+                          </DropdownMenuCheckboxItem>
+                        )
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div>
                   <Label htmlFor="edit-address">Address</Label>
