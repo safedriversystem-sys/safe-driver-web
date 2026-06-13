@@ -391,15 +391,7 @@ export default function RouteMonitoring() {
     fetchVehicles()
   }, [])
 
-  // Refetch when filters change
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchRoutes()
-    }, 300) // Debounce search
 
-    return () => clearTimeout(timeoutId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter])
 
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
 
@@ -681,6 +673,9 @@ export default function RouteMonitoring() {
                 <SelectItem value="maintenance">{t("route_maintenance")}</SelectItem>
               </SelectContent>
             </Select>
+            <Button onClick={fetchRoutes} className="px-6">
+              Search
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -709,19 +704,17 @@ export default function RouteMonitoring() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-lg">{route.name}
-                      {route.busNumber && <span className="text-sm font-normal text-muted-foreground ml-2">({route.startPoint.replace(/ Bus Stop/i, "")} – {route.endPoint.replace(/ Bus Stop/i, "")})</span>}
+                    <CardTitle className="text-lg flex items-baseline gap-1.5 flex-wrap">
+                      <span className="font-bold truncate">
+                        {route.startPoint.replace(/ Bus Stop/i, "")} – {route.endPoint.replace(/ Bus Stop/i, "")}
+                      </span>
+                      <span className="text-sm font-normal text-muted-foreground">({route.name})</span>
                     </CardTitle>
-                    <CardDescription className="flex flex-col gap-1">
-                      {!route.busNumber && (
-                        <span className="flex items-center gap-1">
-                          {route.startPoint.replace(/ Bus Stop/i, "")} → {route.endPoint.replace(/ Bus Stop/i, "")}
-                        </span>
-                      )}
-                      {route.busNumber && (
+                    {route.busNumber && (
+                      <CardDescription className="flex flex-col gap-1 mt-1">
                         <span>Route No: {route.busNumber}</span>
-                      )}
-                    </CardDescription>
+                      </CardDescription>
+                    )}
                   </div>
                   <Badge variant={route.status === "active" ? "success" : "secondary"}>
                     {t(route.status as any)}

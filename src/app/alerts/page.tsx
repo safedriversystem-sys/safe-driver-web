@@ -36,22 +36,6 @@ export default function AlertsPage() {
     }
   }, [])
 
-  // Debug: Log alerts when they change
-  useEffect(() => {
-    if (liveAlerts.length > 0) {
-      console.log("🎯 Live alerts updated:", liveAlerts.length, "alerts")
-      liveAlerts.forEach((alert, index) => {
-        console.log(`  Alert ${index + 1}:`, {
-          id: alert.id,
-          deviceId: alert.deviceId,
-          type: alert.type,
-          message: alert.description,
-          timestamp: alert.timestamp,
-        })
-      })
-    }
-  }, [liveAlerts])
-
 
 
   // Merge live alerts with status tracking.
@@ -304,33 +288,8 @@ export default function AlertsPage() {
             <div className="mt-2 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-md">
               <p className="text-sm font-medium text-red-800 dark:text-red-400 mb-2">{t("error_loading_alerts")}:</p>
               <p className="text-sm text-red-600 dark:text-red-300 font-semibold">{error.message}</p>
-              {error.message.includes("Permission denied") && (
-                <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-red-300 dark:border-red-900/50 rounded">
-                  <p className="text-xs font-semibold text-red-800 dark:text-red-400 mb-2">🔧 {t("quick_fix")}:</p>
-                  <ol className="text-xs text-red-700 dark:text-red-300 space-y-1 list-decimal list-inside">
-                    <li>{t("go_to_firebase_rules").split(":")[0]}: <a href="https://console.firebase.google.com/project/safe-driver-system/database/safe-driver-system-default-rtdb/rules" target="_blank" rel="noopener noreferrer" className="underline font-medium">{t("go_to_firebase_rules").split(":")[1]}</a></li>
-                    <li>{t("paste_rules")}
-                      <pre className="mt-1 p-2 bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200 rounded text-xs overflow-x-auto">{`{
-  "rules": {
-    "alerts": {
-      ".read": true,
-      ".write": false
-    },
-    "devices": {
-      ".read": true,
-      ".write": false
-    }
-  }
-}`}</pre>
-                    </li>
-                    <li>{t("click_publish")}</li>
-                    <li>{t("wait_refresh")}</li>
-                  </ol>
-                </div>
-              )}
-              <p className="text-xs text-red-500 dark:text-red-400 mt-2">
-                {t("check_console")}
-              </p>
+
+
             </div>
           )}
           {isLoadingAlerts && !error && (
@@ -554,24 +513,12 @@ export default function AlertsPage() {
                             ? t("no_history_found")
                             : t("no_status_alerts", { status: activeTab })}
                       </p>
-                      {!error && activeTab === "active" && (
-                        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 rounded-md text-left">
-                          <p className="text-xs font-medium text-blue-800 dark:text-blue-400 mb-2">Debugging Steps:</p>
-                          <ol className="text-xs text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
-                            <li>Open browser console (F12) and check for Firebase connection messages</li>
-                            <li>Verify data exists in Firebase Console at: <code className="bg-blue-100 dark:bg-blue-950 px-1 rounded text-blue-900 dark:text-blue-200">/alerts/{`<DEVICE_ID>`}/latest</code></li>
-                            <li>Check that the <code className="bg-blue-100 dark:bg-blue-950 px-1 rounded text-blue-900 dark:text-blue-200">latest</code> node has: message, tag, time, type</li>
-                            <li>Verify database rules allow read access to <code className="bg-blue-100 dark:bg-blue-950 px-1 rounded text-blue-900 dark:text-blue-200">/alerts</code></li>
-                          </ol>
-                        </div>
-                      )}
+
                       {error && (
                         <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-md">
                           <p className="text-xs font-medium text-red-800 dark:text-red-400 mb-1">Error:</p>
                           <p className="text-xs text-red-600 dark:text-red-300">{error.message}</p>
-                          <p className="mt-2 text-xs text-red-500 dark:text-red-400">
-                            Check browser console (F12) for detailed error messages
-                          </p>
+
                         </div>
                       )}
                     </div>
