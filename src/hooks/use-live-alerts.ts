@@ -497,7 +497,9 @@ export function useLiveAlerts() {
       return
     }
 
-    setIsLoading(true)
+    if (rawAlerts.length === 0) {
+      setIsLoading(true)
+    }
     setError(null)
 
     try {

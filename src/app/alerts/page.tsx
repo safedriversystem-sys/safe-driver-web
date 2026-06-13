@@ -340,7 +340,7 @@ export default function AlertsPage() {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-6">
-          {isLoadingAlerts && (
+          {isLoadingAlerts && filteredAlerts.length === 0 && (
             <Card>
               <CardContent className="flex items-center justify-center p-12">
                 <div className="text-center">
@@ -352,7 +352,7 @@ export default function AlertsPage() {
             </Card>
           )}
 
-          {!isLoadingAlerts && (
+          {(!isLoadingAlerts || filteredAlerts.length > 0) && (
             <div className="space-y-4">
               {filteredAlerts.map((alert) => (
                 <Card key={alert.id} className="w-full">
