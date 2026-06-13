@@ -784,24 +784,29 @@ export default function DriversPage() {
                 <div className="space-y-4">
                   {/* Bus assigned info */}
                   <div className="text-sm">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mb-2">
                       <Bus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="truncate" title={(() => {
-                        if (!driver.busNumber) return "No Bus Assigned"
-                        return driver.busNumber.split(",").map((busPlate) => {
-                          const v = vehicles.find((veh) => veh.busNumberPlate === busPlate)
-                          return v ? `${v.busNumberPlate}${v.busNumber ? ` (${v.busNumber})` : ""}` : busPlate
-                        }).join(", ")
-                      })()}>
-                        {(() => {
-                          if (!driver.busNumber) return "No Bus Assigned"
-                          return driver.busNumber.split(",").map((busPlate) => {
-                            const v = vehicles.find((veh) => veh.busNumberPlate === busPlate)
-                            return v ? `${v.busNumberPlate}${v.busNumber ? ` (${v.busNumber})` : ""}` : busPlate
-                          }).join(", ")
-                        })()}
-                      </span>
+                      <span className="font-medium text-muted-foreground">Assigned Buses</span>
                     </div>
+                    {driver.busNumber ? (
+                      <div className="flex flex-wrap gap-2">
+                        {driver.busNumber.split(",").map((busPlate, idx) => {
+                          const v = vehicles.find((veh) => veh.busNumberPlate === busPlate)
+                          const displayName = v ? `${v.busNumberPlate}${v.busNumber ? ` (${v.busNumber})` : ""}` : busPlate;
+                          return (
+                            <div key={idx} className="flex items-center gap-1.5 bg-background px-3 py-1.5 rounded-lg border border-border text-sm">
+                              <Bus className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="font-medium text-foreground">{displayName}</span>
+                              <Badge className={`ml-1 text-[10px] pointer-events-none ${driver.status === 'on_duty' ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                                {driver.status === 'on_duty' ? 'On Duty' : 'Assigned'}
+                              </Badge>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">No buses currently assigned.</p>
+                    )}
                   </div>
 
                   {/* Contact details */}
