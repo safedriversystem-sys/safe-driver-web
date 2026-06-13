@@ -277,8 +277,6 @@ export default function CompliancePage() {
                 <SelectItem value="all">{t("all_types")}</SelectItem>
                 <SelectItem value="positive">{t("positive")}</SelectItem>
                 <SelectItem value="negative">{t("negative")}</SelectItem>
-                <SelectItem value="complaint">{t("complaint")}</SelectItem>
-                <SelectItem value="suggestion">{t("suggestion")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
