@@ -710,21 +710,32 @@ export default function FleetManagement() {
                           <div className="flex items-start gap-2">
                             <Route className="h-4 w-4 text-muted-foreground mt-0.5" />
                             <div className="flex flex-col min-w-0">
-                              <span className="truncate">{vehicle.route || t("no_route_assigned")}</span>
-                              {vehicle.route && (() => {
+                              {vehicle.route ? (() => {
                                 const r = routes.find(rt =>
                                   (vehicle.routeId && rt.id === vehicle.routeId) ||
                                   (!vehicle.routeId && rt.name === vehicle.route)
                                 );
                                 if (r && r.startPoint && r.endPoint) {
                                   return (
-                                    <span className="text-xs text-muted-foreground truncate mt-0.5">
-                                      {r.startPoint.replace(/ Bus Stop/i, "")} to {r.endPoint.replace(/ Bus Stop/i, "")}
-                                    </span>
+                                    <>
+                                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                                        <span className="text-lg font-bold truncate">
+                                          {r.startPoint.replace(/ Bus Stop/i, "")} – {r.endPoint.replace(/ Bus Stop/i, "")}
+                                        </span>
+                                        <span className="text-sm text-muted-foreground">({vehicle.route})</span>
+                                      </div>
+                                      {r.busNumber && (
+                                        <span className="text-xs text-muted-foreground truncate mt-0.5">
+                                          Route No: {r.busNumber}
+                                        </span>
+                                      )}
+                                    </>
                                   );
                                 }
-                                return null;
-                              })()}
+                                return (
+                                  <span className="text-lg font-bold truncate">{vehicle.route}</span>
+                                );
+                              })() : <span className="truncate text-muted-foreground">{t("no_route_assigned")}</span>}
                             </div>
                           </div>
                         </div>
