@@ -71,8 +71,8 @@ export default function FleetManagement() {
   const { t } = useLanguage()
   const [newVehicle, setNewVehicle] = useState({
     busNumberPlate: "",
-    documentId: "",
     deviceId: "",
+    anyDeskId: "",
     busNumber: "",
     model: "",
     year: "",
@@ -159,7 +159,6 @@ export default function FleetManagement() {
   const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch =
       vehicle.busNumberPlate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vehicle.documentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.deviceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       vehicle.busNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (vehicle.driverName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -180,6 +179,10 @@ export default function FleetManagement() {
       if (!busPlatePattern.test(newVehicle.busNumberPlate.trim().toUpperCase())) {
         errors.push("BUS Number Plate must be in format NB-XXXX (e.g., NB-4565)")
       }
+    }
+
+    if (!newVehicle.deviceId?.trim()) {
+      errors.push("Device ID is required")
     }
 
     if (!newVehicle.model?.trim()) {
@@ -224,8 +227,8 @@ export default function FleetManagement() {
           route: newVehicle.route?.trim() || undefined,
           routeId: newVehicle.routeId?.trim() || undefined,
           locationDepot: newVehicle.locationDepot?.trim() || undefined,
-          documentId: newVehicle.documentId?.trim() || undefined,
           deviceId: newVehicle.deviceId?.trim() || undefined,
+          anyDeskId: newVehicle.anyDeskId?.trim() || undefined,
         }),
       })
 
@@ -240,7 +243,7 @@ export default function FleetManagement() {
         description: t("vehicle_added"),
       })
 
-      setNewVehicle({ busNumberPlate: "", documentId: "", deviceId: "", busNumber: "", model: "", year: "", driverName: "", ownerName: "", route: "", routeId: "", locationDepot: "" })
+      setNewVehicle({ busNumberPlate: "", deviceId: "", anyDeskId: "", busNumber: "", model: "", year: "", driverName: "", ownerName: "", route: "", routeId: "", locationDepot: "" })
       setShowAddVehicle(false)
       fetchVehicles()
     } catch (error: any) {
@@ -316,6 +319,10 @@ export default function FleetManagement() {
       }
     }
 
+    if (!editingVehicle.deviceId?.trim()) {
+      errors.push("Device ID is required")
+    }
+
     if (!editingVehicle.model?.trim()) {
       errors.push("Vehicle model is required")
     }
@@ -355,8 +362,8 @@ export default function FleetManagement() {
           route: editingVehicle.route?.trim() || undefined,
           routeId: editingVehicle.routeId?.trim() || undefined,
           locationDepot: editingVehicle.locationDepot?.trim() || undefined,
-          documentId: editingVehicle.documentId?.trim() || undefined,
           deviceId: editingVehicle.deviceId?.trim() || undefined,
+          anyDeskId: editingVehicle.anyDeskId?.trim() || undefined,
           status: editingVehicle.status,
         }),
       })
@@ -471,14 +478,27 @@ export default function FleetManagement() {
                 <p className="text-xs text-muted-foreground mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
               </div>
               <div>
-                <Label htmlFor="deviceId">{t("device_id")}</Label>
+                <Label htmlFor="deviceId">
+                  {t("device_id")} <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="deviceId"
                   value={newVehicle.deviceId}
                   onChange={(e) => setNewVehicle({ ...newVehicle, deviceId: e.target.value.toUpperCase() })}
                   placeholder="e.g., DEV-001"
+                  required
                 />
-                <p className="text-xs text-muted-foreground mt-1">GPS/Tracking device ID (optional)</p>
+                <p className="text-xs text-muted-foreground mt-1">GPS/Tracking device ID</p>
+              </div>
+              <div>
+                <Label htmlFor="anyDeskId">AnyDesk ID</Label>
+                <Input
+                  id="anyDeskId"
+                  value={newVehicle.anyDeskId}
+                  onChange={(e) => setNewVehicle({ ...newVehicle, anyDeskId: e.target.value })}
+                  placeholder="e.g., 123 456 789"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Remote access ID (optional)</p>
               </div>
               <div>
                 <Label htmlFor="model">{t("vehicle_model")}</Label>
@@ -656,18 +676,17 @@ export default function FleetManagement() {
                           <CardTitle className="text-lg">{vehicle.busNumberPlate || vehicle.busNumber || "N/A"}</CardTitle>
                           <CardDescription className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
-                              <span className="flex items-center gap-1">
-                                <FileText className="h-3 w-3" />
-                                {vehicle.documentId || "N/A"}
-                              </span>
                               {vehicle.deviceId && (
-                                <>
-                                  <span>•</span>
-                                  <span className="flex items-center gap-1 text-primary">
-                                    <Gauge className="h-3 w-3" />
-                                    {vehicle.deviceId}
-                                  </span>
-                                </>
+                                <span className="flex items-center gap-1 text-primary">
+                                  <Gauge className="h-3 w-3" />
+                                  {vehicle.deviceId}
+                                </span>
+                              )}
+                              {vehicle.deviceId && vehicle.anyDeskId && <span>•</span>}
+                              {vehicle.anyDeskId && (
+                                <span className="flex items-center gap-1 text-blue-500">
+                                  AnyDesk: {vehicle.anyDeskId}
+                                </span>
                               )}
                             </div>
                             <span>
@@ -831,14 +850,27 @@ export default function FleetManagement() {
                 <p className="text-xs text-muted-foreground mt-1">Format: NB-XXXX (e.g., NB-4565)</p>
               </div>
               <div>
-                <Label htmlFor="edit-deviceId">Device ID</Label>
+                <Label htmlFor="edit-deviceId">
+                  Device ID <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="edit-deviceId"
                   value={editingVehicle.deviceId || ""}
                   onChange={(e) => setEditingVehicle({ ...editingVehicle, deviceId: e.target.value.toUpperCase() })}
                   placeholder="e.g., DEV-001"
+                  required
                 />
-                <p className="text-xs text-muted-foreground mt-1">GPS/Tracking device ID (optional)</p>
+                <p className="text-xs text-muted-foreground mt-1">GPS/Tracking device ID</p>
+              </div>
+              <div>
+                <Label htmlFor="edit-anyDeskId">AnyDesk ID</Label>
+                <Input
+                  id="edit-anyDeskId"
+                  value={editingVehicle.anyDeskId || ""}
+                  onChange={(e) => setEditingVehicle({ ...editingVehicle, anyDeskId: e.target.value })}
+                  placeholder="e.g., 123 456 789"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Remote access ID (optional)</p>
               </div>
               <div>
                 <Label htmlFor="edit-model">Vehicle Model *</Label>
@@ -954,7 +986,7 @@ export default function FleetManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Vehicle</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{vehicleToDelete?.busNumberPlate || vehicleToDelete?.busNumber || vehicleToDelete?.documentId || vehicleToDelete?.id}</strong>? This action cannot be undone.
+              Are you sure you want to delete <strong>{vehicleToDelete?.busNumberPlate || vehicleToDelete?.busNumber || vehicleToDelete?.id}</strong>? This action cannot be undone.
               {vehicleToDelete?.status === "active" && (
                 <span className="block mt-2 text-amber-600 font-medium">
                   Warning: This vehicle is currently active. Make sure to update its status first.
