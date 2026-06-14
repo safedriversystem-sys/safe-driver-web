@@ -372,8 +372,12 @@ export default function AlertsPage() {
                         <div>
                           <CardTitle className="text-lg">{alert.description || getAlertDescription(alert.type)}</CardTitle>
                           <CardDescription className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span>{alert.driverId}</span>
-                            <span>•</span>
+                            {alert.driverId && !alert.driverId.includes(':') && (
+                              <>
+                                <span>{alert.driverId}</span>
+                                <span>•</span>
+                              </>
+                            )}
                             {/* Show number_plate if available, otherwise show busNumber, but not both if they're the same */}
                             {(alert.number_plate || alert.busNumber) && (
                               <>
