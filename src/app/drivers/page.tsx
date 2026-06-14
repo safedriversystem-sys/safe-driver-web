@@ -110,7 +110,7 @@ export default function DriversPage() {
     busNumber: "",
     address: "",
     experience: "",
-    languages: "",
+    language: "",
   })
 
   // Calculate stats from drivers data (client-side to avoid extra API call)
@@ -290,7 +290,7 @@ export default function DriversPage() {
         busNumber: "",
         address: "",
         experience: "",
-        languages: "",
+        language: "",
       })
       setIsAddDialogOpen(false)
 
@@ -458,7 +458,7 @@ export default function DriversPage() {
           busNumber: editingDriver.busNumber || "",
           address: editingDriver.address || "",
           experience: editingDriver.experience || "",
-          languages: editingDriver.languages || "",
+          language: editingDriver.language || "",
           status: editingDriver.status,
         }),
       })
@@ -654,43 +654,18 @@ export default function DriversPage() {
               </div>
               <div>
                 <Label htmlFor="languages">{t("languages")}</Label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between font-normal text-left h-auto min-h-[40px] py-2 px-3">
-                      <span className="truncate max-w-[90%] whitespace-normal">
-                        {newDriver.languages 
-                          ? newDriver.languages.split(", ").map(l => t(l.toLowerCase())).join(", ") 
-                          : t("select_languages")}
-                      </span>
-                      <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-[350px]">
-
-                    <DropdownMenuSeparator />
-                    {["SINHALA", "ENGLISH", "TAMIL"].map((lang) => {
-                      const assignedLangs = newDriver.languages ? newDriver.languages.split(", ") : []
-                      const isChecked = assignedLangs.includes(lang)
-                      return (
-                        <DropdownMenuCheckboxItem
-                          key={lang}
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            let updatedLangs
-                            if (checked) {
-                              updatedLangs = [...assignedLangs, lang]
-                            } else {
-                              updatedLangs = assignedLangs.filter((l) => l !== lang)
-                            }
-                            setNewDriver({ ...newDriver, languages: updatedLangs.join(", ") })
-                          }}
-                        >
-                          {t(lang.toLowerCase())}
-                        </DropdownMenuCheckboxItem>
-                      )
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Select value={newDriver.language || ""} onValueChange={(value) => setNewDriver({ ...newDriver, language: value })}>
+                  <SelectTrigger id="languages">
+                    <SelectValue placeholder={t("select_languages")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["SINHALA", "ENGLISH", "TAMIL"].map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        {t(lang.toLowerCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="address">Address</Label>
@@ -819,9 +794,9 @@ export default function DriversPage() {
                           {t("experience")}: {driver.experience}
                         </span>
                       )}
-                      {driver.languages && (
+                      {driver.language && (
                         <span>
-                          {t("languages")}: {driver.languages.split(", ").map(l => t(l.toLowerCase())).join(", ")}
+                          {t("languages")}: {driver.language.split(", ").map(l => t(l.toLowerCase())).join(", ")}
                         </span>
                       )}
                     </CardDescription>
@@ -1060,43 +1035,18 @@ export default function DriversPage() {
                 </div>
                 <div>
                   <Label htmlFor="edit-languages">{t("languages")}</Label>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between font-normal text-left h-auto min-h-[40px] py-2 px-3">
-                        <span className="truncate max-w-[90%] whitespace-normal">
-                          {editingDriver.languages 
-                            ? editingDriver.languages.split(", ").map(l => t(l.toLowerCase())).join(", ")
-                            : t("select_languages")}
-                        </span>
-                        <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-[350px]">
-                      <DropdownMenuLabel>{t("select_languages")}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {["SINHALA", "ENGLISH", "TAMIL"].map((lang) => {
-                        const assignedLangs = editingDriver.languages ? editingDriver.languages.split(", ") : []
-                        const isChecked = assignedLangs.includes(lang)
-                        return (
-                          <DropdownMenuCheckboxItem
-                            key={lang}
-                            checked={isChecked}
-                            onCheckedChange={(checked) => {
-                              let updatedLangs
-                              if (checked) {
-                                updatedLangs = [...assignedLangs, lang]
-                              } else {
-                                updatedLangs = assignedLangs.filter((l) => l !== lang)
-                              }
-                              setEditingDriver({ ...editingDriver, languages: updatedLangs.join(", ") })
-                            }}
-                          >
-                            {t(lang.toLowerCase())}
-                          </DropdownMenuCheckboxItem>
-                        )
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Select value={editingDriver.language || ""} onValueChange={(value) => setEditingDriver({ ...editingDriver, language: value })}>
+                    <SelectTrigger id="edit-languages">
+                      <SelectValue placeholder={t("select_languages")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["SINHALA", "ENGLISH", "TAMIL"].map((lang) => (
+                        <SelectItem key={lang} value={lang}>
+                          {t(lang.toLowerCase())}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="edit-address">Address</Label>
@@ -1201,8 +1151,8 @@ export default function DriversPage() {
                 <div>
                   <Label>{t("languages")}</Label>
                   <p className="font-medium">
-                    {selectedDriver.languages 
-                      ? selectedDriver.languages.split(", ").map(l => t(l.toLowerCase())).join(", ") 
+                    {selectedDriver.language 
+                      ? selectedDriver.language.split(", ").map(l => t(l.toLowerCase())).join(", ") 
                       : "N/A"}
                   </p>
                 </div>
