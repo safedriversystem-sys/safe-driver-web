@@ -114,7 +114,7 @@ export const driverService = {
         joinDate: now.split("T")[0],
         experience: input.experience || "",
         address: input.address || "",
-        languages: input.languages || "",
+        language: input.language || "",
         createdAt: now,
         updatedAt: now,
         // Note: lastAlert is optional and will be omitted if undefined (handled by firestoreService)
