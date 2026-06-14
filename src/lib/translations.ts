@@ -6,7 +6,7 @@ export const translations = {
         "dashboard": "Dashboard",
         "drivers": "Driver Management",
         "fleet": "Fleet Management",
-        "routes": "Route Monitoring",
+        "routes": "Route Management",
         "schedules": "Schedules",
         "incidents": "Incidents",
         "maintenance": "Maintenance",
@@ -48,7 +48,7 @@ export const translations = {
         "loading_feedback": "Loading feedback...",
 
         // Routes Page
-        "route_monitoring": "Route Monitoring System",
+        "route_monitoring": "Route Management System",
         "route_monitoring_desc": "Real-time tracking and management of bus routes",
         "active_routes": "Active Routes",
         "vehicles_on_routes": "Buses on Routes",
