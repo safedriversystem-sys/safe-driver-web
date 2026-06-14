@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EmergencyResponseSystem } from "@/lib/emergency-response-system"
 import { useLiveAlerts, type Alert, isToday, parseTimestamp } from "@/hooks/use-live-alerts"
 import { useLanguage } from "@/components/language-provider"
+import { useToast } from "@/components/ui/use-toast"
 
 
 export default function AlertsPage() {
@@ -16,6 +17,7 @@ export default function AlertsPage() {
   const { alerts: liveAlerts, historyAlerts, isLoading: isLoadingAlerts, error } = useLiveAlerts()
   const [isManualRefreshing, setIsManualRefreshing] = useState(false)
   const { t } = useLanguage()
+  const { toast } = useToast()
 
   // Track alert statuses (acknowledged/resolved) in local state
   const [alertStatuses, setAlertStatuses] = useState<Record<string, "active" | "acknowledged" | "resolved" | "archived">>({})
@@ -194,8 +196,15 @@ export default function AlertsPage() {
   }
 
   const handleContactDriver = (alert: any) => {
-    // In a real app, this would initiate contact with the driver
-    console.log(`Contacting driver ${alert.driverName}`)
+    if (alert.driverPhone) {
+      window.location.href = `tel:${alert.driverPhone}`
+    } else {
+      toast({
+        title: "Phone Number Missing",
+        description: `No phone number is recorded for driver ${alert.driverName}.`,
+        variant: "destructive",
+      })
+    }
   }
 
 

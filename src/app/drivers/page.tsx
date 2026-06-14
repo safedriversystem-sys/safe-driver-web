@@ -191,9 +191,16 @@ export default function DriversPage() {
 
   useEffect(() => {
     // Initial load
-    fetchDrivers()
     fetchVehicles()
   }, [])
+
+  useEffect(() => {
+    // Auto-search with debounce
+    const timer = setTimeout(() => {
+      fetchDrivers()
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm, statusFilter])
 
 
 
@@ -646,12 +653,14 @@ export default function DriversPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="languages">Languages</Label>
+                <Label htmlFor="languages">{t("languages")}</Label>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full justify-between font-normal text-left h-auto min-h-[40px] py-2 px-3">
                       <span className="truncate max-w-[90%] whitespace-normal">
-                        {newDriver.languages || "Select languages"}
+                        {newDriver.languages 
+                          ? newDriver.languages.split(", ").map(l => t(l.toLowerCase())).join(", ") 
+                          : t("select_languages")}
                       </span>
                       <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
                     </Button>
@@ -676,7 +685,7 @@ export default function DriversPage() {
                             setNewDriver({ ...newDriver, languages: updatedLangs.join(", ") })
                           }}
                         >
-                          {lang}
+                          {t(lang.toLowerCase())}
                         </DropdownMenuCheckboxItem>
                       )
                     })}
@@ -777,9 +786,6 @@ export default function DriversPage() {
                 <SelectItem value="suspended">{t("suspended")}</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={fetchDrivers} className="px-6">
-              Search
-            </Button>
           </div>
         </CardContent>
       </Card >
@@ -802,12 +808,20 @@ export default function DriversPage() {
                   <div>
                     <CardTitle className="text-lg">{driver.name}</CardTitle>
                     <CardDescription className="flex flex-col gap-1">
+                      <span className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
+                        ID: {driver.id}
+                      </span>
                       <span className="flex items-center gap-1">
-                        License: {driver.licenseNumber}
+                        {t("license")}: {driver.licenseNumber}
                       </span>
                       {driver.experience && (
                         <span>
-                          Experience: {driver.experience}
+                          {t("experience")}: {driver.experience}
+                        </span>
+                      )}
+                      {driver.languages && (
+                        <span>
+                          {t("languages")}: {driver.languages.split(", ").map(l => t(l.toLowerCase())).join(", ")}
                         </span>
                       )}
                     </CardDescription>
@@ -827,7 +841,7 @@ export default function DriversPage() {
                   <div className="text-sm">
                     <div className="flex items-center gap-2 mb-2">
                       <Bus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="font-medium text-muted-foreground">Assigned Buses</span>
+                      <span className="font-medium text-muted-foreground">{t("assigned_buses")}</span>
                     </div>
                     {driver.busNumber ? (
                       <div className="flex flex-wrap gap-2">
@@ -839,14 +853,14 @@ export default function DriversPage() {
                               <Bus className="h-3.5 w-3.5 text-muted-foreground" />
                               <span className="font-medium text-foreground">{displayName}</span>
                               <Badge className={`ml-1 text-[10px] pointer-events-none ${driver.status === 'on_duty' ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
-                                {driver.status === 'on_duty' ? 'On Duty' : 'Assigned'}
+                                {driver.status === 'on_duty' ? t("on_duty") : t("assigned")}
                               </Badge>
                             </div>
                           )
                         })}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground text-sm">No buses currently assigned.</p>
+                      <p className="text-muted-foreground text-sm">{t("no_buses_assigned")}</p>
                     )}
                   </div>
 
@@ -1045,18 +1059,20 @@ export default function DriversPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit-languages">Languages</Label>
+                  <Label htmlFor="edit-languages">{t("languages")}</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" className="w-full justify-between font-normal text-left h-auto min-h-[40px] py-2 px-3">
                         <span className="truncate max-w-[90%] whitespace-normal">
-                          {editingDriver.languages || "Select languages"}
+                          {editingDriver.languages 
+                            ? editingDriver.languages.split(", ").map(l => t(l.toLowerCase())).join(", ")
+                            : t("select_languages")}
                         </span>
                         <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-[350px]">
-                      <DropdownMenuLabel>Select Languages</DropdownMenuLabel>
+                      <DropdownMenuLabel>{t("select_languages")}</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       {["SINHALA", "ENGLISH", "TAMIL"].map((lang) => {
                         const assignedLangs = editingDriver.languages ? editingDriver.languages.split(", ") : []
@@ -1075,7 +1091,7 @@ export default function DriversPage() {
                               setEditingDriver({ ...editingDriver, languages: updatedLangs.join(", ") })
                             }}
                           >
-                            {lang}
+                            {t(lang.toLowerCase())}
                           </DropdownMenuCheckboxItem>
                         )
                       })}
@@ -1147,6 +1163,10 @@ export default function DriversPage() {
               </DialogHeader>
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <div>
+                  <Label>Driver ID</Label>
+                  <p className="font-mono text-sm">{selectedDriver.id}</p>
+                </div>
+                <div>
                   <Label>Full Name</Label>
                   <p className="font-medium">{selectedDriver.name}</p>
                 </div>
@@ -1177,6 +1197,14 @@ export default function DriversPage() {
                 <div>
                   <Label>Experience</Label>
                   <p className="font-medium">{selectedDriver.experience || "N/A"}</p>
+                </div>
+                <div>
+                  <Label>{t("languages")}</Label>
+                  <p className="font-medium">
+                    {selectedDriver.languages 
+                      ? selectedDriver.languages.split(", ").map(l => t(l.toLowerCase())).join(", ") 
+                      : "N/A"}
+                  </p>
                 </div>
                 <div>
                   <Label>Join Date</Label>

@@ -821,6 +821,36 @@ export default function FleetManagement() {
                 {selectedVehicle.model} ({selectedVehicle.year})
               </DialogDescription>
             </DialogHeader>
+            <div className="space-y-4 mt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Owner Name</p>
+                  <p className="font-semibold">{selectedVehicle.ownerName || "No owner assigned"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <div className="mt-1">
+                    <Badge variant={getStatusColor(selectedVehicle.status)}>{selectedVehicle.status.toUpperCase()}</Badge>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Device ID</p>
+                  <p className="font-semibold">{selectedVehicle.deviceId || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">AnyDesk ID</p>
+                  <p className="font-semibold">{selectedVehicle.anyDeskId || "N/A"}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">Route</p>
+                  <p className="font-semibold">{selectedVehicle.route || "Unassigned"}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground">Location / Depot</p>
+                  <p className="font-semibold">{selectedVehicle.locationDepot || selectedVehicle.location?.address || "Colombo"}</p>
+                </div>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       )}
