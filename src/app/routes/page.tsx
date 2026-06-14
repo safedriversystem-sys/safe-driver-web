@@ -462,6 +462,7 @@ export default function RouteMonitoring() {
         ]
       });
       fetchRoutes();
+      fetchStats();
       if (selectedRoute && editingRouteId === selectedRoute.id) {
          setSelectedRoute(null);
       }
@@ -484,6 +485,7 @@ export default function RouteMonitoring() {
       if (!response.ok) throw new Error("Failed to delete route");
       toast({ title: "Success", description: "Route deleted successfully!" });
       fetchRoutes();
+      fetchStats();
       if (selectedRoute?.id === routeToDelete) setSelectedRoute(null);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
