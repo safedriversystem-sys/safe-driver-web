@@ -776,13 +776,6 @@ export default function RouteMonitoring() {
                                   <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-1">Status</p>
                                   <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">Active</p>
                                 </div>
-                                <div className="col-span-2 bg-muted/50 p-4 rounded-lg border border-border">
-                                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Current Location</p>
-                                  <div className="flex items-center gap-2">
-                                    <MapPin className="h-4 w-4 text-rose-500" />
-                                    <span className="font-medium text-foreground">En route to next stop</span>
-                                  </div>
-                                </div>
                               </div>
                             </DialogContent>
                           </Dialog>
